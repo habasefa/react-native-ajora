@@ -1,0 +1,46 @@
+import { StyleSheet } from "react-native";
+import Color from "../Color";
+
+export default StyleSheet.create({
+  container: {
+    marginLeft: 12,
+    width: 52,
+    borderRadius: 18,
+    backgroundColor: Color.backgroundTransparent,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    shadowColor: Color.shadow,
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.03,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  dots: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  dot: {
+    marginLeft: 3,
+    marginRight: 3,
+    borderRadius: 3,
+    width: 6,
+    height: 6,
+    backgroundColor: Color.mutedForeground,
+  },
+  // Modern shadcn-inspired typing indicator styles
+  wrapper: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 4,
+  },
+  text: {
+    fontSize: 12,
+    color: Color.mutedForeground,
+    marginLeft: 8,
+    fontWeight: "400",
+  },
+});

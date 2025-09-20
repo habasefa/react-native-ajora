@@ -1,0 +1,27 @@
+import { Stack } from "expo-router";
+import { StatusBar } from "expo-status-bar";
+import "react-native-reanimated";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { SafeAreaProvider } from "react-native-safe-area-context";
+import { AjoraProvider } from "../../src";
+import useAjora from "../../src/hooks/useAjora";
+
+export default function RootLayout() {
+  const ajora = useAjora({
+    baseUrl: "http://192.168.8.5:3000",
+  });
+
+  return (
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <SafeAreaProvider>
+        <AjoraProvider ajora={ajora}>
+          <Stack>
+            <Stack.Screen name="index" options={{ headerShown: false }} />
+            <Stack.Screen name="+not-found" />
+          </Stack>
+          <StatusBar style="light" />
+        </AjoraProvider>
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
+  );
+}

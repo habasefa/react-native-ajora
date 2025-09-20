@@ -65,7 +65,7 @@ module.exports = {
     "linebreak-style": ["off", "unix"],
     quotes: ["error", "double"],
     "jsx-quotes": ["error", "prefer-single"],
-    "@stylistic/semi": ["error", "always"],
+    "@stylistic/semi": ["error", "off"],
     "@stylistic/member-delimiter-style": [
       "error",
       {

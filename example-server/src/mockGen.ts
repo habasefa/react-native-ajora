@@ -1,3 +1,5 @@
+import { v4 as uuidv4 } from "uuid";
+
 export const mockResponseText = `
 # Machine Learning (ML)
 
@@ -62,3 +64,24 @@ Machine learning involves three main components:
 `.split("");
 
 export const mockThreadTitle = "Machine Learning (ML)";
+
+/* Mock response */
+export const mockGen = async function* () {
+  let finalText = "";
+  for (const chunk of mockResponseText) {
+    // Add a small delay between chunks to simulate streaming latency
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    finalText += chunk;
+    // Simulate Google GenAI response format
+    yield {
+      candidates: [
+        {
+          content: {
+            role: "model",
+            parts: [{ text: chunk }],
+          },
+        },
+      ],
+    };
+  }
+};

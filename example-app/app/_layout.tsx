@@ -8,7 +8,7 @@ import useAjora from "../../src/hooks/useAjora";
 
 export default function RootLayout() {
   const ajora = useAjora({
-    baseUrl: "http://192.168.8.5:3000",
+    baseUrl: "http://localhost:3000",
   });
 
   return (

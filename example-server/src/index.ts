@@ -3,11 +3,10 @@ dotenv.config();
 import express from "express";
 import cors from "cors";
 import { v4 as uuidv4 } from "uuid";
-import { mockGen } from "./mockGen";
 import { gemini } from "./gemini";
 
 const app = express();
-const port = process.env.PORT || 4000;
+const port = process.env.PORT || 3000;
 
 // Middleware
 app.use(cors());

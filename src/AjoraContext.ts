@@ -21,6 +21,7 @@ export const AjoraContext = createContext<IAjoraContext>({
   ajora: {
     stream: [],
     messages: {},
+    messagesByThread: [],
     threads: [],
     activeThreadId: null,
     isThinking: false,
@@ -31,6 +32,9 @@ export const AjoraContext = createContext<IAjoraContext>({
     submitQuery: () => Promise.resolve(),
     addNewThread: () => {},
     switchThread: () => {},
+    getThreads: () => {},
+    getMessages: () => {},
+    getMessagesByThread: () => {},
     setIsThinking: () => {},
     setIsLoadingEarlier: () => {},
     setMode: () => {},

@@ -46,6 +46,10 @@ export interface MessageContainerProps<TMessage extends IMessage = IMessage> {
   infiniteScroll?: boolean;
   isLoadingEarlier?: boolean;
   handleOnScroll?(event: ReanimatedScrollEvent): void;
+  onSend?(
+    messages: IMessage | IMessage[],
+    shouldResetInputToolbar?: boolean
+  ): void;
 }
 
 export interface State {

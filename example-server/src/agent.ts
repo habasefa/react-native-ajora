@@ -4,22 +4,52 @@ import { gemini } from "./gemini";
 import { isFunctionCall, isText } from "../utils/toolUtils";
 import { executeTool } from "./toolExecutor";
 import { v4 as uuidv4 } from "uuid";
+import DbService from "../db/dbService";
 
 export interface Message {
   role: "user" | "model";
   parts: Part[];
 }
 
+export interface AgentOptions {
+  threadId?: string;
+  dbService?: DbService;
+  maxHistoryMessages?: number;
+}
+
 // Maximum internal follow-up turns to avoid infinite loops
 const MAX_TURNS = 50;
 
-export const agent = async function* (message: Message) {
+export const agent = async function* (
+  message: Message,
+  options: AgentOptions = {}
+) {
   try {
     // Per-invocation state to prevent cross-request contamination
-    const history: Message[] = [];
+    let history: Message[] = [];
     const messageId = uuidv4();
+    const { threadId, dbService, maxHistoryMessages = 50 } = options;
 
-    // Seed with the incoming user message
+    // Load conversation history if threadId and dbService are provided
+    if (threadId && dbService) {
+      try {
+        const dbMessages = await dbService.getMessages(threadId);
+        // Convert database messages to agent format and limit history
+        history = dbMessages.slice(-maxHistoryMessages).map((dbMsg) => ({
+          role: dbMsg.role as "user" | "model",
+          parts: dbMsg.parts,
+        }));
+        console.log(
+          `Loaded messages from conversation history`,
+          JSON.stringify(history, null, 2)
+        );
+      } catch (error) {
+        console.warn("Failed to load conversation history:", error);
+        // Continue with empty history if loading fails
+      }
+    }
+
+    // Add the incoming user message
     history.push(message);
 
     let remainingTurns = MAX_TURNS;
@@ -40,7 +70,10 @@ export const agent = async function* (message: Message) {
         if (isFunctionCall(chunk)) {
           const functionCall =
             chunk.candidates?.[0]?.content?.parts?.[0]?.functionCall;
-          console.info("Function call detected", functionCall);
+          console.info(
+            "Function call detected",
+            JSON.stringify(functionCall, null, 2)
+          );
           if (functionCall) {
             pendingToolCalls.push(functionCall);
             // Reflect the functionCall in history per Gemini requirements
@@ -79,11 +112,9 @@ export const agent = async function* (message: Message) {
 
       // Execute any pending tool calls in order and append functionResponses
       if (pendingToolCalls.length > 0) {
-        console.info("Executing tool calls", pendingToolCalls.length);
         for (const toolCall of pendingToolCalls) {
           try {
             const toolResult = await executeTool(toolCall);
-            console.info("Tool result", toolResult);
             const functionResponse: Message = {
               role: "user",
               parts: [
@@ -123,8 +154,6 @@ export const agent = async function* (message: Message) {
       // Neither tools nor continuation requested → end
       break;
     }
-
-    console.info("History", JSON.stringify(history, null, 2));
   } catch (error) {
     console.error("Error in agent:", error);
     throw error;

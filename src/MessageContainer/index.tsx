@@ -64,16 +64,14 @@ function MessageContainer<TMessage extends IMessage = IMessage>(
     scrollToBottomComponent: scrollToBottomComponentProp,
     renderDay: renderDayProp,
     renderSuggestedQuestions,
+    onSend,
   } = props;
 
   const { ajora } = useChatContext();
 
-  const { activeThreadId, messages: messagesByThread, submitQuery } = ajora;
+  const { activeThreadId, messagesByThread, submitQuery } = ajora;
 
-  const getMessages = () =>
-    activeThreadId ? messagesByThread[activeThreadId] : [];
-
-  const messages = getMessages();
+  console.log("[Ajora]: messagesByThread", messagesByThread);
 
   const scrollToBottomOpacity = useSharedValue(0);
   const [isScrollToBottomVisible, setIsScrollToBottomVisible] = useState(false);
@@ -179,9 +177,9 @@ function MessageContainer<TMessage extends IMessage = IMessage>(
 
       const { ...restProps } = props;
 
-      if (messages && role) {
-        const previousMessage = messages[index + 1] || {};
-        const nextMessage = messages[index - 1] || {};
+      if (messagesByThread && role) {
+        const previousMessage = messagesByThread[index + 1] || {};
+        const nextMessage = messagesByThread[index - 1] || {};
 
         const messageProps: ItemProps<TMessage> = {
           ...restProps,
@@ -240,7 +238,13 @@ function MessageContainer<TMessage extends IMessage = IMessage>(
         createdAt: new Date(),
         pending: true,
       };
-      submitQuery(newMessage, activeThreadId || "");
+
+      // Use onSend if available, otherwise fallback to submitQuery
+      if (onSend) {
+        onSend(newMessage, true);
+      } else {
+        submitQuery(newMessage, activeThreadId || "");
+      }
     };
 
     if (renderChatEmptyProp)
@@ -302,7 +306,13 @@ function MessageContainer<TMessage extends IMessage = IMessage>(
         </ScrollView>
       </View>
     );
-  }, [activeThreadId, submitQuery, renderChatEmptyProp, messages]);
+  }, [
+    activeThreadId,
+    submitQuery,
+    onSend,
+    renderChatEmptyProp,
+    messagesByThread,
+  ]);
 
   const ListHeaderComponent = useMemo(() => {
     const content = renderLoadEarlier();
@@ -348,14 +358,14 @@ function MessageContainer<TMessage extends IMessage = IMessage>(
       listHeight.value = event.nativeEvent.layout.height;
 
       // Always scroll to bottom when messages are loaded
-      if (messages?.length)
+      if (messagesByThread?.length)
         setTimeout(() => {
           doScrollToBottom(false);
         }, 500);
 
       listViewProps?.onLayout?.(event);
     },
-    [messages, doScrollToBottom, listHeight, listViewProps]
+    [messagesByThread, doScrollToBottom, listHeight, listViewProps]
   );
 
   const onEndReached = useCallback(() => {
@@ -439,12 +449,14 @@ function MessageContainer<TMessage extends IMessage = IMessage>(
   // removes unrendered days positions when messages are added/removed
   useEffect(() => {
     Object.keys(daysPositions.value).forEach((key) => {
-      const messageIndex = messages.findIndex((m) => m._id.toString() === key);
+      const messageIndex = messagesByThread.findIndex(
+        (m) => m._id.toString() === key
+      );
       let shouldRemove = messageIndex === -1;
 
       if (!shouldRemove) {
-        const prevMessage = messages[messageIndex + 1];
-        const message = messages[messageIndex];
+        const prevMessage = messagesByThread[messageIndex + 1];
+        const message = messagesByThread[messageIndex];
         shouldRemove = !!prevMessage && isSameDay(message, prevMessage);
       }
 
@@ -456,7 +468,7 @@ function MessageContainer<TMessage extends IMessage = IMessage>(
           return value;
         });
     });
-  }, [messages, daysPositions]);
+  }, [messagesByThread, daysPositions]);
 
   return (
     <View
@@ -469,7 +481,7 @@ function MessageContainer<TMessage extends IMessage = IMessage>(
         extraData={extraData}
         ref={forwardRef as React.Ref<FlatList<unknown>>}
         keyExtractor={keyExtractor as (item: IMessage, index: number) => string}
-        data={messages}
+        data={messagesByThread}
         renderItem={renderItem as any}
         inverted={true}
         automaticallyAdjustContentInsets={false}
@@ -492,7 +504,7 @@ function MessageContainer<TMessage extends IMessage = IMessage>(
         daysPositions={daysPositions}
         listHeight={listHeight}
         renderDay={renderDayProp}
-        messages={messages}
+        messages={messagesByThread}
         isLoadingEarlier={isLoadingEarlier}
       />
     </View>

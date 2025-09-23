@@ -1,11 +1,8 @@
-import { useEffect, useReducer, useRef } from "react";
+import { useEffect, useReducer, useRef, useState } from "react";
 import { IMessage, ThreadItem } from "../types";
 import ApiService from "../api";
 import { nanoid } from "nanoid";
-import {
-  createDefaultThread,
-  mergeFunctionCallsAndResponses,
-} from "../utils/index";
+import { mergeFunctionCallsAndResponses } from "../utils/index";
 import { SuggestionProps } from "../suggestion/types";
 import { SourceProps } from "../source/types";
 
@@ -26,9 +23,13 @@ type AjoraState = {
 };
 
 export type Ajora = AjoraState & {
+  messagesByThread: IMessage[];
   submitQuery: (message: IMessage, threadId: string) => Promise<void>;
   addNewThread: () => void;
   switchThread: (threadId: string) => void;
+  getThreads: () => void;
+  getMessages: (threadId: string) => void;
+  getMessagesByThread: () => void;
   setIsThinking: (isThinking: boolean) => void;
   setIsLoadingEarlier: (loadEarlier: boolean) => void;
   setMode: (mode: string) => void;
@@ -61,6 +62,14 @@ type Action =
   | {
       type: "REMOVE_MESSAGE";
       payload: { messageId: string | number; threadId: string };
+    }
+  | {
+      type: "SET_THREADS";
+      payload: { threads: ThreadItem[] };
+    }
+  | {
+      type: "SET_MESSAGES";
+      payload: { messages: IMessage[]; threadId: string };
     };
 
 const ajoraReducer = (state: AjoraState, action: Action): AjoraState => {
@@ -134,12 +143,12 @@ const ajoraReducer = (state: AjoraState, action: Action): AjoraState => {
       };
     }
     case "ADD_NEW_THREAD": {
-      const thread = createDefaultThread();
+      // Don't create thread locally - let server handle it
+      // Just clear the active thread ID so the next message will create a new thread
+      console.log("[Ajora]: ADD_NEW_THREAD - clearing activeThreadId");
       return {
         ...state,
-        threads: [...state.threads, thread],
-        activeThreadId: thread.id,
-        messages: { ...state.messages, [thread.id]: [] },
+        activeThreadId: null,
       };
     }
     case "UPDATE_THREAD_TITLE": {
@@ -150,6 +159,11 @@ const ajoraReducer = (state: AjoraState, action: Action): AjoraState => {
       return { ...state, threads };
     }
     case "SWITCH_THREAD": {
+      console.log("[Ajora]: Switching thread to:", action.payload.threadId);
+      console.log(
+        "[Ajora]: Previous activeThreadId was:",
+        state.activeThreadId
+      );
       return { ...state, activeThreadId: action.payload.threadId };
     }
     case "SET_THINKING": {
@@ -173,6 +187,18 @@ const ajoraReducer = (state: AjoraState, action: Action): AjoraState => {
       return {
         ...state,
         messages: { ...state.messages, [threadId]: filteredMessages },
+      };
+    }
+    case "SET_THREADS": {
+      return { ...state, threads: action.payload.threads };
+    }
+    case "SET_MESSAGES": {
+      return {
+        ...state,
+        messages: {
+          ...state.messages,
+          [action.payload.threadId]: action.payload.messages,
+        },
       };
     }
     default:
@@ -213,15 +239,112 @@ const useAjora = ({
     };
   }, [baseUrl]);
 
+  useEffect(() => {
+    if (apiServiceRef.current) {
+      console.info("[Ajora]: Getting threads...");
+      getThreads();
+    }
+  }, [apiServiceRef.current]);
+
+  useEffect(() => {
+    if (ajora.activeThreadId) {
+      getMessages(ajora.activeThreadId);
+    }
+  }, [ajora.activeThreadId]);
+
+  // Auto-select the first thread only on initial load, not when creating new threads
+  const [hasAutoSelected, setHasAutoSelected] = useState(false);
+
+  useEffect(() => {
+    if (!ajora.activeThreadId && ajora.threads.length > 0 && !hasAutoSelected) {
+      console.log("[Ajora]: Auto-selecting first thread:", ajora.threads[0].id);
+      dispatch({
+        type: "SWITCH_THREAD",
+        payload: { threadId: ajora.threads[0].id },
+      });
+      setHasAutoSelected(true);
+    }
+  }, [ajora.threads, ajora.activeThreadId, hasAutoSelected]);
+
+  const getThreads = async () => {
+    try {
+      if (!apiServiceRef.current) {
+        console.warn("[Ajora]: API service not initialized");
+        return;
+      }
+      const threads = await apiServiceRef.current.getThreads();
+      console.log("[Ajora]: Threads received:", threads);
+      dispatch({ type: "SET_THREADS", payload: { threads: threads ?? [] } });
+    } catch (error) {
+      console.error("[Ajora]: Error fetching threads:", error);
+      // Set empty threads array on error to avoid undefined state
+      dispatch({ type: "SET_THREADS", payload: { threads: [] } });
+    }
+  };
+
+  const getMessages = async (threadId: string) => {
+    try {
+      if (!apiServiceRef.current) {
+        console.warn("[Ajora]: API service not initialized");
+        return;
+      }
+      const messages = await apiServiceRef.current.getMessages(threadId);
+      if (messages) {
+        dispatch({
+          type: "SET_MESSAGES",
+          payload: { messages: messages ?? [], threadId },
+        });
+      }
+    } catch (error) {
+      console.error("[Ajora]: Error fetching messages:", error);
+      // Set empty messages array on error
+      dispatch({
+        type: "SET_MESSAGES",
+        payload: { messages: [], threadId },
+      });
+    }
+  };
+
+  const getMessagesByThread = () => {
+    try {
+      if (ajora.activeThreadId) {
+        getMessages(ajora.activeThreadId);
+      }
+      return [];
+    } catch (error) {
+      console.error("[Ajora]: Error in getting messages by thread:", error);
+      if (ajora.activeThreadId) {
+        return ajora.messages[ajora.activeThreadId] || [];
+      }
+      return [];
+    }
+  };
+
   const submitQuery = async (message: IMessage, thread_id: string) => {
-    let threadId = thread_id || "";
-    if (!thread_id) {
+    let threadId = thread_id;
+    console.log("[Ajora]: submitQuery called with thread_id:", thread_id);
+    console.log("[Ajora]: current activeThreadId:", ajora.activeThreadId);
+
+    if (!thread_id || thread_id.trim() === "") {
       if (ajora.activeThreadId) {
         threadId = ajora.activeThreadId;
+        console.log("[Ajora]: Using activeThreadId:", threadId);
       } else {
-        const newThread = createDefaultThread();
-        threadId = newThread.id;
-        dispatch({ type: "SWITCH_THREAD", payload: { threadId } });
+        // Don't create thread locally - let server handle it
+        threadId = "";
+        console.log(
+          "[Ajora]: No thread ID provided, letting server create new thread"
+        );
+      }
+    } else {
+      // Only use server-generated thread IDs (UUIDs), not client-generated ones
+      if (thread_id.startsWith("thread_")) {
+        console.log(
+          "[Ajora]: Ignoring client-generated thread ID, using activeThreadId or empty"
+        );
+        threadId = ajora.activeThreadId || "";
+      } else {
+        console.log("[Ajora]: Using provided server thread_id:", threadId);
       }
     }
 
@@ -236,86 +359,107 @@ const useAjora = ({
       }
       let accumulatedText = "";
       let streamingMessageId: string | number = "";
+      let currentThreadId = threadId; // Track the current thread ID for streaming
 
-      const cleanup = apiServiceRef.current.streamResponse(message, {
-        onChunk: (chunk: IMessage) => {
-          if (!streamingMessageId) {
-            streamingMessageId = chunk._id;
-          }
-          const updatedMessage: IMessage = {
-            ...chunk,
-            _id: streamingMessageId,
-            parts: [],
-          };
-          const chunkText = chunk?.parts?.[0]?.text ?? "";
-          const chunkFunctionCall = chunk?.parts?.[0]?.functionCall;
-          accumulatedText += chunkText;
+      const cleanup = apiServiceRef.current.streamResponse(
+        message,
+        {
+          onChunk: (chunk: IMessage) => {
+            if (!streamingMessageId) {
+              streamingMessageId = chunk._id;
+            }
+            const updatedMessage: IMessage = {
+              ...chunk,
+              _id: streamingMessageId,
+              parts: [],
+            };
+            const chunkText = chunk?.parts?.[0]?.text ?? "";
+            const chunkFunctionCall = chunk?.parts?.[0]?.functionCall;
+            accumulatedText += chunkText;
 
-          if (chunkText) {
-            updatedMessage.parts = [
-              ...updatedMessage.parts,
-              { text: accumulatedText },
-            ];
-          }
+            if (chunkText) {
+              updatedMessage.parts = [
+                ...updatedMessage.parts,
+                { text: accumulatedText },
+              ];
+            }
 
-          if (chunkFunctionCall && Object.keys(chunkFunctionCall).length > 0) {
-            updatedMessage.parts = [
-              ...updatedMessage.parts,
-              { functionCall: chunkFunctionCall },
-            ];
-          }
+            if (
+              chunkFunctionCall &&
+              Object.keys(chunkFunctionCall).length > 0
+            ) {
+              updatedMessage.parts = [
+                ...updatedMessage.parts,
+                { functionCall: chunkFunctionCall },
+              ];
+            }
 
-          dispatch({
-            type: "UPDATE_STREAMING_MESSAGE",
-            payload: { message: updatedMessage, threadId },
-          });
+            dispatch({
+              type: "UPDATE_STREAMING_MESSAGE",
+              payload: { message: updatedMessage, threadId: currentThreadId },
+            });
+          },
+          onComplete: (completedMessage: IMessage) => {
+            dispatch({
+              type: "UPDATE_STREAMING_MESSAGE",
+              payload: { message: completedMessage, threadId: currentThreadId },
+            });
+            if (cleanupRef.current) {
+              cleanupRef.current();
+              cleanupRef.current = null;
+            }
+            dispatch({ type: "SET_THINKING", payload: { isThinking: false } });
+          },
+          onThreadTitle: (title: string) => {
+            dispatch({
+              type: "UPDATE_THREAD_TITLE",
+              payload: { title, threadId: currentThreadId },
+            });
+          },
+          onThreadId: (serverThreadId: string) => {
+            console.log(
+              "[Ajora]: Received thread ID from server:",
+              serverThreadId
+            );
+            // Update the current thread ID for streaming messages
+            currentThreadId = serverThreadId;
+            // Always update to the server thread ID to ensure consistency
+            dispatch({
+              type: "SWITCH_THREAD",
+              payload: { threadId: serverThreadId },
+            });
+          },
+          onError: (error: Error) => {
+            console.error("[Ajora]: Error in streaming:", error);
+            const errorMessage: IMessage = {
+              _id: "error",
+              role: "model",
+              parts: [
+                {
+                  text: "An error occurred. Please check your internet connection and try again.",
+                },
+              ],
+              createdAt: new Date(),
+            };
+            dispatch({
+              type: "ADD_MESSAGES",
+              payload: { messages: [errorMessage], threadId },
+            });
+            if (cleanupRef.current) {
+              cleanupRef.current();
+              cleanupRef.current = null;
+            }
+            dispatch({ type: "SET_THINKING", payload: { isThinking: false } });
+          },
+          onSources: (sources: SourceProps[]) => {
+            console.log("[Ajora]: Sources received:", sources);
+          },
+          onSuggestions: (suggestions: SuggestionProps[]) => {
+            console.log("[Ajora]: Suggestions received:", suggestions);
+          },
         },
-        onComplete: (completedMessage: IMessage) => {
-          dispatch({
-            type: "UPDATE_STREAMING_MESSAGE",
-            payload: { message: completedMessage, threadId },
-          });
-          if (cleanupRef.current) {
-            cleanupRef.current();
-            cleanupRef.current = null;
-          }
-          dispatch({ type: "SET_THINKING", payload: { isThinking: false } });
-        },
-        onThreadTitle: (title: string) => {
-          dispatch({
-            type: "UPDATE_THREAD_TITLE",
-            payload: { title, threadId },
-          });
-        },
-        onError: (error: Error) => {
-          console.error("[Ajora]: Error in streaming:", error);
-          const errorMessage: IMessage = {
-            _id: "error",
-            role: "model",
-            parts: [
-              {
-                text: "An error occurred. Please check your internet connection and try again.",
-              },
-            ],
-            createdAt: new Date(),
-          };
-          dispatch({
-            type: "ADD_MESSAGES",
-            payload: { messages: [errorMessage], threadId },
-          });
-          if (cleanupRef.current) {
-            cleanupRef.current();
-            cleanupRef.current = null;
-          }
-          dispatch({ type: "SET_THINKING", payload: { isThinking: false } });
-        },
-        onSources: (sources: SourceProps[]) => {
-          console.log("[Ajora]: Sources received:", sources);
-        },
-        onSuggestions: (suggestions: SuggestionProps[]) => {
-          console.log("[Ajora]: Suggestions received:", suggestions);
-        },
-      });
+        threadId
+      );
       cleanupRef.current = cleanup;
     } catch (error: any) {
       console.error("[Ajora]: Failed to submit query:", error);
@@ -365,12 +509,21 @@ const useAjora = ({
     submitQuery(userMessage, ajora.activeThreadId);
   };
 
+  // Compute messagesByThread from the current active thread
+  const messagesByThread = ajora.activeThreadId
+    ? ajora.messages[ajora.activeThreadId] || []
+    : [];
+
   return {
     ...ajora,
+    messagesByThread,
     submitQuery,
     addNewThread: () => dispatch({ type: "ADD_NEW_THREAD" }),
     switchThread: (threadId: string) =>
       dispatch({ type: "SWITCH_THREAD", payload: { threadId } }),
+    getThreads,
+    getMessages,
+    getMessagesByThread,
     setIsThinking: (isThinking: boolean) =>
       dispatch({ type: "SET_THINKING", payload: { isThinking } }),
     setIsLoadingEarlier: (loadEarlier: boolean) =>

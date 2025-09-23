@@ -4,11 +4,11 @@ export interface ThreadItem {
   id: string;
   title: string;
   lastMessage?: IMessage;
-  timestamp?: Date;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface ThreadProps {
-  threads: ThreadItem[];
   isOpen: boolean;
   onClose: () => void;
   onThreadSelect: (thread: ThreadItem) => void;

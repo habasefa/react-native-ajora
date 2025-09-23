@@ -1,5 +1,5 @@
 import EventSource from "react-native-sse";
-import { IMessage } from "./types";
+import { IMessage, ThreadItem } from "./types";
 import { SourceProps } from "./source/types";
 import { SuggestionProps } from "./suggestion/types";
 
@@ -11,6 +11,7 @@ export interface StreamResponseOptions {
   onChunk: (message: IMessage) => void;
   onComplete: (message: IMessage) => void;
   onThreadTitle: (title: string) => void;
+  onThreadId: (threadId: string) => void;
   onError: (error: Error) => void;
   onSources: (sources: SourceProps[]) => void;
   onSuggestions: (suggestions: SuggestionProps[]) => void;
@@ -38,7 +39,8 @@ export class ApiService {
    */
   streamResponse(
     message: IMessage,
-    options: StreamResponseOptions
+    options: StreamResponseOptions,
+    threadId?: string
   ): () => void {
     const {
       onChunk,
@@ -46,17 +48,21 @@ export class ApiService {
       onError,
       onOpen,
       onThreadTitle,
+      onThreadId,
       onSources,
       onSuggestions,
     } = options;
 
     try {
+      const requestBody = { message, threadId };
+      console.log("[Ajora]: Sending request to API with:", requestBody);
+
       this.eventSource = new EventSource(`${this.config.baseUrl}/api/stream`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ message }),
+        body: JSON.stringify(requestBody),
         pollingInterval: 0,
       });
 
@@ -72,6 +78,7 @@ export class ApiService {
           // console.info("[Ajora]: SSE message received:", data);
 
           if (data.threadTitle) return onThreadTitle(data.threadTitle);
+          if (data.threadId) return onThreadId(data.threadId);
           if (data.sources) return onSources(data.sources);
           if (data.suggestions) return onSuggestions(data.suggestions);
 
@@ -113,60 +120,18 @@ export class ApiService {
     }
   }
 
-  /**
-   * Get a single response from the API
-   */
-  async getResponse(message: IMessage): Promise<ChatResponse> {
-    let lastError: Error | null = null;
+  // Thread endpoints
+  getThreads(): Promise<ThreadItem[]> {
+    return fetch(`${this.config.baseUrl}/api/threads`).then((res) =>
+      res.json()
+    );
+  }
 
-    for (let attempt = 1; attempt <= 3; attempt++) {
-      try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 30000);
-
-        // ✅ send message as an array
-        const response = await fetch(`${this.config.baseUrl}/api/chat`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ message: [message] }),
-          signal: controller.signal,
-        });
-
-        clearTimeout(timeoutId);
-
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        const data = await response.json();
-
-        // ✅ extract text from parts[0].text
-        const parsedResponse: IMessage = {
-          ...data,
-          text: data.parts?.[0]?.text ?? "",
-        };
-
-        return {
-          response: parsedResponse,
-          success: true,
-        };
-      } catch (error) {
-        lastError = error as Error;
-        console.error(`[Ajora]: Attempt ${attempt} failed:`, error);
-
-        if (attempt < 3) {
-          await this.delay(1000);
-        }
-      }
-    }
-
-    return {
-      response: {} as IMessage,
-      success: false,
-      error: lastError?.message || "Unknown error occurred",
-    };
+  createThread(title: string): Promise<ThreadItem> {
+    return fetch(`${this.config.baseUrl}/api/threads`, {
+      method: "POST",
+      body: JSON.stringify({ title }),
+    }).then((res) => res.json());
   }
 
   private close(): void {
@@ -176,8 +141,11 @@ export class ApiService {
     }
   }
 
-  private delay(ms: number): Promise<void> {
-    return new Promise((resolve) => setTimeout(resolve, ms));
+  // Message endpoints
+  getMessages(threadId: string): Promise<IMessage[]> {
+    return fetch(
+      `${this.config.baseUrl}/api/threads/${threadId}/messages`
+    ).then((res) => res.json());
   }
 
   updateConfig(newConfig: Partial<ApiConfig>): void {
@@ -199,7 +167,5 @@ const DEFAULT_CONFIG: ApiConfig = {
 export const defaultApiService = new ApiService(DEFAULT_CONFIG);
 export const streamResponse =
   defaultApiService.streamResponse.bind(defaultApiService);
-export const getResponse =
-  defaultApiService.getResponse.bind(defaultApiService);
 
 export default ApiService;

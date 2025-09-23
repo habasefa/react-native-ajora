@@ -94,7 +94,8 @@ function Ajora<TMessage extends IMessage = IMessage>(
   } = props;
 
   const { ajora } = useChatContext();
-  const { activeThreadId, threads, addNewThread, switchThread } = ajora;
+  const { activeThreadId, threads, addNewThread, switchThread, submitQuery } =
+    ajora;
 
   const currentThread = threads.find((thread) => thread.id === activeThreadId);
 
@@ -242,46 +243,6 @@ function Ajora<TMessage extends IMessage = IMessage>(
     }
   }, [onNewThread, addNewThread]);
 
-  const renderMessages = useMemo(() => {
-    if (!isInitialized) return null;
-
-    const { messagesContainerStyle, ...messagesContainerProps } = props;
-
-    return (
-      <View style={[stylesCommon.fill, messagesContainerStyle]}>
-        {showHeader && (
-          <Header
-            title={currentThread ? currentThread.title : "New Chat"}
-            onMenuPress={handleHeaderMenuPress}
-            onPlusPress={handleHeaderPlusPress}
-            {...headerProps}
-          />
-        )}
-        <MessageContainer<TMessage>
-          {...messagesContainerProps}
-          invertibleScrollViewProps={{
-            keyboardShouldPersistTaps,
-          }}
-          forwardRef={messageContainerRef}
-          isThinking={isThinking}
-        />
-        {renderChatFooter?.()}
-      </View>
-    );
-  }, [
-    isInitialized,
-    isThinking,
-    props,
-    keyboardShouldPersistTaps,
-    messageContainerRef,
-    renderChatFooter,
-    showHeader,
-    currentThread,
-    handleHeaderMenuPress,
-    handleHeaderPlusPress,
-    headerProps,
-  ]);
-
   const notifyInputTextReset = useCallback(() => {
     onInputTextChanged?.("");
   }, [onInputTextChanged]);
@@ -321,6 +282,11 @@ function Ajora<TMessage extends IMessage = IMessage>(
         resetInputToolbar();
       }
 
+      // Send the message to the server
+      if (newMessages.length > 0) {
+        submitQuery(newMessages[0], activeThreadId || "");
+      }
+
       onSend?.(newMessages);
 
       setTimeout(() => scrollToBottom(), 10);
@@ -332,8 +298,60 @@ function Ajora<TMessage extends IMessage = IMessage>(
       resetInputToolbar,
       disableTyping,
       scrollToBottom,
+      submitQuery,
+      activeThreadId,
     ]
   );
+
+  const handleMessageContainerSend = useCallback(
+    (messages: IMessage | IMessage[], shouldResetInputToolbar?: boolean) => {
+      const messageArray = Array.isArray(messages) ? messages : [messages];
+      _onSend(messageArray as TMessage[], shouldResetInputToolbar);
+    },
+    [_onSend]
+  );
+
+  const renderMessages = useMemo(() => {
+    if (!isInitialized) return null;
+
+    const { messagesContainerStyle, ...messagesContainerProps } = props;
+
+    return (
+      <View style={[stylesCommon.fill, messagesContainerStyle]}>
+        {showHeader && (
+          <Header
+            title={currentThread ? currentThread.title : "New Chat"}
+            onMenuPress={handleHeaderMenuPress}
+            onPlusPress={handleHeaderPlusPress}
+            {...headerProps}
+          />
+        )}
+        <MessageContainer<TMessage>
+          {...messagesContainerProps}
+          invertibleScrollViewProps={{
+            keyboardShouldPersistTaps,
+          }}
+          forwardRef={messageContainerRef}
+          isThinking={isThinking}
+          onSend={handleMessageContainerSend}
+        />
+        {renderChatFooter?.()}
+      </View>
+    );
+  }, [
+    isInitialized,
+    isThinking,
+    props,
+    keyboardShouldPersistTaps,
+    messageContainerRef,
+    renderChatFooter,
+    showHeader,
+    currentThread,
+    handleHeaderMenuPress,
+    handleHeaderPlusPress,
+    headerProps,
+    handleMessageContainerSend,
+  ]);
 
   const onInputSizeChanged = useCallback(
     (size: { height: number }) => {
@@ -504,7 +522,6 @@ function Ajora<TMessage extends IMessage = IMessage>(
           </View>
           {showThreads && (
             <Thread
-              threads={threads}
               isOpen={isThreadDrawerOpen}
               onClose={() => setIsThreadDrawerOpen(false)}
               onThreadSelect={handleThreadSelect}

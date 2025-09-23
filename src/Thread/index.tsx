@@ -5,9 +5,12 @@ import { ThreadItem, ThreadProps } from "./types";
 import { MaterialIcons } from "@expo/vector-icons";
 import { useChatContext } from "../AjoraContext";
 
-const formatTimestamp = (timestamp: Date): string => {
+const formatTimestamp = (timestamp: string | Date | undefined): string => {
+  if (!timestamp) return "";
+
+  const date = typeof timestamp === "string" ? new Date(timestamp) : timestamp;
   const now = new Date();
-  const diffInMs = now.getTime() - timestamp.getTime();
+  const diffInMs = now.getTime() - date.getTime();
   const diffInMinutes = Math.floor(diffInMs / (1000 * 60));
   const diffInHours = Math.floor(diffInMs / (1000 * 60 * 60));
   const diffInDays = Math.floor(diffInMs / (1000 * 60 * 60 * 24));
@@ -24,17 +27,15 @@ const formatTimestamp = (timestamp: Date): string => {
     const weeks = Math.floor(diffInDays / 7);
     return `${weeks}w ago`;
   } else {
-    return timestamp.toLocaleDateString("en-US", {
+    return date.toLocaleDateString("en-US", {
       month: "short",
       day: "numeric",
-      year:
-        timestamp.getFullYear() !== now.getFullYear() ? "numeric" : undefined,
+      year: date.getFullYear() !== now.getFullYear() ? "numeric" : undefined,
     });
   }
 };
 
 export function Thread({
-  threads,
   isOpen,
   onClose,
   onThreadSelect,
@@ -44,7 +45,13 @@ export function Thread({
 }: ThreadProps) {
   const slideAnim = useRef(new Animated.Value(-DRAWER_WIDTH)).current;
   const { ajora } = useChatContext();
-  const { activeThreadId, addNewThread, switchThread } = ajora;
+  const { activeThreadId, getThreads } = ajora;
+
+  React.useEffect(() => {
+    getThreads();
+  }, []);
+
+  const { threads } = ajora;
 
   React.useEffect(() => {
     Animated.timing(slideAnim, {
@@ -54,13 +61,21 @@ export function Thread({
     }).start();
   }, [isOpen, slideAnim]);
 
+  const handleThreadPress = (threadId: string) => {
+    const thread = threads.find((t) => t.id === threadId);
+    if (thread) {
+      onThreadSelect(thread);
+    }
+    onClose();
+  };
+
   const renderThreadItem = ({ item }: { item: ThreadItem }) => (
     <TouchableOpacity
       style={[
         styles.threadItem,
         item.id === activeThreadId && styles.activeThreadItem,
       ]}
-      onPress={() => switchThread(item.id)}
+      onPress={() => handleThreadPress(item.id)}
       activeOpacity={0.7}
     >
       <View style={styles.threadContent}>
@@ -84,14 +99,14 @@ export function Thread({
             {item.lastMessage.parts?.[0]?.text}
           </Text>
         )}
-        {item.timestamp && (
+        {item.created_at && (
           <Text
             style={[
               styles.threadTimestamp,
               item.id === activeThreadId && styles.activeThreadTimestamp,
             ]}
           >
-            {formatTimestamp(item.timestamp)}
+            {formatTimestamp(item.created_at)}
           </Text>
         )}
       </View>
@@ -158,7 +173,7 @@ export function Thread({
         {/* New Thread Button */}
         <TouchableOpacity
           style={styles.newThreadButton}
-          onPress={addNewThread}
+          onPress={onNewThread}
           activeOpacity={0.7}
         >
           <Text style={styles.newThreadIcon}>+</Text>

@@ -52,24 +52,29 @@ export const Send = <TMessage extends IMessage = IMessage>({
   alwaysShowSend = false,
   disabled = false,
   sendButtonProps,
+  onSend,
 }: SendProps<TMessage>) => {
   const { ajora } = useChatContext();
   const { submitQuery, activeThreadId } = ajora;
 
   const handleOnPress = useCallback(() => {
     if (text) {
-      submitQuery(
-        {
-          _id: Math.round(Math.random() * 1000000),
-          role: "user",
-          parts: [{ text: text.trim() }],
-          createdAt: new Date(),
-        } as IMessage,
+      const message = {
+        _id: Math.round(Math.random() * 1000000),
+        role: "user",
+        parts: [{ text: text.trim() }],
+        createdAt: new Date(),
+      } as IMessage;
 
-        activeThreadId || ""
-      );
+      // Call onSend to trigger input clearing and other side effects
+      if (onSend) {
+        onSend(message as Partial<TMessage>, true);
+      } else {
+        // Fallback to direct submitQuery if onSend is not provided
+        submitQuery(message, activeThreadId || "");
+      }
     }
-  }, [text, submitQuery, activeThreadId]);
+  }, [text, submitQuery, activeThreadId, onSend]);
 
   const showSend = useMemo(
     () => alwaysShowSend || (text && text.trim().length > 0),

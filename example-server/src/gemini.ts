@@ -1,11 +1,7 @@
-import { GoogleGenAI, Part } from "@google/genai";
+import { GoogleGenAI } from "@google/genai";
 import { nativeTools } from "./tools/toolsDeclaration";
-import { nextSpeaker } from "./nextSpeaker";
-
-const geminiSystemInstruction = `
-You are a helpful assistant that can use the following tools to help the user:
-${nativeTools.map((tool) => tool.name).join(", ")}
-`;
+import { basePrompt } from "./system_prompt";
+import { Message } from "./agent";
 
 // Initialize Google GenAI
 const apiKey = process.env.GEMINI_API_KEY;
@@ -19,54 +15,32 @@ const genAI = new GoogleGenAI({
   apiKey,
 });
 
-export const gemini = async function* (message: any) {
+export const gemini = async function* (message: Message[]) {
   try {
+    if (message.length === 0) {
+      throw new Error("Message is empty");
+    }
+    const formattedMessage = message.map((message) => ({
+      role: message.role,
+      parts: message.parts,
+    }));
     const response = await genAI.models.generateContentStream({
-      model: "gemini-2.0-flash-lite",
-      contents: {
-        role: message.role,
-        parts: message.parts,
-      },
+      model: "gemini-2.5-pro",
+      contents: formattedMessage,
       config: {
         tools: [
           {
             functionDeclarations: nativeTools,
           },
         ],
-        systemInstruction: geminiSystemInstruction,
+        systemInstruction: basePrompt,
       },
     });
 
     for await (const chunk of response) {
       yield chunk;
     }
-    const nextSpeakerResponse = await nextSpeaker(message.parts);
-    if (nextSpeakerResponse && nextSpeakerResponse.next_speaker === "model") {
-      yield {
-        candidates: [
-          {
-            content: {
-              role: nextSpeakerResponse.next_speaker,
-              parts: [{ text: nextSpeakerResponse.reasoning }],
-            },
-          },
-        ],
-      };
-      gemini(message);
-    } else {
-      yield {
-        candidates: [
-          {
-            content: {
-              role: nextSpeakerResponse?.next_speaker,
-              parts: [{ text: nextSpeakerResponse?.reasoning }],
-            },
-          },
-        ],
-      };
-    }
   } catch (error) {
     console.error("Error in gemini:", error);
-    throw error;
   }
 };

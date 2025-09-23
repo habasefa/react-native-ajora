@@ -14,7 +14,7 @@ export interface MessageProps<TMessage extends IMessage> {
   renderBubble?(props: BubbleProps<TMessage>): React.ReactNode;
   renderMessageActions?(props: MessageActionsProps): React.ReactNode;
   renderDay?(props: DayProps): React.ReactNode;
-  renderTools?(): any[];
+  tools?(): any[];
   shouldUpdateMessage?(
     props: MessageProps<IMessage>,
     nextProps: MessageProps<IMessage>

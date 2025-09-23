@@ -52,6 +52,7 @@ const todoListFunctionDeclaration = {
         description: "Todo to add, remove, update.",
       },
     },
+    required: ["todo"],
   },
 };
 

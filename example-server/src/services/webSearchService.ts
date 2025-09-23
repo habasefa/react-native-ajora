@@ -30,9 +30,10 @@ class WebSearchService {
   }
 
   async searchWeb(query: string) {
+    console.info("Searching web:", query);
     try {
       const response = await fetch(
-        `${this.apiUrl}?q=${encodeURIComponent(query)}`,
+        `${this.apiUrl}?q=${encodeURIComponent(query)} &count=3`,
         {
           headers: {
             Accept: "application/json",
@@ -43,6 +44,7 @@ class WebSearchService {
       );
       if (!response.ok) {
         const body = await response.text();
+
         throw new Error(`${response.status} ${response.statusText}: ${body}`);
       }
       const data = await response.json();
@@ -69,6 +71,9 @@ export { WebSearchService };
 
 // const webSearchService = new WebSearchService();
 
-// webSearchService.searchWeb("What is the capital of France?").then((result) => {
-//   console.log(result);
-// });
+// // Note: Do not execute searches at import time; the agent/tools will call this service.
+// webSearchService
+//   .searchWeb("What is the staple food of Ethiopia?")
+//   .then((result) => {
+//     console.log(result);
+//   });

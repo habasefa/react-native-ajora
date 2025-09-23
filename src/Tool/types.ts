@@ -31,6 +31,6 @@ export interface MessageToolCallProps<TMessage = any> {
   currentMessage?: TMessage;
   position?: "left" | "right";
   containerStyle?: any;
-  renderTools?: () => any[];
+  tools?: () => any[];
   onToolResponse?: (response: ToolResponse) => void;
 }

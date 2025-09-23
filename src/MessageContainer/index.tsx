@@ -208,18 +208,22 @@ function MessageContainer<TMessage extends IMessage = IMessage>(
     const suggestedQuestions = [
       {
         title: "Science",
-        question: "What is the theory of relativity?",
+        question: "What does a nutritionist do?",
         icon: "science",
       },
-      { title: "AI", question: "Explain machine learning", icon: "memory" },
+      {
+        title: "Food",
+        question: "What is the staple food of Ethiopia?",
+        icon: "memory",
+      },
       {
         title: "History",
-        question: "The founding of the United States?",
+        question: "Who created burger?",
         icon: "history-edu",
       },
       {
         title: "Life",
-        question: "What is the chief end of man?",
+        question: "What is the chief end of life?",
         icon: "emoji-emotions",
       },
     ];

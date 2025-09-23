@@ -23,6 +23,7 @@ let Message: React.FC<MessageProps<IMessage>> = (
     position,
     containerStyle,
     renderMessageActions,
+    tools,
   } = props;
 
   const renderBubbleComponent = useCallback(() => {
@@ -38,7 +39,7 @@ let Message: React.FC<MessageProps<IMessage>> = (
 
     return (
       <View>
-        <Bubble {...rest} renderTools={props.renderTools} />
+        <Bubble {...rest} />
         <MessageActions
           message={currentMessage}
           renderMessageActions={renderMessageActions}
@@ -46,7 +47,7 @@ let Message: React.FC<MessageProps<IMessage>> = (
         />
       </View>
     );
-  }, [props, renderBubble]);
+  }, [props]);
 
   if (!currentMessage) return null;
 

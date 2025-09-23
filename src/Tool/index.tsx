@@ -3,12 +3,19 @@ import { View, Text } from "react-native";
 import { IMessage } from "../types";
 import { MessageToolCallProps } from "./types";
 import styles from "./styles";
+import {
+  ConfirmTool,
+  TodoListTool,
+  DocSearchTool,
+  nativeTools,
+  WebSearchTool,
+} from "../nativeTools";
 
 export function MessageToolCall<TMessage extends IMessage = IMessage>({
   currentMessage = {} as TMessage,
   position = "left",
   containerStyle,
-  renderTools,
+  tools,
 }: MessageToolCallProps<TMessage>) {
   // Find tool call parts in the message
   const toolCallParts =
@@ -20,9 +27,108 @@ export function MessageToolCall<TMessage extends IMessage = IMessage>({
     return null;
   }
 
-  // If custom tools are provided, let the parent handle rendering
-  if (renderTools && toolCallParts.length > 0) {
-    return null; // Parent will handle rendering via Bubble component
+  // Check if we have custom tool UI components available
+  if (tools && toolCallParts.length > 0) {
+    const customTools = tools();
+    return toolCallParts.map((part, index) => {
+      const toolCall = part.functionCall;
+      if (!toolCall) return null;
+
+      // Create a tool request object for custom tool UI
+      const toolRequest = {
+        callId: toolCall.id || `call_${index}`,
+        tool: {
+          name: toolCall.name || "unknown",
+          description: `Tool: ${toolCall.name || "unknown"}`,
+          args: toolCall.args || {},
+          response: toolCall.response, // Include response data if available
+        },
+      };
+
+      // Try to find a matching custom tool component
+      const matchingTool = customTools?.find((toolComponent: any) => {
+        // Check if the tool component matches the tool name
+        if (React.isValidElement(toolComponent)) {
+          return (
+            toolComponent?.key === toolCall.name ||
+            (toolComponent?.props as any)?.toolName === toolCall.name
+          );
+        } else {
+          // Handle component classes
+          return (
+            (toolComponent as any)?.name === toolCall.name ||
+            (toolComponent as any)?.displayName === toolCall.name
+          );
+        }
+      });
+
+      if (matchingTool) {
+        if (React.isValidElement(matchingTool)) {
+          // Clone the element with the tool request props
+          return React.cloneElement(matchingTool as React.ReactElement<any>, {
+            key: `tool-${index}`,
+            request: toolRequest,
+            onResponse: () => {
+              // Handle tool response if needed
+            },
+          });
+        } else {
+          // Create element from component class
+          const ToolComponent =
+            matchingTool as unknown as React.ComponentType<any>;
+          return (
+            <ToolComponent
+              key={`tool-${index}`}
+              request={toolRequest}
+              onResponse={() => {
+                // Handle tool response if needed
+              }}
+            />
+          );
+        }
+      }
+
+      // Fallback to default tool call rendering
+      return (
+        <View key={`tool-${index}`} style={styles.container}>
+          <View style={styles.argsContainer}>
+            <Text style={styles.argsText}>
+              🔧 {toolCall.name || "Unknown Tool"}
+            </Text>
+            {toolCall.args && Object.keys(toolCall.args).length > 0 && (
+              <Text style={styles.argsSubText}>
+                {JSON.stringify(toolCall.args, null, 2)}
+              </Text>
+            )}
+          </View>
+        </View>
+      );
+    });
+  }
+
+  // Check if the tools are native tools
+  if (nativeTools.includes(toolCallParts[0].functionCall?.name || "")) {
+    const toolName = toolCallParts[0].functionCall?.name || "";
+    const toolRequest = {
+      callId: toolCallParts[0].functionCall?.id || `call_${0}`,
+      tool: {
+        name: toolName,
+        description: `Tool: ${toolName}`,
+        args: toolCallParts[0].functionCall?.args || {},
+      },
+    };
+    switch (toolName) {
+      case "todo_list":
+        return <TodoListTool request={toolRequest} />;
+      case "confirm_action":
+        return <ConfirmTool request={toolRequest} />;
+      case "search_web":
+        return <WebSearchTool request={toolRequest} />;
+      case "search_document":
+        return <DocSearchTool request={toolRequest} />;
+      default:
+        return null;
+    }
   }
 
   return (
@@ -36,17 +142,6 @@ export function MessageToolCall<TMessage extends IMessage = IMessage>({
       {toolCallParts.map((part, index) => {
         const toolCall = part.functionCall;
         if (!toolCall) return null;
-
-        // Create tool request for potential future use
-        // const toolRequest: ToolRequest = {
-        //   callId: toolCall.id || `call_${index}`,
-        //   tool: {
-        //     name: toolCall.name || "unknown",
-        //     description: `Tool: ${toolCall.name || "unknown"}`,
-        //     args: toolCall.args || {},
-        //   },
-        // };
-
         return (
           <View
             key={index}

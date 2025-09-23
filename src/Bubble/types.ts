@@ -75,6 +75,6 @@ export interface BubbleProps<TMessage extends IMessage> {
   renderMessageFile?(props: RenderMessageFileProps<TMessage>): React.ReactNode;
   renderMessageText?(props: RenderMessageTextProps<TMessage>): React.ReactNode;
   renderMessageToolCall?(props: any): React.ReactNode;
-  renderTools?(): any[];
+  tools?(): any[];
   renderTicks?(currentMessage: TMessage): React.ReactNode;
 }

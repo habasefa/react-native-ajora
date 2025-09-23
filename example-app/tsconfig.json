@@ -3,15 +3,17 @@
   "compilerOptions": {
     "strict": true,
     "paths": {
-      "@/*": [
-        "./*"
-      ]
+      "@/*": ["./*"]
     }
   },
   "include": [
     "**/*.ts",
     "**/*.tsx",
     ".expo/types/**/*.ts",
-    "expo-env.d.ts"
+    "expo-env.d.ts",
+    "../src/nativeTools/ConfirmTool.tsx",
+    "../src/nativeTools/DocSearchTool.tsx",
+    "../src/nativeTools/TodoListTool.tsx",
+    "../src/nativeTools/WebSearchTool.tsx"
   ]
 }

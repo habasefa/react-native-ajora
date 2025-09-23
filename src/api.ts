@@ -5,9 +5,6 @@ import { SuggestionProps } from "./suggestion/types";
 
 export interface ApiConfig {
   baseUrl: string;
-  timeout?: number;
-  retryAttempts?: number;
-  retryDelay?: number;
 }
 
 export interface StreamResponseOptions {
@@ -29,14 +26,10 @@ export interface ChatResponse {
 export class ApiService {
   private config: Required<ApiConfig>;
   private eventSource: EventSource | null = null;
-  private timeoutId: NodeJS.Timeout | null = null;
 
   constructor(config: ApiConfig) {
     this.config = {
       baseUrl: config.baseUrl,
-      timeout: config.timeout || 30000,
-      retryAttempts: config.retryAttempts || 3,
-      retryDelay: config.retryDelay || 1000,
     };
   }
 
@@ -67,8 +60,8 @@ export class ApiService {
         pollingInterval: 0,
       });
 
-      this.eventSource.addEventListener("open", (event) => {
-        console.info("[Ajora]: SSE connection opened:", event);
+      this.eventSource.addEventListener("open", () => {
+        console.info("[Ajora]: SSE connection opened");
         onOpen?.();
       });
 
@@ -76,37 +69,28 @@ export class ApiService {
         try {
           const data = JSON.parse(event.data || "{}");
 
-          if (data.threadTitle) {
-            onThreadTitle(data.threadTitle);
-            return;
-          }
-          if (data.sources) {
-            onSources(data.sources);
-            return;
-          }
+          // console.info("[Ajora]: SSE message received:", data);
 
-          if (data.suggestions) {
-            onSuggestions(data.suggestions);
-            return;
-          }
+          if (data.threadTitle) return onThreadTitle(data.threadTitle);
+          if (data.sources) return onSources(data.sources);
+          if (data.suggestions) return onSuggestions(data.suggestions);
 
           if (data.error) {
             console.error("[Ajora]: SSE error received:", data.error);
             this.close();
-            onError(new Error(data.error));
-            return;
+            return onError(new Error(data.error));
           }
 
           if (data.done) {
             console.info("[Ajora]: SSE stream completed");
             this.close();
-            onComplete(data.data as IMessage);
-            return;
+            return onComplete(data.data as IMessage);
           }
 
-          onChunk(data as IMessage);
+          onChunk(data);
         } catch (parseError) {
           console.error("[Ajora]: Failed to parse SSE data:", parseError);
+          this.close();
           onError(new Error("Failed to parse server response"));
         }
       });
@@ -117,13 +101,9 @@ export class ApiService {
         onError(new Error("SSE connection failed"));
       });
 
-      this.timeoutId = setTimeout(() => {
-        this.close();
-        onError(new Error("Request timeout"));
-      }, this.config.timeout);
+      // Start initial timeout in case server never responds
 
       return () => {
-        this.clearTimeout();
         this.close();
       };
     } catch (error) {
@@ -139,13 +119,10 @@ export class ApiService {
   async getResponse(message: IMessage): Promise<ChatResponse> {
     let lastError: Error | null = null;
 
-    for (let attempt = 1; attempt <= this.config.retryAttempts; attempt++) {
+    for (let attempt = 1; attempt <= 3; attempt++) {
       try {
         const controller = new AbortController();
-        const timeoutId = setTimeout(
-          () => controller.abort(),
-          this.config.timeout
-        );
+        const timeoutId = setTimeout(() => controller.abort(), 30000);
 
         // ✅ send message as an array
         const response = await fetch(`${this.config.baseUrl}/api/chat`, {
@@ -179,8 +156,8 @@ export class ApiService {
         lastError = error as Error;
         console.error(`[Ajora]: Attempt ${attempt} failed:`, error);
 
-        if (attempt < this.config.retryAttempts) {
-          await this.delay(this.config.retryDelay);
+        if (attempt < 3) {
+          await this.delay(1000);
         }
       }
     }
@@ -193,17 +170,9 @@ export class ApiService {
   }
 
   private close(): void {
-    this.clearTimeout();
     if (this.eventSource) {
       this.eventSource.close();
       this.eventSource = null;
-    }
-  }
-
-  private clearTimeout(): void {
-    if (this.timeoutId) {
-      clearTimeout(this.timeoutId);
-      this.timeoutId = null;
     }
   }
 
@@ -225,9 +194,6 @@ export class ApiService {
 
 const DEFAULT_CONFIG: ApiConfig = {
   baseUrl: "http://localhost:3000",
-  timeout: 30000,
-  retryAttempts: 3,
-  retryDelay: 1000,
 };
 
 export const defaultApiService = new ApiService(DEFAULT_CONFIG);

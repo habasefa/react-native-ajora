@@ -1,4 +1,5 @@
-import { GoogleGenAI, Part } from "@google/genai";
+import { GoogleGenAI } from "@google/genai";
+import { Message } from "./agent";
 import dotenv from "dotenv";
 dotenv.config();
 
@@ -36,14 +37,17 @@ export interface NextSpeakerResponse {
 }
 
 const nextSpeaker = async (
-  history: Part[]
+  history: Message[]
 ): Promise<NextSpeakerResponse | null> => {
   const response = await genAI.models.generateContent({
-    model: "gemini-2.0-flash-lite",
-    contents: {
-      role: "user",
-      parts: [{ text: CHECK_PROMPT }],
-    },
+    model: "gemini-2.5-pro",
+    contents: [
+      ...history,
+      {
+        role: "user",
+        parts: [{ text: CHECK_PROMPT }],
+      },
+    ],
     config: {
       responseMimeType: "application/json",
       responseSchema: RESPONSE_SCHEMA,

@@ -1,7 +1,7 @@
+import { FunctionCall } from "@google/genai";
 import { nativeTools } from "../src/tools/toolsDeclaration";
-import { Tool } from "../src/toolExecutor";
 
-const isValidToolCall = (toolCall: Tool) => {
+const isValidToolCall = (toolCall: FunctionCall) => {
   const { name, args } = toolCall;
 
   //   Check if the tool is valid
@@ -13,7 +13,7 @@ const isValidToolCall = (toolCall: Tool) => {
   }
 
   //   Check if the required arguments are provided
-  if (tool.parameters.required.some((required: string) => !args[required])) {
+  if (tool.parameters.required.some((required: string) => !args?.[required])) {
     return {
       error: `Tool ${name} requires the following arguments: ${tool.parameters.required.join(", ")}`,
     };
@@ -21,10 +21,12 @@ const isValidToolCall = (toolCall: Tool) => {
 
   //   Check if the arguments are valid
   if (
-    tool.parameters.properties.some((property: any) => !args[property.name])
+    Object.keys(tool.parameters.properties).some(
+      (property: any) => !args?.[property]
+    )
   ) {
     return {
-      error: `Tool ${name} requires the following arguments: ${tool.parameters.properties.join(", ")}`,
+      error: `Tool ${name} requires the following arguments: ${Object.keys(tool.parameters.properties).join(", ")}`,
     };
   }
 
@@ -35,4 +37,8 @@ const isFunctionCall = (response: any) => {
   return response.functionCalls && response.functionCalls.length > 0;
 };
 
-export { isValidToolCall, isFunctionCall };
+const isText = (response: any) => {
+  return response.candidates?.[0]?.content?.parts?.[0]?.text;
+};
+
+export { isValidToolCall, isFunctionCall, isText };

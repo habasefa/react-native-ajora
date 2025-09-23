@@ -177,7 +177,7 @@ export interface AjoraProps<TMessage extends IMessage>
   renderAccessory?(props: InputToolbarProps<TMessage>): React.ReactNode;
 
   /* Custom tools props */
-  renderTools?(): any[];
+  tools?(): any[];
   /* Callback when the Action button is pressed (if set, the default actionSheet will not be used) */
   onPressActionButton?(): void;
   /* Callback when the input text changes */

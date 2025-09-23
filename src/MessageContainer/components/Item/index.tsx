@@ -176,10 +176,7 @@ const Item = <TMessage extends IMessage>(props: ItemProps<TMessage>) => {
       {renderMessage ? (
         renderMessage(rest as MessageProps<TMessage>)
       ) : (
-        <Message
-          {...(rest as MessageProps<TMessage>)}
-          renderMessageActions={renderMessageActionsProp}
-        />
+        <Message {...(rest as MessageProps<TMessage>)} />
       )}
     </View>
   );

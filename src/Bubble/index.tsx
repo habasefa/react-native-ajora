@@ -1,5 +1,5 @@
 import React, { JSX, useCallback } from "react";
-import { Share, TouchableWithoutFeedback, View } from "react-native";
+import { Share, TouchableWithoutFeedback, View, Text } from "react-native";
 
 import { useChatContext } from "../AjoraContext";
 import { MessageText } from "../MessageText";
@@ -215,78 +215,6 @@ const Bubble = <TMessage extends IMessage = IMessage>(
     if (props.renderMessageToolCall)
       return props.renderMessageToolCall(messageToolCallProps);
 
-    // Check if we have custom tool UI components available
-    if (props.renderTools) {
-      const toolCallParts =
-        currentMessage?.parts?.filter((part) => part.functionCall) || [];
-
-      const customTools = props.renderTools();
-
-      return toolCallParts.map((part, index) => {
-        const toolCall = part.functionCall;
-        if (!toolCall) return null;
-
-        // Create a tool request object for custom tool UI
-        const toolRequest = {
-          callId: toolCall.id || `call_${index}`,
-          tool: {
-            name: toolCall.name || "unknown",
-            description: `Tool: ${toolCall.name || "unknown"}`,
-            args: toolCall.args || {},
-            response: toolCall.response, // Include response data if available
-          },
-        };
-
-        // Try to find a matching custom tool component
-        const matchingTool = customTools?.find((toolComponent: any) => {
-          // Check if the tool component matches the tool name
-          if (React.isValidElement(toolComponent)) {
-            return (
-              toolComponent?.key === toolCall.name ||
-              (toolComponent?.props as any)?.toolName === toolCall.name
-            );
-          } else {
-            // Handle component classes
-            return (
-              (toolComponent as any)?.name === toolCall.name ||
-              (toolComponent as any)?.displayName === toolCall.name
-            );
-          }
-        });
-
-        if (matchingTool) {
-          if (React.isValidElement(matchingTool)) {
-            // Clone the element with the tool request props
-            return React.cloneElement(matchingTool as React.ReactElement<any>, {
-              key: `tool-${index}`,
-              request: toolRequest,
-              onResponse: () => {
-                // Handle tool response if needed
-              },
-            });
-          } else {
-            // Create element from component class
-            const ToolComponent =
-              matchingTool as unknown as React.ComponentType<any>;
-            return (
-              <ToolComponent
-                key={`tool-${index}`}
-                request={toolRequest}
-                onResponse={() => {
-                  // Handle tool response if needed
-                }}
-              />
-            );
-          }
-        }
-
-        // Fallback to default tool call rendering
-        return (
-          <MessageToolCall key={`tool-${index}`} {...messageToolCallProps} />
-        );
-      });
-    }
-
     return <MessageToolCall {...messageToolCallProps} />;
   }, [props, currentMessage]);
 
@@ -295,9 +223,9 @@ const Bubble = <TMessage extends IMessage = IMessage>(
       <View>
         {renderMessageImage()}
         {renderMessageAudio()}
+        {renderMessageToolCall()}
         {renderMessageText()}
         {renderMessageFile()}
-        {renderMessageToolCall()}
       </View>
     );
   }, [

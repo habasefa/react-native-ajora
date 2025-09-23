@@ -40,7 +40,7 @@ export interface MessageContainerProps<TMessage extends IMessage = IMessage> {
   renderLoadEarlier?(props: LoadEarlierProps): React.ReactNode;
   renderThinkingIndicator?(): React.ReactNode;
   scrollToBottomComponent?(): React.ReactNode;
-  renderTools?(): React.ReactNode[];
+  tools?(): React.ReactNode[];
   renderMessageActions?(props: MessageActionsProps): React.ReactNode;
   onLoadEarlier?(): void;
   infiniteScroll?: boolean;

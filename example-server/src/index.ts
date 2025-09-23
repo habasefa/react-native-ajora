@@ -2,12 +2,10 @@ import dotenv from "dotenv";
 dotenv.config();
 import express from "express";
 import cors from "cors";
-import { v4 as uuidv4 } from "uuid";
-import { gemini } from "./gemini";
+import { agent } from "./agent";
 
 const app = express();
 const port = process.env.PORT || 3000;
-
 // Middleware
 app.use(cors());
 app.use(express.json());
@@ -28,40 +26,11 @@ app.post("/api/stream", async (req, res) => {
     res.setHeader("Access-Control-Allow-Origin", "*");
     res.setHeader("Access-Control-Allow-Headers", "Cache-Control");
 
-    let finalText = "";
-    const messageId = uuidv4();
+    const response = agent(message);
 
-    const response = gemini(message);
-
-    for await (const chunk of response) {
-      const chunkText = chunk.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
-
-      // Accumulate text
-      finalText += chunkText;
-
-      const streamedMessage = {
-        _id: messageId,
-        ...message[0],
-        role: chunk.candidates?.[0]?.content?.role,
-        parts: [{ text: finalText }],
-      };
-
-      // Send incremental update to client
-      res.write(`data: ${JSON.stringify(streamedMessage)}\n\n`);
+    for await (const message of response) {
+      res.write(`data: ${JSON.stringify(message)}\n\n`);
     }
-
-    // Send end event
-    res.write(
-      `data: ${JSON.stringify({
-        done: true,
-        data: {
-          _id: messageId,
-          ...message[0],
-          role: "model",
-          parts: [{ text: finalText }],
-        },
-      })}\n\n`
-    );
 
     res.end();
     console.log("SSE stream completed");
@@ -79,3 +48,16 @@ app.listen(port, () => {
 });
 
 export default app;
+
+// // Send end event
+// res.write(
+//   `data: ${JSON.stringify({
+//     done: true,
+//     data: {
+//       _id: messageId,
+//       ...message[0],
+//       role: "model",
+//       parts: [{ text: finalText }],
+//     },
+//   })}\n\n`
+// );

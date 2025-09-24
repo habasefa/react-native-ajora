@@ -155,7 +155,11 @@ const ajoraReducer = (state: AjoraState, action: Action): AjoraState => {
       const { title, threadId } = action.payload;
       const threads = [...state.threads];
       const threadIndex = threads.findIndex((t) => t.id === threadId);
-      threads[threadIndex].title = title;
+      if (threadIndex !== -1) {
+        threads[threadIndex].title = title;
+      } else {
+        console.log("[Ajora]: Adding new thread:", threadId, title);
+      }
       return { ...state, threads };
     }
     case "SWITCH_THREAD": {
@@ -244,7 +248,7 @@ const useAjora = ({
       console.info("[Ajora]: Getting threads...");
       getThreads();
     }
-  }, [apiServiceRef.current]);
+  }, [apiServiceRef.current, ajora.messages]);
 
   useEffect(() => {
     if (ajora.activeThreadId) {
@@ -290,9 +294,11 @@ const useAjora = ({
       }
       const messages = await apiServiceRef.current.getMessages(threadId);
       if (messages) {
+        // Apply function call merging to properly display function calls in history
+        const mergedMessages = mergeFunctionCallsAndResponses(messages);
         dispatch({
           type: "SET_MESSAGES",
-          payload: { messages: messages ?? [], threadId },
+          payload: { messages: mergedMessages ?? [], threadId },
         });
       }
     } catch (error) {
@@ -411,6 +417,7 @@ const useAjora = ({
             dispatch({ type: "SET_THINKING", payload: { isThinking: false } });
           },
           onThreadTitle: (title: string) => {
+            console.log("[Ajora]: Received thread title from server:", title);
             dispatch({
               type: "UPDATE_THREAD_TITLE",
               payload: { title, threadId: currentThreadId },

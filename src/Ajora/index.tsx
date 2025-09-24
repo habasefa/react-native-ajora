@@ -18,7 +18,6 @@ import { Actions } from "../Actions";
 import Bubble from "../Bubble";
 import { Composer } from "../Composer";
 import { MAX_COMPOSER_HEIGHT, MIN_COMPOSER_HEIGHT, TEST_ID } from "../Constant";
-import { Day } from "../Day";
 import { AjoraContext, useChatContext } from "../AjoraContext";
 import { Header } from "../Header";
 import { LoadEarlier } from "../LoadEarlier";
@@ -572,7 +571,6 @@ export {
   MessageImage,
   MessageText,
   Composer,
-  Day,
   InputToolbar,
   LoadEarlier,
   Message,

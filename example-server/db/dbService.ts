@@ -260,7 +260,7 @@ class DbService {
 
     try {
       const messages = await all(
-        `SELECT * FROM messages WHERE thread_id = ? ORDER BY created_at ASC`,
+        `SELECT * FROM messages WHERE thread_id = ? ORDER BY created_at DESC`,
         [thread_id]
       );
 

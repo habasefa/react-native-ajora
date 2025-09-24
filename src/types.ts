@@ -10,7 +10,6 @@ export {
   RenderMessageTextProps,
 } from "./Bubble";
 export { ComposerProps } from "./Composer";
-export { DayProps } from "./Day";
 export { HeaderProps } from "./Header";
 export { InputToolbarProps } from "./InputToolbar";
 export { LoadEarlierProps } from "./LoadEarlier";

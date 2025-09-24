@@ -44,3 +44,31 @@ export const gemini = async function* (message: Message[]) {
     console.error("Error in gemini:", error);
   }
 };
+
+export const threadTitleUpdate = async (history: Message[]) => {
+  const response = await genAI.models.generateContent({
+    model: "gemini-2.0-flash-lite",
+    contents: [
+      ...history,
+      {
+        role: "user",
+        parts: [
+          {
+            text: `Given the history of the thread, write a title for the thread`,
+          },
+        ],
+      },
+    ],
+    config: {
+      responseMimeType: "application/json",
+      responseSchema: {
+        type: "object",
+        properties: {
+          title: { type: "string" },
+        },
+        required: ["title"],
+      },
+    },
+  });
+  return response.text;
+};

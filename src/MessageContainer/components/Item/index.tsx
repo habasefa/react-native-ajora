@@ -9,8 +9,6 @@ import Animated, {
   useSharedValue,
 } from "react-native-reanimated";
 import { DaysPositions } from "../../types";
-import { Day } from "../../../Day";
-import { isSameDay } from "../../../utils";
 import { ItemProps } from "./types";
 
 export * from "./types";
@@ -93,31 +91,6 @@ export const useRelativeScrolledPositionToBottomOfDay = (
   return relativeScrolledPositionToBottomOfDay;
 };
 
-const DayWrapper = forwardRef<View, MessageProps<IMessage>>((props, ref) => {
-  const { renderDay: renderDayProp, currentMessage, previousMessage } = props;
-
-  if (!currentMessage?.createdAt || isSameDay(currentMessage, previousMessage))
-    return null;
-
-  const {
-    /* eslint-disable @typescript-eslint/no-unused-vars */
-    containerStyle,
-    onMessageLayout,
-    /* eslint-enable @typescript-eslint/no-unused-vars */
-    ...rest
-  } = props;
-
-  return (
-    <View ref={ref}>
-      {renderDayProp ? (
-        renderDayProp({ ...rest, createdAt: currentMessage.createdAt })
-      ) : (
-        <Day {...rest} createdAt={currentMessage.createdAt} />
-      )}
-    </View>
-  );
-});
-
 const Item = <TMessage extends IMessage>(props: ItemProps<TMessage>) => {
   const {
     renderMessage,
@@ -170,9 +143,10 @@ const Item = <TMessage extends IMessage>(props: ItemProps<TMessage>) => {
   return (
     // do not remove key. it helps to get correct position of the day container
     <View key={props.currentMessage._id.toString()}>
-      <Animated.View style={style} onLayout={handleLayoutDayContainer}>
-        <DayWrapper {...(rest as MessageProps<TMessage>)} />
-      </Animated.View>
+      <Animated.View
+        style={style}
+        onLayout={handleLayoutDayContainer}
+      ></Animated.View>
       {renderMessage ? (
         renderMessage(rest as MessageProps<TMessage>)
       ) : (

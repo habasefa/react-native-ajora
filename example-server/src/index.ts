@@ -3,6 +3,7 @@ dotenv.config();
 import express from "express";
 import cors from "cors";
 import { agent } from "./agent";
+import { threadTitleUpdate } from "./gemini";
 import DbService from "../db/dbService";
 
 const app = express();
@@ -66,14 +67,18 @@ app.post("/api/stream", async (req, res) => {
       maxHistoryMessages: 20,
     });
     let modelMessageContent = "";
-    let modelMessageParts: any[] = [];
+    // Collect all non-text parts across the stream (functionCall/functionResponse/etc.)
+    const collectedNonTextParts: any[] = [];
 
     for await (const chunk of response) {
       // Accumulate model response for database storage
       if (chunk.parts) {
-        modelMessageParts = chunk.parts;
-        if (chunk.parts[0]?.text) {
-          modelMessageContent += chunk.parts[0].text;
+        for (const part of chunk.parts) {
+          if ((part as any)?.text) {
+            modelMessageContent += (part as any).text || "";
+          } else {
+            collectedNonTextParts.push(part);
+          }
         }
       }
 
@@ -82,19 +87,48 @@ app.post("/api/stream", async (req, res) => {
     }
 
     // Save model message to database
-    if (modelMessageContent || modelMessageParts.length > 0) {
+    if (modelMessageContent || collectedNonTextParts.length > 0) {
       // Create final message with accumulated content
-      const finalMessageParts = [];
+      const finalMessageParts: any[] = [];
 
       // Add text content if we have accumulated text
       if (modelMessageContent) {
         finalMessageParts.push({ text: modelMessageContent });
       }
 
-      // Add any non-text parts (like function calls) from the last chunk
-      if (modelMessageParts.length > 0) {
-        const nonTextParts = modelMessageParts.filter((part) => !part.text);
-        finalMessageParts.push(...nonTextParts);
+      // Merge functionResponse into matching functionCall by id when possible
+      const callsById = new Map<string, any>();
+      const otherParts: any[] = [];
+
+      for (const part of collectedNonTextParts) {
+        const fc = (part as any).functionCall;
+        const fr = (part as any).functionResponse;
+        if (fc) {
+          const id: string = fc.id || `fc-${callsById.size}`;
+          // Keep last seen version; response may be merged later
+          callsById.set(id, { functionCall: { ...fc } });
+        } else if (fr) {
+          const id: string | undefined = fr.id;
+          if (id && callsById.has(id)) {
+            const existing = callsById.get(id);
+            callsById.set(id, {
+              functionCall: {
+                ...existing.functionCall,
+                response: fr.response,
+              },
+            });
+          } else {
+            // Keep unmatched responses as-is
+            otherParts.push(part);
+          }
+        } else {
+          otherParts.push(part);
+        }
+      }
+
+      finalMessageParts.push(...Array.from(callsById.values()));
+      if (otherParts.length > 0) {
+        finalMessageParts.push(...otherParts);
       }
 
       await dbService.addMessage({
@@ -102,6 +136,34 @@ app.post("/api/stream", async (req, res) => {
         role: "model",
         parts: finalMessageParts,
       });
+    }
+
+    // After streaming completes, compute and send updated thread title
+    try {
+      const historyForTitle = await dbService.getMessages(thread.id);
+      const totalMessages = historyForTitle.length;
+      // Only update the title on the first turn (<= 2 messages) or every 10 messages
+      if (totalMessages <= 2 || totalMessages % 10 === 0) {
+        const raw = await threadTitleUpdate(
+          historyForTitle.map((m) => ({ role: m.role as any, parts: m.parts }))
+        );
+        let title = String(raw || "").trim();
+        // If model returned JSON, extract the title field
+        try {
+          const parsed = JSON.parse(title);
+          if (parsed && typeof parsed.title === "string") {
+            title = parsed.title;
+          }
+        } catch {}
+        if (title) {
+          // Update thread title in DB
+          await dbService.updateThread(thread.id, { title });
+          // Notify client of new title
+          res.write(`data: ${JSON.stringify({ threadTitle: title })}\n\n`);
+        }
+      }
+    } catch (e) {
+      console.warn("Failed to update thread title:", e);
     }
 
     res.end();

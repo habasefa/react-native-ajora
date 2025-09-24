@@ -18,7 +18,6 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import { ReanimatedScrollEvent } from "react-native-reanimated/lib/typescript/hook/commonTypes";
-import DayAnimated from "./components/DayAnimated";
 import Item from "./components/Item";
 
 import { LoadEarlier } from "../LoadEarlier";
@@ -71,7 +70,10 @@ function MessageContainer<TMessage extends IMessage = IMessage>(
 
   const { activeThreadId, messagesByThread, submitQuery } = ajora;
 
-  console.log("[Ajora]: messagesByThread", messagesByThread);
+  console.log(
+    "[Ajora]: messagesByThread",
+    JSON.stringify(messagesByThread, null, 2)
+  );
 
   const scrollToBottomOpacity = useSharedValue(0);
   const [isScrollToBottomVisible, setIsScrollToBottomVisible] = useState(false);
@@ -499,14 +501,6 @@ function MessageContainer<TMessage extends IMessage = IMessage>(
         CellRendererComponent={renderCell as any}
       />
       {isScrollToBottomEnabled ? renderScrollToBottomWrapper() : null}
-      <DayAnimated
-        scrolledY={scrolledY}
-        daysPositions={daysPositions}
-        listHeight={listHeight}
-        renderDay={renderDayProp}
-        messages={messagesByThread}
-        isLoadingEarlier={isLoadingEarlier}
-      />
     </View>
   );
 }

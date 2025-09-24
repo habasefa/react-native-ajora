@@ -30,3 +30,4 @@ example_bare/android/.gradle
 **/.env.*
 **/.env.local
 example-server/.env
+*.db

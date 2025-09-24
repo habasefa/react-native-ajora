@@ -1,157 +1,190 @@
-import { FunctionCall, Part } from "@google/genai";
 import { nextSpeaker } from "./nextSpeaker";
 import { gemini } from "./gemini";
-import { isFunctionCall, isText } from "../utils/toolUtils";
+import { generateId, getPendingToolCall } from "../utils/toolUtils";
 import { executeTool } from "./toolExecutor";
-import { v4 as uuidv4 } from "uuid";
+import { Message } from "../db/dbService";
 import DbService from "../db/dbService";
 
-export interface Message {
-  role: "user" | "model";
-  parts: Part[];
-}
+export type AgentEvent =
+  | {
+      type: "text";
+      message: Message;
+    }
+  | {
+      type: "function_call";
+      message: Message;
+    }
+  | {
+      type: "function_response";
+      message: Message;
+    };
 
-export interface AgentOptions {
-  threadId?: string;
-  dbService?: DbService;
-  maxHistoryMessages?: number;
-}
+export type UserEvent =
+  | {
+      type: "text";
+      message: Message;
+    }
+  | {
+      type: "function_response";
+      message: Message;
+    };
+
+export type AgentMode = "agent" | "assistant";
 
 // Maximum internal follow-up turns to avoid infinite loops
 const MAX_TURNS = 50;
 
-export const agent = async function* (
-  message: Message,
-  options: AgentOptions = {}
-) {
-  try {
-    // Per-invocation state to prevent cross-request contamination
-    let history: Message[] = [];
-    const messageId = uuidv4();
-    const { threadId, dbService, maxHistoryMessages = 50 } = options;
+export const agent = async function* (query: UserEvent) {
+  const { type, message } = query;
+  const thread_id = message.thread_id;
 
-    // Load conversation history if threadId and dbService are provided
-    if (threadId && dbService) {
-      try {
-        const dbMessages = await dbService.getMessages(threadId);
-        // Convert database messages to agent format and limit history
-        history = dbMessages.slice(-maxHistoryMessages).map((dbMsg) => ({
-          role: dbMsg.role as "user" | "model",
-          parts: dbMsg.parts,
-        }));
-        console.log(
-          `Loaded messages from conversation history`,
-          JSON.stringify(history, null, 2)
-        );
-      } catch (error) {
-        console.warn("Failed to load conversation history:", error);
-        // Continue with empty history if loading fails
-      }
+  const dbService = new DbService();
+  let history: Message[] = await dbService.getMessages(thread_id);
+
+  try {
+    let turn: Message[] = [];
+    const pendingToolCall = getPendingToolCall(history);
+
+    if (type === "function_response" && pendingToolCall) {
+      const { functionCall, originalMessage } = pendingToolCall;
+      // Get the original function call and update it
+      const updatedMessage = {
+        _id: message._id,
+        thread_id: thread_id,
+        role: message.role,
+        parts: [
+          {
+            functionResponse: {
+              id: functionCall?.functionCall?.id,
+              name: functionCall?.functionCall?.name,
+              response: message.parts[0].functionResponse?.response,
+            },
+          },
+        ],
+      };
+      turn.push(updatedMessage);
+      dbService.updateMessage(message._id, updatedMessage);
+      history = await dbService.getMessages(thread_id);
+    } else if (type === "text" && pendingToolCall) {
+      const { functionCall, originalMessage } = pendingToolCall;
+      const updatedMessage = {
+        ...originalMessage,
+        parts: [
+          {
+            functionResponse: {
+              id: functionCall?.functionCall?.id,
+              name: functionCall?.functionCall?.name,
+              response: {
+                text: "The user is ignoring the previous tool call. Please continue.",
+              },
+            },
+          },
+        ],
+      };
+      turn.push(updatedMessage);
+      dbService.updateMessage(originalMessage._id, updatedMessage);
+      history = await dbService.getMessages(thread_id);
+    } else {
+      // Add the incoming user message
+      turn.push({
+        _id: message._id,
+        thread_id: thread_id,
+        role: message.role,
+        parts: message.parts,
+      });
+      dbService.addMessage(message);
+      history = await dbService.getMessages(thread_id);
     }
 
-    // Add the incoming user message
-    history.push(message);
-
     let remainingTurns = MAX_TURNS;
-    let nextRequest: Message | null = null;
 
-    // Main loop: stream model → handle tools → optionally continue
+    // Main loop: every turn we generate a new message id
     while (remainingTurns-- > 0) {
-      const pendingToolCalls: FunctionCall[] = [];
-      let pendingStreamedText = "";
+      // Check for pending tool calls, if found, execute the tool and add the function response to the turn
+      const pendingToolCall = getPendingToolCall(turn);
+      if (pendingToolCall) {
+        const { functionCall, originalMessage } = pendingToolCall;
+
+        const toolResult = executeTool({
+          id: functionCall?.functionCall?.id,
+          name: functionCall?.functionCall?.name,
+          args: functionCall?.functionCall?.args,
+        });
+        turn.push({
+          _id: message._id,
+          thread_id: thread_id,
+          role: "user",
+          parts: [
+            {
+              functionResponse: {
+                name: functionCall?.functionCall?.name,
+                response: toolResult,
+              },
+            },
+          ],
+        });
+
+        yield turn;
+      }
+
+      const messageId = generateId();
+
+      let pendingStream: Message = {
+        _id: messageId,
+        thread_id: thread_id,
+        role: "model",
+        parts: [{ text: "" }, { functionCall: [] }],
+      };
 
       // Run model streaming turn against current history
-      const response = gemini(history);
+      const response = gemini(turn);
 
       for await (const chunk of response) {
-        // Avoid excessively verbose logging in production; keep minimal
-        // console.debug(JSON.stringify(chunk.candidates?.[0]?.content));
+        const { functionCalls, text } = chunk;
 
-        if (isFunctionCall(chunk)) {
-          const functionCall =
-            chunk.candidates?.[0]?.content?.parts?.[0]?.functionCall;
-          console.info(
-            "Function call detected",
-            JSON.stringify(functionCall, null, 2)
-          );
-          if (functionCall) {
-            pendingToolCalls.push(functionCall);
-            // Reflect the functionCall in history per Gemini requirements
-            history.push({
-              role: "model",
-              parts: [
-                {
-                  functionCall: functionCall,
-                },
-              ],
-            });
-          }
+        if (functionCalls) {
+          pendingStream = {
+            ...pendingStream,
+            parts: [
+              {
+                functionCall: functionCalls,
+              },
+            ],
+          };
         }
 
-        if (isText(chunk)) {
-          pendingStreamedText +=
-            chunk.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+        if (text) {
+          pendingStream = {
+            ...pendingStream,
+            parts: [{ text: (pendingStream.parts[0]?.text ?? "") + text }],
+          };
         }
 
         // Stream chunk to caller
-        yield {
-          _id: messageId,
-          role: "model",
-          parts: chunk.candidates?.[0]?.content?.parts,
-        };
+        yield pendingStream;
       }
 
-      // Push the aggregated streamed text as a finalized model turn
-      if (pendingStreamedText) {
-        history.push({
-          role: "model",
-          parts: [{ text: pendingStreamedText }],
-        });
-        pendingStreamedText = "";
-      }
-
-      // Execute any pending tool calls in order and append functionResponses
-      if (pendingToolCalls.length > 0) {
-        for (const toolCall of pendingToolCalls) {
-          try {
-            const toolResult = await executeTool(toolCall);
-            const functionResponse: Message = {
-              role: "user",
-              parts: [
-                {
-                  functionResponse: {
-                    name: toolCall.name,
-                    response: { toolResult },
-                  },
-                },
-              ],
-            } as unknown as Message;
-
-            // Per Gemini: functionResponse must immediately follow functionCall
-            history.push(functionResponse);
-          } catch (err) {
-            console.error("Error executing tool:", err);
-          }
-        }
-
-        // After tools, continue the loop to let model consume tool outputs
-        nextRequest = null;
-        continue;
-      }
+      turn.push({
+        ...pendingStream,
+        parts: [{ text: pendingStream.parts[0]?.text ?? "" }],
+      });
 
       // No tools pending: check if model should continue
-      const nextSpeakerResponse = await nextSpeaker(history);
+      const nextSpeakerResponse = await nextSpeaker(turn);
       if (nextSpeakerResponse && nextSpeakerResponse.next_speaker === "model") {
-        nextRequest = {
+        const nextRequest: Message = {
+          _id: generateId(),
+          thread_id: thread_id,
           role: "user",
           parts: [{ text: "Please continue." }],
-        } as Message;
-        history.push(nextRequest);
+        };
+        turn.push(nextRequest);
         // Continue to next loop turn to stream follow-up
         continue;
       }
 
       // Neither tools nor continuation requested → end
+      console.log("Turns complete:", turn);
       break;
     }
   } catch (error) {

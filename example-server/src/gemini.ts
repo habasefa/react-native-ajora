@@ -1,7 +1,7 @@
 import { GoogleGenAI } from "@google/genai";
 import { nativeTools } from "./tools/toolsDeclaration";
 import { basePrompt } from "./system_prompt";
-import { Message } from "./agent";
+import { Message } from "../db/dbService";
 
 // Initialize Google GenAI
 const apiKey = process.env.GEMINI_API_KEY;

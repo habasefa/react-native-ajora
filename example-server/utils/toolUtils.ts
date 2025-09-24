@@ -1,5 +1,7 @@
-import { FunctionCall } from "@google/genai";
+import { FunctionCall, Part } from "@google/genai";
 import { nativeTools } from "../src/tools/toolsDeclaration";
+import { Message } from "../db/dbService";
+import { v4 as uuidv4 } from "uuid";
 
 const isValidToolCall = (toolCall: FunctionCall) => {
   const { name, args } = toolCall;
@@ -33,12 +35,42 @@ const isValidToolCall = (toolCall: FunctionCall) => {
   return true;
 };
 
-const isFunctionCall = (response: any) => {
-  return response.functionCalls && response.functionCalls.length > 0;
+const getFunctionCall = (message: Message): Part | undefined => {
+  return message.parts.find((part: Part) => part.functionCall);
+};
+
+const getFunctionResponse = (message: Message): Part | undefined => {
+  return message.parts.find((part: Part) => part.functionResponse);
+};
+
+const getPendingToolCall = (
+  history: Message[]
+): { functionCall: Part; originalMessage: Message } | undefined => {
+  // Get the last message in the history and check if it has functionCall but no functionResponse else return undefined
+  const lastMessage = history[history.length - 1];
+  const functionCall = getFunctionCall(lastMessage);
+  const functionResponse = getFunctionResponse(lastMessage);
+  if (functionCall && !functionResponse) {
+    return {
+      functionCall: functionCall,
+      originalMessage: lastMessage,
+    };
+  }
+  return undefined;
+};
+
+const generateId = () => {
+  return uuidv4();
 };
 
 const isText = (response: any) => {
   return response.candidates?.[0]?.content?.parts?.[0]?.text;
 };
 
-export { isValidToolCall, isFunctionCall, isText };
+export {
+  isValidToolCall,
+  isText,
+  getFunctionCall,
+  getPendingToolCall,
+  generateId,
+};

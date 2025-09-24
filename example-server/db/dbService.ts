@@ -6,8 +6,8 @@ import { v4 as uuidv4 } from "uuid";
 export interface Thread {
   id: string;
   title: string;
-  created_at: string;
-  updated_at: string;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface Message {
@@ -15,8 +15,8 @@ export interface Message {
   thread_id: string;
   role: "user" | "model";
   parts: any[];
-  created_at: string;
-  updated_at: string;
+  created_at?: string;
+  updated_at?: string;
 }
 
 class DbService {

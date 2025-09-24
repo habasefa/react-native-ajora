@@ -2,9 +2,10 @@ import { v4 as uuidv4 } from "uuid";
 
 interface Todo {
   id: string;
-  title: string;
-  description: string;
+  text: string;
   completed: boolean;
+  priority: "high" | "medium" | "low";
+  category: string;
 }
 
 interface TodoList {
@@ -44,6 +45,7 @@ type TodoAction =
 
 class TodoListService {
   private todoLists: TodoList[] = [];
+  private defaultListId: string | null = null;
 
   createTodoList(name: string, description: string, todos: Todo[] = []) {
     if (name.trim() === "" || description.trim() === "") {
@@ -60,7 +62,56 @@ class TodoListService {
     };
 
     this.todoLists.push(newList);
+
+    // Set as default if it's the first list
+    if (!this.defaultListId) {
+      this.defaultListId = newList.id;
+    }
+
     return newList;
+  }
+
+  getDefaultList() {
+    if (!this.defaultListId) {
+      // Create a default list if none exists
+      const defaultList = this.createTodoList(
+        "My Todo List",
+        "Default todo list for managing tasks",
+        [
+          {
+            id: uuidv4(),
+            text: "Plan weekly meal prep",
+            completed: false,
+            priority: "high",
+            category: "meal planning",
+          },
+          {
+            id: uuidv4(),
+            text: "Research nutrition guidelines",
+            completed: true,
+            priority: "medium",
+            category: "research",
+          },
+          {
+            id: uuidv4(),
+            text: "Create shopping list",
+            completed: false,
+            priority: "high",
+            category: "shopping",
+          },
+          {
+            id: uuidv4(),
+            text: "Review dietary restrictions",
+            completed: false,
+            priority: "low",
+            category: "planning",
+          },
+        ]
+      );
+      return this.getTodos(defaultList.id);
+    }
+
+    return this.getTodos(this.defaultListId);
   }
 
   private getList(todoListId: string): TodoList {
@@ -76,17 +127,18 @@ class TodoListService {
     todoListId: string;
     todo: Omit<Todo, "id"> & Partial<Pick<Todo, "id">>;
   }) {
-    if (todo.title.trim() === "" || todo.description.trim() === "") {
-      throw new Error("Title and description are required to add a todo");
+    if (todo.text.trim() === "") {
+      throw new Error("Text is required to add a todo");
     }
 
     const list = this.getList(todoListId);
 
     const newTodo: Todo = {
       id: todo.id ?? uuidv4(),
-      title: todo.title.trim(),
-      description: todo.description.trim(),
+      text: todo.text.trim(),
       completed: todo.completed ?? false,
+      priority: todo.priority ?? "medium",
+      category: todo.category ?? "general",
     };
 
     if (list.todos.some((t) => t.id === newTodo.id)) {
@@ -98,7 +150,20 @@ class TodoListService {
   }
 
   getTodos(todoListId: string) {
-    return this.getList(todoListId).todos;
+    const list = this.getList(todoListId);
+    const todos = list.todos;
+    const completedTodos = todos.filter((todo) => todo.completed).length;
+    const pendingTodos = todos.filter((todo) => !todo.completed).length;
+
+    return {
+      action: "get",
+      todos,
+      totalTodos: todos.length,
+      completedTodos,
+      pendingTodos,
+      listName: list.name,
+      listDescription: list.description,
+    };
   }
 
   removeTodo(todoListId: string, id: string) {
@@ -131,6 +196,10 @@ class TodoListService {
           todo: args.todo,
         });
       case TodoType.GET:
+        // If no todoListId provided, return default list
+        if (!args.todoListId) {
+          return this.getDefaultList();
+        }
         return this.getTodos(args.todoListId);
       case TodoType.REMOVE:
         return this.removeTodo(args.todoListId, args.id);

@@ -60,18 +60,25 @@ export const Send = <TMessage extends IMessage = IMessage>({
   const handleOnPress = useCallback(() => {
     if (text) {
       const message = {
-        _id: Math.round(Math.random() * 1000000),
+        _id: Math.round(Math.random() * 1000000).toString(),
         role: "user",
+        thread_id: activeThreadId || "",
         parts: [{ text: text.trim() }],
         createdAt: new Date(),
       } as IMessage;
 
       // Call onSend to trigger input clearing and other side effects
-      if (onSend) {
+      if (false) {
         onSend(message as Partial<TMessage>, true);
       } else {
         // Fallback to direct submitQuery if onSend is not provided
-        submitQuery(message, activeThreadId || "");
+        submitQuery(
+          {
+            type: "text",
+            message,
+          },
+          activeThreadId || ""
+        );
       }
     }
   }, [text, submitQuery, activeThreadId, onSend]);

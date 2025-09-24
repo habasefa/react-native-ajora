@@ -1,27 +1,84 @@
 import EventSource from "react-native-sse";
-import { IMessage, ThreadItem } from "./types";
+import { FunctionResponse, IMessage } from "./types";
 import { SourceProps } from "./source/types";
 import { SuggestionProps } from "./suggestion/types";
+import { Thread } from "./Thread/types";
 
 export interface ApiConfig {
   baseUrl: string;
 }
 
-export interface StreamResponseOptions {
-  onChunk: (message: IMessage) => void;
-  onComplete: (message: IMessage) => void;
-  onThreadTitle: (title: string) => void;
-  onThreadId: (threadId: string) => void;
-  onError: (error: Error) => void;
-  onSources: (sources: SourceProps[]) => void;
-  onSuggestions: (suggestions: SuggestionProps[]) => void;
-  onOpen?: () => void;
+// UserEvent types to the API
+export type UserEvent =
+  | {
+      type: "text";
+      message: IMessage;
+    }
+  | {
+      type: "function_response";
+      message: IMessage;
+    }
+  | {
+      type: "regenerate";
+      message: IMessage;
+    };
+
+// AgentEvent types from the API
+export interface MessageEvent {
+  type: "message";
+  message: IMessage;
 }
 
-export interface ChatResponse {
-  response: IMessage;
-  success: boolean;
-  error?: string;
+export interface FunctionResponseEvent {
+  type: "function_response";
+  data: {
+    thread_id: string;
+    message_id: string;
+    functionResponse: FunctionResponse;
+  };
+}
+
+export interface ThreadTitleEvent {
+  type: "thread_title";
+  threadTitle: Thread;
+}
+
+export interface SourcesEvent {
+  type: "sources";
+  sources: SourceProps[];
+}
+
+export interface SuggestionsEvent {
+  type: "suggestions";
+  suggestions: SuggestionProps[];
+}
+
+export interface ErrorEvent {
+  type: "error";
+  error: {
+    thread_id: string;
+    message_id: string;
+    error: string;
+  };
+}
+
+export type AgentEvent =
+  | MessageEvent
+  | FunctionResponseEvent
+  | ThreadTitleEvent
+  | SourcesEvent
+  | SuggestionsEvent
+  | ErrorEvent;
+
+export interface StreamResponseOptions {
+  onOpen?: () => void;
+  onChunk: (chunk: AgentEvent) => void;
+  onFunctionResponse: (functionResponse: FunctionResponseEvent) => void;
+  onThreadTitle: (threadTitle: ThreadTitleEvent) => void;
+  onSources: (sources: SourcesEvent) => void;
+  onSuggestions: (suggestions: SuggestionsEvent) => void;
+  onComplete: (complete: AgentEvent) => void;
+  onError: (error: ErrorEvent) => void;
 }
 
 export class ApiService {
@@ -29,40 +86,31 @@ export class ApiService {
   private eventSource: EventSource | null = null;
 
   constructor(config: ApiConfig) {
-    this.config = {
-      baseUrl: config.baseUrl,
-    };
+    this.config = { baseUrl: config.baseUrl };
   }
 
   /**
    * Stream a response from the API using Server-Sent Events
    */
-  streamResponse(
-    message: IMessage,
-    options: StreamResponseOptions,
-    threadId?: string
-  ): () => void {
+  streamResponse(query: UserEvent, options: StreamResponseOptions): () => void {
     const {
-      onChunk,
-      onComplete,
-      onError,
       onOpen,
+      onChunk,
+      onFunctionResponse,
       onThreadTitle,
-      onThreadId,
       onSources,
       onSuggestions,
+      onError,
+      onComplete,
     } = options;
 
     try {
-      const requestBody = { message, threadId };
-      console.log("[Ajora]: Sending request to API with:", requestBody);
+      console.log("[Ajora]: Sending request to API with:", query);
 
       this.eventSource = new EventSource(`${this.config.baseUrl}/api/stream`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(requestBody),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(query),
         pollingInterval: 0,
       });
 
@@ -72,71 +120,97 @@ export class ApiService {
       });
 
       this.eventSource.addEventListener("message", (event) => {
+        console.log(event.data);
         try {
-          const data = JSON.parse(event.data || "{}");
+          if (!event.data) throw new Error("Empty SSE event data");
 
-          // console.info("[Ajora]: SSE message received:", data);
+          const agentEvent: AgentEvent = JSON.parse(event.data);
 
-          if (data.threadTitle) return onThreadTitle(data.threadTitle);
-          if (data.threadId) return onThreadId(data.threadId);
-          if (data.sources) return onSources(data.sources);
-          if (data.suggestions) return onSuggestions(data.suggestions);
-
-          if (data.error) {
-            console.error("[Ajora]: SSE error received:", data.error);
-            this.close();
-            return onError(new Error(data.error));
+          switch (agentEvent.type) {
+            case "thread_title":
+              return onThreadTitle(agentEvent as ThreadTitleEvent);
+            case "sources":
+              return onSources(agentEvent as SourcesEvent);
+            case "suggestions":
+              return onSuggestions(agentEvent as SuggestionsEvent);
+            case "function_response":
+              return onFunctionResponse(agentEvent as FunctionResponseEvent);
+            case "error":
+              this.close();
+              return onError(agentEvent as ErrorEvent);
+            case "message":
+              return onChunk(agentEvent as MessageEvent);
+            default:
+              console.warn("[Ajora]: Unknown SSE event type:", agentEvent);
+              return;
           }
-
-          if (data.done) {
-            console.info("[Ajora]: SSE stream completed");
-            this.close();
-            return onComplete(data.data as IMessage);
-          }
-
-          onChunk(data);
         } catch (parseError) {
           console.error("[Ajora]: Failed to parse SSE data:", parseError);
           this.close();
-          onError(new Error("Failed to parse server response"));
+          onError({
+            type: "error",
+            error: {
+              thread_id: "",
+              message_id: "",
+              error: "Failed to parse server response",
+            },
+          });
         }
       });
 
-      this.eventSource.addEventListener("error", (event) => {
+      this.eventSource.addEventListener("error", (event: any) => {
         console.error("[Ajora]: SSE connection error:", event);
         this.close();
-        onError(new Error("SSE connection failed"));
+        onError({
+          type: "error",
+          error: {
+            thread_id: "",
+            message_id: "",
+            error: event?.message || "SSE connection failed",
+          },
+        });
       });
-
-      // Start initial timeout in case server never responds
 
       return () => {
         this.close();
       };
     } catch (error) {
       console.error("[Ajora]: Error creating SSE connection:", error);
-      onError(new Error("Failed to create connection"));
+      onError({
+        type: "error",
+        error: {
+          thread_id: "",
+          message_id: "",
+          error: "Failed to create connection",
+        },
+      });
       return () => {};
     }
   }
 
   // Thread endpoints
-  getThreads(): Promise<ThreadItem[]> {
+  getThreads(): Promise<Thread[]> {
     return fetch(`${this.config.baseUrl}/api/threads`).then((res) =>
       res.json()
     );
   }
 
-  createThread(title: string): Promise<ThreadItem> {
+  createThread(title?: string): Promise<Thread> {
     return fetch(`${this.config.baseUrl}/api/threads`, {
       method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
       body: JSON.stringify({ title }),
     }).then((res) => res.json());
   }
 
   private close(): void {
     if (this.eventSource) {
-      this.eventSource.close();
+      try {
+        this.eventSource.close();
+      } catch {}
       this.eventSource = null;
     }
   }
@@ -149,10 +223,7 @@ export class ApiService {
   }
 
   updateConfig(newConfig: Partial<ApiConfig>): void {
-    this.config = {
-      ...this.config,
-      ...newConfig,
-    };
+    this.config = { ...this.config, ...newConfig };
   }
 
   getConfig(): Required<ApiConfig> {

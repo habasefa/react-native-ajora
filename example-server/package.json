@@ -4,6 +4,7 @@
   "description": "The is the backend for react-native-ajora",
   "main": "index.js",
   "scripts": {
+    "dev": "npx nodemon ./src/index.ts",
     "start": "ts-node src/index.ts",
     "build": "tsc",
     "serve": "node dist/index.js"
@@ -29,6 +30,7 @@
     "@types/express": "^5.0.3",
     "@types/node": "^24.5.2",
     "express": "^5.1.0",
+    "nodemon": "^3.1.10",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.2"
   }

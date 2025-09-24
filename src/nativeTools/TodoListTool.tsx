@@ -6,8 +6,18 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   ScrollView,
+  Dimensions,
 } from "react-native";
 import { ToolRequest, ToolResponse } from "../Tool/types";
+import Color from "../Color";
+import MaterialIcons from "@expo/vector-icons/build/MaterialIcons";
+
+// Get responsive card width (80% of screen width, max 400px, min 280px)
+const getCardWidth = () => {
+  const screenWidth = Dimensions.get("window").width;
+  const cardWidth = screenWidth * 0.8;
+  return Math.min(Math.max(cardWidth, 280), 400);
+};
 
 interface TodoListToolProps {
   request: ToolRequest;
@@ -18,45 +28,47 @@ const TodoListTool: React.FC<TodoListToolProps> = ({ request, onResponse }) => {
   const [todoData, setTodoData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const styles = createStyles();
 
   const { tool } = request;
-  const { todo = [] } = tool.args || {};
+  const { action = "get" } = tool.args || {};
 
   const processTodoAction = useCallback(async () => {
     setLoading(true);
     setError(null);
 
     try {
-      // Simulate API call - in real implementation, you'd call an actual todo API
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      // Simulate API call - in real implementation, this would be handled by the server
+      await new Promise((resolve) => setTimeout(resolve, 500));
 
-      // Mock todo list data
+      // For now, we'll use mock data that matches the expected schema
+      // In production, this would come from the actual API response
       const mockTodoData = {
-        action: todo[0] || "get",
+        action: action,
         todos: [
           {
-            id: 1,
+            id: "1",
             text: "Plan weekly meal prep",
             completed: false,
             priority: "high",
             category: "meal planning",
           },
           {
-            id: 2,
+            id: "2",
             text: "Research nutrition guidelines",
             completed: true,
             priority: "medium",
             category: "research",
           },
           {
-            id: 3,
+            id: "3",
             text: "Create shopping list",
             completed: false,
             priority: "high",
             category: "shopping",
           },
           {
-            id: 4,
+            id: "4",
             text: "Review dietary restrictions",
             completed: false,
             priority: "low",
@@ -66,6 +78,8 @@ const TodoListTool: React.FC<TodoListToolProps> = ({ request, onResponse }) => {
         totalTodos: 4,
         completedTodos: 1,
         pendingTodos: 3,
+        listName: "My Todo List",
+        listDescription: "Default todo list for managing tasks",
       };
 
       setTodoData(mockTodoData);
@@ -88,7 +102,7 @@ const TodoListTool: React.FC<TodoListToolProps> = ({ request, onResponse }) => {
     } finally {
       setLoading(false);
     }
-  }, [todo, request, onResponse]);
+  }, [action, request, onResponse]);
 
   useEffect(() => {
     if (request?.tool.name === "todo_list") {
@@ -114,9 +128,14 @@ const TodoListTool: React.FC<TodoListToolProps> = ({ request, onResponse }) => {
   if (loading) {
     return (
       <View style={styles.container}>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="small" color="#007AFF" />
-          <Text style={styles.loadingText}>Processing todo list action...</Text>
+        <View style={styles.todoCard}>
+          <View style={styles.header}>
+            <ActivityIndicator size="small" color={Color.primary} />
+            <Text style={styles.todoTitle}>Processing...</Text>
+          </View>
+          <Text style={styles.messageText}>
+            Please wait while we process your todo list action.
+          </Text>
         </View>
       </View>
     );
@@ -126,14 +145,23 @@ const TodoListTool: React.FC<TodoListToolProps> = ({ request, onResponse }) => {
     return (
       <View style={styles.container}>
         <View style={styles.errorContainer}>
-          <Text style={styles.errorIcon}>⚠️</Text>
-          <Text style={styles.errorText}>{error}</Text>
-          <TouchableOpacity
-            style={styles.retryButton}
-            onPress={processTodoAction}
-          >
-            <Text style={styles.retryText}>Retry</Text>
-          </TouchableOpacity>
+          <View style={styles.header}>
+            <MaterialIcons
+              name="error-outline"
+              size={20}
+              color={Color.destructive}
+            />
+            <Text style={styles.todoTitle}>Error</Text>
+          </View>
+          <Text style={styles.messageText}>{error}</Text>
+          <View style={styles.buttonContainer}>
+            <TouchableOpacity
+              style={[styles.button, styles.retryButton]}
+              onPress={processTodoAction}
+            >
+              <Text style={styles.retryText}>Retry</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
     );
@@ -159,13 +187,13 @@ const TodoListTool: React.FC<TodoListToolProps> = ({ request, onResponse }) => {
   const getPriorityIcon = (priority: string) => {
     switch (priority) {
       case "high":
-        return "🔴";
+        return "keyboard-arrow-up";
       case "medium":
-        return "🟡";
+        return "remove";
       case "low":
-        return "🟢";
+        return "keyboard-arrow-down";
       default:
-        return "⚪";
+        return "help-outline";
     }
   };
 
@@ -173,8 +201,14 @@ const TodoListTool: React.FC<TodoListToolProps> = ({ request, onResponse }) => {
     <View style={styles.container}>
       <View style={styles.todoCard}>
         <View style={styles.header}>
-          <Text style={styles.todoIcon}>📝</Text>
-          <Text style={styles.todoTitle}>Todo List</Text>
+          <MaterialIcons
+            name="assignment"
+            size={20}
+            color={Color.cardForeground}
+          />
+          <Text style={styles.todoTitle}>
+            {todoData.listName || "Todo List"}
+          </Text>
         </View>
 
         <View style={styles.statsContainer}>
@@ -200,13 +234,16 @@ const TodoListTool: React.FC<TodoListToolProps> = ({ request, onResponse }) => {
           style={styles.todosContainer}
           showsVerticalScrollIndicator={false}
         >
-          {todoData.todos.map((todo: any, index: number) => (
+          {todoData.todos.map((todo: any) => (
             <View key={todo.id} style={styles.todoItem}>
               <View style={styles.todoHeader}>
                 <View style={styles.todoInfo}>
-                  <Text style={styles.priorityIcon}>
-                    {getPriorityIcon(todo.priority)}
-                  </Text>
+                  <MaterialIcons
+                    name={getPriorityIcon(todo.priority)}
+                    size={16}
+                    color={getPriorityColor(todo.priority)}
+                    style={styles.priorityIcon}
+                  />
                   <Text
                     style={[
                       styles.todoText,
@@ -219,9 +256,17 @@ const TodoListTool: React.FC<TodoListToolProps> = ({ request, onResponse }) => {
                 </View>
                 <View style={styles.todoStatus}>
                   {todo.completed ? (
-                    <Text style={styles.completedIcon}>✅</Text>
+                    <MaterialIcons
+                      name="check-circle"
+                      size={20}
+                      color={Color.primary}
+                    />
                   ) : (
-                    <Text style={styles.pendingIcon}>⏳</Text>
+                    <MaterialIcons
+                      name="radio-button-unchecked"
+                      size={20}
+                      color={Color.mutedForeground}
+                    />
                   )}
                 </View>
               </View>
@@ -247,158 +292,158 @@ const TodoListTool: React.FC<TodoListToolProps> = ({ request, onResponse }) => {
 TodoListTool.displayName = "todo_list";
 export default TodoListTool;
 
-const styles = StyleSheet.create({
-  container: {
-    marginVertical: 8,
-  },
-  loadingContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    padding: 16,
-    backgroundColor: "#f8f9fa",
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "#e2e8f0",
-  },
-  loadingText: {
-    marginLeft: 8,
-    fontSize: 14,
-    color: "#6b7280",
-  },
-  errorContainer: {
-    padding: 16,
-    backgroundColor: "#fef2f2",
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "#fecaca",
-    alignItems: "center",
-  },
-  errorIcon: {
-    fontSize: 24,
-    marginBottom: 8,
-  },
-  errorText: {
-    fontSize: 14,
-    color: "#dc2626",
-    textAlign: "center",
-    marginBottom: 12,
-  },
-  retryButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    backgroundColor: "#dc2626",
-    borderRadius: 6,
-  },
-  retryText: {
-    color: "#ffffff",
-    fontSize: 14,
-    fontWeight: "600",
-  },
-  todoCard: {
-    backgroundColor: "#ffffff",
-    borderRadius: 12,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: "#e2e8f0",
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
+const createStyles = () => {
+  const cardWidth = getCardWidth();
+
+  return StyleSheet.create({
+    container: {
+      marginVertical: 8,
     },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 16,
-  },
-  todoIcon: {
-    fontSize: 20,
-    marginRight: 8,
-  },
-  todoTitle: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#374151",
-  },
-  statsContainer: {
-    flexDirection: "row",
-    justifyContent: "space-around",
-    marginBottom: 16,
-    paddingVertical: 12,
-    backgroundColor: "#f8f9fa",
-    borderRadius: 8,
-  },
-  statItem: {
-    alignItems: "center",
-  },
-  statNumber: {
-    fontSize: 20,
-    fontWeight: "700",
-    color: "#1f2937",
-  },
-  statLabel: {
-    fontSize: 12,
-    color: "#6b7280",
-    marginTop: 2,
-  },
-  todosContainer: {
-    maxHeight: 200,
-  },
-  todoItem: {
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: "#f3f4f6",
-  },
-  todoHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-    marginBottom: 6,
-  },
-  todoInfo: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    flex: 1,
-  },
-  priorityIcon: {
-    fontSize: 12,
-    marginRight: 8,
-    marginTop: 2,
-  },
-  todoText: {
-    fontSize: 14,
-    color: "#1f2937",
-    flex: 1,
-    lineHeight: 20,
-  },
-  completedTodo: {
-    textDecorationLine: "line-through",
-    color: "#6b7280",
-  },
-  todoStatus: {
-    marginLeft: 8,
-  },
-  completedIcon: {
-    fontSize: 16,
-  },
-  pendingIcon: {
-    fontSize: 16,
-  },
-  todoMeta: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  priorityText: {
-    fontSize: 11,
-    fontWeight: "600",
-  },
-  categoryText: {
-    fontSize: 11,
-    color: "#6b7280",
-    textTransform: "capitalize",
-  },
-});
+    errorContainer: {
+      width: cardWidth,
+      padding: 16,
+      backgroundColor: Color.card,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: Color.destructive,
+      alignItems: "center",
+      shadowColor: Color.shadow,
+      shadowOffset: {
+        width: 0,
+        height: 2,
+      },
+      shadowOpacity: 0.1,
+      shadowRadius: 4,
+      elevation: 2,
+    },
+    errorText: {
+      fontSize: 14,
+      color: Color.destructive,
+      textAlign: "center",
+    },
+    todoCard: {
+      width: cardWidth,
+      backgroundColor: Color.card,
+      borderRadius: 12,
+      padding: 16,
+      borderWidth: 1,
+      borderColor: Color.border,
+      shadowColor: Color.shadow,
+      shadowOffset: {
+        width: 0,
+        height: 2,
+      },
+      shadowOpacity: 0.1,
+      shadowRadius: 4,
+      elevation: 2,
+    },
+    header: {
+      flexDirection: "row",
+      alignItems: "center",
+      marginBottom: 12,
+      gap: 8,
+    },
+    todoTitle: {
+      fontSize: 16,
+      fontWeight: "600",
+      color: Color.cardForeground,
+    },
+    messageText: {
+      fontSize: 14,
+      color: Color.mutedForeground,
+      marginBottom: 16,
+      lineHeight: 20,
+    },
+    buttonContainer: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      gap: 12,
+    },
+    button: {
+      flex: 1,
+      paddingVertical: 12,
+      paddingHorizontal: 16,
+      borderRadius: 8,
+      alignItems: "center",
+    },
+    retryButton: {
+      backgroundColor: Color.destructive,
+    },
+    retryText: {
+      fontSize: 14,
+      fontWeight: "600",
+      color: Color.primaryForeground,
+    },
+    statsContainer: {
+      flexDirection: "row",
+      justifyContent: "space-around",
+      marginBottom: 16,
+      paddingVertical: 12,
+      backgroundColor: Color.secondary,
+      borderRadius: 8,
+    },
+    statItem: {
+      alignItems: "center",
+    },
+    statNumber: {
+      fontSize: 20,
+      fontWeight: "700",
+      color: Color.cardForeground,
+    },
+    statLabel: {
+      fontSize: 12,
+      color: Color.mutedForeground,
+      marginTop: 2,
+    },
+    todosContainer: {
+      maxHeight: 200,
+    },
+    todoItem: {
+      paddingVertical: 12,
+      borderBottomWidth: 1,
+      borderBottomColor: Color.border,
+    },
+    todoHeader: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "flex-start",
+      marginBottom: 6,
+    },
+    todoInfo: {
+      flexDirection: "row",
+      alignItems: "flex-start",
+      flex: 1,
+    },
+    priorityIcon: {
+      marginRight: 8,
+      marginTop: 2,
+    },
+    todoText: {
+      fontSize: 14,
+      color: Color.cardForeground,
+      flex: 1,
+      lineHeight: 20,
+    },
+    completedTodo: {
+      textDecorationLine: "line-through",
+      color: Color.mutedForeground,
+    },
+    todoStatus: {
+      marginLeft: 8,
+    },
+    todoMeta: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+    },
+    priorityText: {
+      fontSize: 11,
+      fontWeight: "600",
+    },
+    categoryText: {
+      fontSize: 11,
+      color: Color.mutedForeground,
+      textTransform: "capitalize",
+    },
+  });
+};

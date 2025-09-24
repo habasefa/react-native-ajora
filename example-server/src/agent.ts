@@ -1,194 +1,236 @@
-import { nextSpeaker } from "./nextSpeaker";
-import { gemini } from "./gemini";
+import { gemini, nextSpeaker } from "./gemini";
 import { generateId, getPendingToolCall } from "../utils/toolUtils";
 import { executeTool } from "./toolExecutor";
 import { Message } from "../db/dbService";
 import DbService from "../db/dbService";
+import { Part } from "@google/genai";
+
+export const serverTools = ["search_web", "search_document", "todo_list"];
 
 export type AgentEvent =
-  | {
-      type: "text";
-      message: Message;
-    }
-  | {
-      type: "function_call";
-      message: Message;
-    }
-  | {
-      type: "function_response";
-      message: Message;
-    };
+  | { type: "message"; message: Message }
+  | { type: "function_response"; message: Message }
+  | { type: "thread_title"; thread_id: string; title: string }
+  | { type: "error"; thread_id: string; message_id: string; error: string };
 
 export type UserEvent =
-  | {
-      type: "text";
-      message: Message;
-    }
-  | {
-      type: "function_response";
-      message: Message;
-    };
+  | { type: "text"; message: Message }
+  | { type: "function_response"; message: Message };
 
 export type AgentMode = "agent" | "assistant";
 
-// Maximum internal follow-up turns to avoid infinite loops
+export interface Turn {
+  turn_id: string;
+  messages: Message[];
+}
+
 const MAX_TURNS = 50;
 
-export const agent = async function* (query: UserEvent) {
+export const agent = async function* (query: UserEvent, dbService: DbService) {
   const { type, message } = query;
   const thread_id = message.thread_id;
+  let remainingTurns = MAX_TURNS;
 
-  const dbService = new DbService();
+  console.log("[Ajora:Server][0]: Query", query);
+
   let history: Message[] = await dbService.getMessages(thread_id);
+  const turn: Turn = {
+    turn_id: generateId(),
+    messages: [...history],
+  };
+  console.log("[Ajora:Server][0.5]: Turn", JSON.stringify(turn, null, 2));
 
   try {
-    let turn: Message[] = [];
-    const pendingToolCall = getPendingToolCall(history);
+    // --- Handle incoming message ---
+    const pendingFromHistory = getPendingToolCall(turn.messages);
+    console.log("[Ajora:Server][1]: pendingFromHistory", pendingFromHistory);
 
-    if (type === "function_response" && pendingToolCall) {
-      const { functionCall, originalMessage } = pendingToolCall;
-      // Get the original function call and update it
-      const updatedMessage = {
-        _id: message._id,
-        thread_id: thread_id,
-        role: message.role,
-        parts: [
-          {
-            functionResponse: {
-              id: functionCall?.functionCall?.id,
-              name: functionCall?.functionCall?.name,
-              response: message.parts[0].functionResponse?.response,
-            },
-          },
-        ],
+    if (type === "function_response" && pendingFromHistory) {
+      console.log("[Ajora:Server][2]: Function Response from User", message);
+      const { functionCall, originalMessage } = pendingFromHistory;
+      const functionResponsePart = {
+        functionResponse: {
+          name: functionCall?.functionCall?.name,
+          response:
+            (message.parts?.[0]?.functionResponse?.response as any) ?? {},
+        },
       };
-      turn.push(updatedMessage);
-      dbService.updateMessage(message._id, updatedMessage);
-      history = await dbService.getMessages(thread_id);
-    } else if (type === "text" && pendingToolCall) {
-      const { functionCall, originalMessage } = pendingToolCall;
-      const updatedMessage = {
+      const updatedMessage: Message = {
         ...originalMessage,
         parts: [
-          {
-            functionResponse: {
-              id: functionCall?.functionCall?.id,
-              name: functionCall?.functionCall?.name,
-              response: {
-                text: "The user is ignoring the previous tool call. Please continue.",
-              },
-            },
-          },
+          ...(originalMessage.parts ?? []).filter((p) => !p.functionResponse),
+          functionResponsePart,
         ],
       };
-      turn.push(updatedMessage);
-      dbService.updateMessage(originalMessage._id, updatedMessage);
-      history = await dbService.getMessages(thread_id);
+      const idx = turn.messages.findIndex((m) => m._id === originalMessage._id);
+      if (idx !== -1) turn.messages[idx] = updatedMessage;
+      await dbService.updateMessage(originalMessage._id, updatedMessage);
+    } else if (type === "text" && pendingFromHistory) {
+      console.log("[Ajora:Server][3]: Ignored Tool Call from User", message);
+      const { functionCall, originalMessage } = pendingFromHistory;
+      const functionResponsePart = {
+        functionResponse: {
+          name: functionCall?.functionCall?.name,
+          response: {
+            result: {
+              text: "The user ignored the previous tool call. Please continue.",
+            },
+          },
+        },
+      };
+      const updatedMessage: Message = {
+        ...originalMessage,
+        parts: [
+          ...(originalMessage.parts ?? []).filter((p) => !p.functionResponse),
+          functionResponsePart,
+        ],
+      };
+      const idx = turn.messages.findIndex((m) => m._id === originalMessage._id);
+      if (idx !== -1) turn.messages[idx] = updatedMessage;
+      await dbService.updateMessage(originalMessage._id, updatedMessage);
+      turn.messages.push(message);
+      await dbService.addMessage(message);
     } else {
-      // Add the incoming user message
-      turn.push({
-        _id: message._id,
-        thread_id: thread_id,
-        role: message.role,
-        parts: message.parts,
-      });
-      dbService.addMessage(message);
-      history = await dbService.getMessages(thread_id);
+      turn.messages.push(message);
+      await dbService.addMessage(message);
     }
 
-    let remainingTurns = MAX_TURNS;
-
-    // Main loop: every turn we generate a new message id
+    // --- Main loop ---
     while (remainingTurns-- > 0) {
-      // Check for pending tool calls, if found, execute the tool and add the function response to the turn
-      const pendingToolCall = getPendingToolCall(turn);
+      console.log("[Ajora:Server][4]: Entering Main Loop", remainingTurns);
+
+      const pendingToolCall = getPendingToolCall(turn.messages);
+      console.log(
+        "[Ajora:Server][4.5]: pendingToolCall",
+        pendingToolCall ? "FOUND" : "NOT FOUND"
+      );
+
       if (pendingToolCall) {
         const { functionCall, originalMessage } = pendingToolCall;
+        const toolName = functionCall?.functionCall?.name;
+        console.log("[Ajora:Server][5]: Tool Name", toolName);
 
-        const toolResult = executeTool({
-          id: functionCall?.functionCall?.id,
-          name: functionCall?.functionCall?.name,
-          args: functionCall?.functionCall?.args,
-        });
-        turn.push({
-          _id: message._id,
-          thread_id: thread_id,
-          role: "user",
-          parts: [
-            {
-              functionResponse: {
-                name: functionCall?.functionCall?.name,
-                response: toolResult,
-              },
-            },
-          ],
-        });
+        if (serverTools.includes(toolName || "")) {
+          const toolResult = await Promise.resolve(
+            executeTool(functionCall.functionCall as any)
+          );
+          console.log("[Ajora:Server][6]: toolResult", toolResult);
 
-        yield turn;
-      }
-
-      const messageId = generateId();
-
-      let pendingStream: Message = {
-        _id: messageId,
-        thread_id: thread_id,
-        role: "model",
-        parts: [{ text: "" }, { functionCall: [] }],
-      };
-
-      // Run model streaming turn against current history
-      const response = gemini(turn);
-
-      for await (const chunk of response) {
-        const { functionCalls, text } = chunk;
-
-        if (functionCalls) {
-          pendingStream = {
-            ...pendingStream,
+          const updatedMessage: Message = {
+            ...originalMessage,
             parts: [
+              ...(originalMessage.parts ?? []).filter(
+                (p) => !p.functionResponse
+              ),
               {
-                functionCall: functionCalls,
+                functionResponse: {
+                  name: toolName,
+                  response: {
+                    result: toolResult ?? {},
+                  },
+                },
               },
             ],
           };
+
+          const idx = turn.messages.findIndex(
+            (m) => m._id === originalMessage._id
+          );
+          if (idx !== -1) turn.messages[idx] = updatedMessage;
+          await dbService.updateMessage(originalMessage._id, updatedMessage);
+        } else {
+          console.log("[Ajora:Server][7]: Non-server tool", toolName);
+          yield {
+            type: "function_call",
+            message: {
+              _id: originalMessage._id,
+              thread_id,
+              role: "model",
+              parts: [{ functionCall: functionCall.functionCall }],
+            },
+          };
+          break;
+        }
+      }
+
+      // --- Streaming ---
+      const messageId = generateId();
+      let pendingStreamParts: Part[] = [{ text: "" }];
+
+      const response = gemini(turn.messages);
+      for await (const chunk of response) {
+        console.log(
+          "[Ajora:Server][8]: Streaming Chunk",
+          JSON.stringify(chunk.candidates?.[0]?.content, null, 2)
+        );
+        const text = chunk.candidates?.[0]?.content?.parts?.[0]?.text;
+        const functionCalls = chunk.candidates?.[0]?.content?.parts?.filter(
+          (p: Part) => (p as any).functionCall
+        );
+
+        if (functionCalls?.length) {
+          console.log("[Ajora:Server][9]: Function Calls", functionCalls);
+          for (const fcPart of functionCalls) {
+            const fc = (fcPart as any).functionCall;
+            if (!fc.id) fc.id = generateId();
+            const exists = pendingStreamParts.some(
+              (p) => (p as any).functionCall?.id === fc.id
+            );
+            if (!exists) pendingStreamParts.push({ functionCall: fc } as any);
+          }
         }
 
         if (text) {
-          pendingStream = {
-            ...pendingStream,
-            parts: [{ text: (pendingStream.parts[0]?.text ?? "") + text }],
-          };
+          const textIndex = pendingStreamParts.findIndex(
+            (p) => p.text !== undefined
+          );
+          if (textIndex === -1) pendingStreamParts.unshift({ text });
+          else {
+            pendingStreamParts[textIndex].text += text;
+          }
+          console.log("[Ajora:Server][10]: Text", text);
         }
 
-        // Stream chunk to caller
-        yield pendingStream;
-      }
-
-      turn.push({
-        ...pendingStream,
-        parts: [{ text: pendingStream.parts[0]?.text ?? "" }],
-      });
-
-      // No tools pending: check if model should continue
-      const nextSpeakerResponse = await nextSpeaker(turn);
-      if (nextSpeakerResponse && nextSpeakerResponse.next_speaker === "model") {
-        const nextRequest: Message = {
-          _id: generateId(),
-          thread_id: thread_id,
-          role: "user",
-          parts: [{ text: "Please continue." }],
+        yield {
+          type: "message",
+          message: {
+            _id: messageId,
+            thread_id,
+            role: "model",
+            parts: pendingStreamParts,
+          },
         };
-        turn.push(nextRequest);
-        // Continue to next loop turn to stream follow-up
-        continue;
       }
 
-      // Neither tools nor continuation requested → end
-      console.log("Turns complete:", turn);
-      break;
+      const finalMessage: Message = {
+        _id: messageId,
+        thread_id,
+        role: "model",
+        parts: pendingStreamParts,
+        created_at: new Date().toISOString(),
+      };
+      console.log("[Ajora:Server][11]: Final Message", finalMessage);
+      turn.messages.push(finalMessage);
+      await dbService.addMessage(finalMessage);
+
+      const nextSpeakerResponse = await nextSpeaker(turn.messages);
+      console.log(
+        "[Ajora:Server][12]: Next Speaker Response",
+        nextSpeakerResponse
+      );
+
+      if (nextSpeakerResponse?.next_speaker !== "model") {
+        console.log("[Ajora:Server][14]: Breaking Main Loop");
+        break;
+      }
     }
-  } catch (error) {
-    console.error("Error in agent:", error);
-    throw error;
+  } catch (error: any) {
+    console.error("[Ajora:Server][ERROR]:", error);
+    yield {
+      type: "error",
+      thread_id,
+      message_id: message._id,
+      error: error?.message || "Unknown agent error",
+    };
   }
 };

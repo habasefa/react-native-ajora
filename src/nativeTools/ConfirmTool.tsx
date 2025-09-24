@@ -5,18 +5,71 @@ import {
   View,
   TouchableOpacity,
   ActivityIndicator,
+  Dimensions,
 } from "react-native";
 import { ToolRequest, ToolResponse } from "../Tool/types";
+import Color from "../Color";
+import MaterialIcons from "@expo/vector-icons/build/MaterialIcons";
+
+// Get responsive card width (80% of screen width, max 400px, min 280px)
+const getCardWidth = () => {
+  const screenWidth = Dimensions.get("window").width;
+  const cardWidth = screenWidth * 0.8;
+  return Math.min(Math.max(cardWidth, 280), 400);
+};
 
 interface ConfirmToolProps {
   request: ToolRequest;
   onResponse?: (response: ToolResponse) => void;
 }
 
+const ConfirmCard = ({
+  message,
+  handleConfirm,
+}: {
+  message: string;
+  handleConfirm: (isConfirmed: boolean) => void;
+}) => {
+  const styles = createStyles();
+
+  return (
+    <View style={styles.container}>
+      <View style={styles.confirmCard}>
+        <View style={styles.header}>
+          <MaterialIcons
+            name="verified"
+            size={20}
+            color={Color.cardForeground}
+          />
+          <Text style={styles.confirmTitle}>Confirmation Required</Text>
+        </View>
+
+        <Text style={styles.messageText}>{message}</Text>
+
+        <View style={styles.buttonContainer}>
+          <TouchableOpacity
+            style={[styles.button, styles.cancelButton]}
+            onPress={() => handleConfirm(false)}
+          >
+            <Text style={styles.cancelButtonText}>Cancel</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.button, styles.confirmButton]}
+            onPress={() => handleConfirm(true)}
+          >
+            <Text style={styles.confirmButtonText}>Confirm</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </View>
+  );
+};
+
 const ConfirmTool: React.FC<ConfirmToolProps> = ({ request, onResponse }) => {
-  const [confirmed, setConfirmed] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [confirmed, setConfirmed] = useState<boolean | null>(null);
+  const styles = createStyles();
 
   const { tool } = request;
   const { message = "Please confirm this action" } = tool.args || {};
@@ -76,7 +129,9 @@ const ConfirmTool: React.FC<ConfirmToolProps> = ({ request, onResponse }) => {
   if (!request) {
     return (
       <View style={styles.container}>
-        <Text style={styles.errorText}>No request provided</Text>
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorText}>No request provided</Text>
+        </View>
       </View>
     );
   }
@@ -84,9 +139,14 @@ const ConfirmTool: React.FC<ConfirmToolProps> = ({ request, onResponse }) => {
   if (loading) {
     return (
       <View style={styles.container}>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="small" color="#007AFF" />
-          <Text style={styles.loadingText}>Processing confirmation...</Text>
+        <View style={styles.confirmCard}>
+          <View style={styles.header}>
+            <ActivityIndicator size="small" color={Color.primary} />
+            <Text style={styles.confirmTitle}>Processing...</Text>
+          </View>
+          <Text style={styles.messageText}>
+            Please wait while we process your confirmation.
+          </Text>
         </View>
       </View>
     );
@@ -96,8 +156,26 @@ const ConfirmTool: React.FC<ConfirmToolProps> = ({ request, onResponse }) => {
     return (
       <View style={styles.container}>
         <View style={styles.errorContainer}>
-          <Text style={styles.errorIcon}>⚠️</Text>
-          <Text style={styles.errorText}>{error}</Text>
+          <View style={styles.header}>
+            <MaterialIcons
+              name="error-outline"
+              size={20}
+              color={Color.destructive}
+            />
+            <Text style={styles.confirmTitle}>Error</Text>
+          </View>
+          <Text style={styles.messageText}>{error}</Text>
+          <View style={styles.buttonContainer}>
+            <TouchableOpacity
+              style={[styles.button, styles.cancelButton]}
+              onPress={() => {
+                setError(null);
+                setConfirmed(null);
+              }}
+            >
+              <Text style={styles.cancelButtonText}>Dismiss</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
     );
@@ -107,162 +185,156 @@ const ConfirmTool: React.FC<ConfirmToolProps> = ({ request, onResponse }) => {
     return (
       <View style={styles.container}>
         <View style={styles.resultCard}>
-          <Text style={styles.resultIcon}>{confirmed ? "✅" : "❌"}</Text>
-          <Text style={styles.resultText}>
-            {confirmed ? "Confirmed" : "Cancelled"}
+          <View style={styles.header}>
+            <MaterialIcons
+              name={confirmed ? "check-circle" : "cancel"}
+              size={20}
+              color={confirmed ? Color.primary : Color.destructive}
+            />
+            <Text style={styles.confirmTitle}>
+              {confirmed ? "Action Confirmed" : "Action Cancelled"}
+            </Text>
+          </View>
+          <Text style={styles.messageText}>
+            {confirmed
+              ? "Your action has been successfully confirmed."
+              : "The action has been cancelled as requested."}
           </Text>
+          <View style={styles.buttonContainer}>
+            <TouchableOpacity
+              style={[styles.button, styles.cancelButton]}
+              onPress={() => {
+                setConfirmed(null);
+                setError(null);
+              }}
+            >
+              <Text style={styles.cancelButtonText}>Close</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
     );
   }
 
-  return (
-    <View style={styles.container}>
-      <View style={styles.confirmCard}>
-        <View style={styles.header}>
-          <Text style={styles.confirmIcon}>❓</Text>
-          <Text style={styles.confirmTitle}>Confirmation Required</Text>
-        </View>
-
-        <Text style={styles.messageText}>{message}</Text>
-
-        <View style={styles.buttonContainer}>
-          <TouchableOpacity
-            style={[styles.button, styles.cancelButton]}
-            onPress={() => handleConfirm(false)}
-          >
-            <Text style={styles.cancelButtonText}>Cancel</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.button, styles.confirmButton]}
-            onPress={() => handleConfirm(true)}
-          >
-            <Text style={styles.confirmButtonText}>Confirm</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    </View>
-  );
+  return <ConfirmCard message={message} handleConfirm={handleConfirm} />;
 };
 
 ConfirmTool.displayName = "confirm_action";
 export default ConfirmTool;
 
-const styles = StyleSheet.create({
-  container: {
-    marginVertical: 8,
-  },
-  loadingContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    padding: 16,
-    backgroundColor: "#f8f9fa",
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "#e2e8f0",
-  },
-  loadingText: {
-    marginLeft: 8,
-    fontSize: 14,
-    color: "#6b7280",
-  },
-  errorContainer: {
-    padding: 16,
-    backgroundColor: "#fef2f2",
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "#fecaca",
-    alignItems: "center",
-  },
-  errorIcon: {
-    fontSize: 24,
-    marginBottom: 8,
-  },
-  errorText: {
-    fontSize: 14,
-    color: "#dc2626",
-    textAlign: "center",
-  },
-  confirmCard: {
-    backgroundColor: "#ffffff",
-    borderRadius: 12,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: "#e2e8f0",
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
+const createStyles = () => {
+  const cardWidth = getCardWidth();
+
+  return StyleSheet.create({
+    container: {
+      marginVertical: 8,
     },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 12,
-  },
-  confirmIcon: {
-    fontSize: 20,
-    marginRight: 8,
-  },
-  confirmTitle: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#374151",
-  },
-  messageText: {
-    fontSize: 14,
-    color: "#4b5563",
-    marginBottom: 16,
-    lineHeight: 20,
-  },
-  buttonContainer: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    gap: 12,
-  },
-  button: {
-    flex: 1,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    alignItems: "center",
-  },
-  cancelButton: {
-    backgroundColor: "#f3f4f6",
-    borderWidth: 1,
-    borderColor: "#d1d5db",
-  },
-  confirmButton: {
-    backgroundColor: "#007AFF",
-  },
-  cancelButtonText: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#374151",
-  },
-  confirmButtonText: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#ffffff",
-  },
-  resultCard: {
-    backgroundColor: "#ffffff",
-    borderRadius: 12,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: "#e2e8f0",
-    alignItems: "center",
-  },
-  resultIcon: {
-    fontSize: 32,
-    marginBottom: 8,
-  },
-  resultText: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#374151",
-  },
-});
+    errorContainer: {
+      width: cardWidth,
+      padding: 16,
+      backgroundColor: Color.card,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: Color.destructive,
+      alignItems: "center",
+      shadowColor: Color.shadow,
+      shadowOffset: {
+        width: 0,
+        height: 2,
+      },
+      shadowOpacity: 0.1,
+      shadowRadius: 4,
+      elevation: 2,
+    },
+    errorText: {
+      fontSize: 14,
+      color: Color.destructive,
+      textAlign: "center",
+    },
+    confirmCard: {
+      width: cardWidth,
+      backgroundColor: Color.card,
+      borderRadius: 12,
+      padding: 16,
+      borderWidth: 1,
+      borderColor: Color.border,
+      shadowColor: Color.shadow,
+      shadowOffset: {
+        width: 0,
+        height: 2,
+      },
+      shadowOpacity: 0.1,
+      shadowRadius: 4,
+      elevation: 2,
+    },
+    header: {
+      flexDirection: "row",
+      alignItems: "center",
+      marginBottom: 12,
+      gap: 8,
+    },
+    confirmTitle: {
+      fontSize: 16,
+      fontWeight: "600",
+      color: Color.cardForeground,
+    },
+    messageText: {
+      fontSize: 14,
+      color: Color.mutedForeground,
+      marginBottom: 16,
+      lineHeight: 20,
+    },
+    buttonContainer: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      gap: 12,
+    },
+    button: {
+      flex: 1,
+      paddingVertical: 12,
+      paddingHorizontal: 16,
+      borderRadius: 8,
+      alignItems: "center",
+    },
+    cancelButton: {
+      backgroundColor: Color.secondary,
+      borderWidth: 1,
+      borderColor: Color.border,
+    },
+    confirmButton: {
+      backgroundColor: Color.primary,
+    },
+    cancelButtonText: {
+      fontSize: 14,
+      fontWeight: "600",
+      color: Color.secondaryForeground,
+    },
+    confirmButtonText: {
+      fontSize: 14,
+      fontWeight: "600",
+      color: Color.primaryForeground,
+    },
+    resultCard: {
+      width: cardWidth,
+      backgroundColor: Color.card,
+      borderRadius: 12,
+      padding: 16,
+      borderWidth: 1,
+      borderColor: Color.border,
+      alignItems: "center",
+      shadowColor: Color.shadow,
+      shadowOffset: {
+        width: 0,
+        height: 2,
+      },
+      shadowOpacity: 0.1,
+      shadowRadius: 4,
+      elevation: 2,
+    },
+    resultText: {
+      fontSize: 16,
+      fontWeight: "600",
+      color: Color.cardForeground,
+    },
+  });
+};

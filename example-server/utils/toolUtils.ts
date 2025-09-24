@@ -21,31 +21,31 @@ const isValidToolCall = (toolCall: FunctionCall) => {
     };
   }
 
-  //   Check if the arguments are valid
-  if (
-    Object.keys(tool.parameters.properties).some(
-      (property: any) => !args?.[property]
-    )
-  ) {
+  //   Check if the arguments are valid (only check required properties)
+  const requiredProps = tool.parameters.required || [];
+  if (requiredProps.some((property: string) => !args?.[property])) {
     return {
-      error: `Tool ${name} requires the following arguments: ${Object.keys(tool.parameters.properties).join(", ")}`,
+      error: `Tool ${name} requires the following arguments: ${requiredProps.join(", ")}`,
     };
   }
 
   return true;
 };
 
-const getFunctionCall = (message: Message): Part | undefined => {
-  return message.parts.find((part: Part) => part.functionCall);
+const getFunctionCall = (message?: Message): Part | undefined => {
+  if (!message || !Array.isArray(message.parts)) return undefined;
+  return message.parts.find((part: Part) => (part as any)?.functionCall);
 };
 
-const getFunctionResponse = (message: Message): Part | undefined => {
-  return message.parts.find((part: Part) => part.functionResponse);
+const getFunctionResponse = (message?: Message): Part | undefined => {
+  if (!message || !Array.isArray(message.parts)) return undefined;
+  return message.parts.find((part: Part) => (part as any)?.functionResponse);
 };
 
 const getPendingToolCall = (
   history: Message[]
 ): { functionCall: Part; originalMessage: Message } | undefined => {
+  if (!Array.isArray(history) || history.length === 0) return undefined;
   // Get the last message in the history and check if it has functionCall but no functionResponse else return undefined
   const lastMessage = history[history.length - 1];
   const functionCall = getFunctionCall(lastMessage);
@@ -71,6 +71,7 @@ export {
   isValidToolCall,
   isText,
   getFunctionCall,
+  getFunctionResponse,
   getPendingToolCall,
   generateId,
 };

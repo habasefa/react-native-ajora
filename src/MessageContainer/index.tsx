@@ -70,11 +70,6 @@ function MessageContainer<TMessage extends IMessage = IMessage>(
 
   const { activeThreadId, messagesByThread, submitQuery } = ajora;
 
-  console.log(
-    "[Ajora]: messagesByThread",
-    JSON.stringify(messagesByThread, null, 2)
-  );
-
   const scrollToBottomOpacity = useSharedValue(0);
   const [isScrollToBottomVisible, setIsScrollToBottomVisible] = useState(false);
   const scrollToBottomStyleAnim = useAnimatedStyle(
@@ -165,7 +160,7 @@ function MessageContainer<TMessage extends IMessage = IMessage>(
     }: ListRenderItemInfo<unknown>): React.ReactElement | null => {
       const messageItem = item as TMessage;
 
-      if (!messageItem._id && messageItem._id !== 0)
+      if (!messageItem._id && messageItem._id !== "0")
         warning("Ajora: `_id` is missing for message", JSON.stringify(item));
 
       if (!role) {
@@ -234,18 +229,24 @@ function MessageContainer<TMessage extends IMessage = IMessage>(
       icon?: string;
     }) => {
       const newMessage: IMessage = {
-        _id: Math.round(Math.random() * 1000000),
+        _id: Math.round(Math.random() * 1000000).toString(),
         role: "user",
+        thread_id: activeThreadId || "",
         parts: [{ text: questionItem.question }],
-        createdAt: new Date(),
-        pending: true,
+        created_at: new Date().toISOString(),
       };
 
       // Use onSend if available, otherwise fallback to submitQuery
-      if (onSend) {
+      if (false) {
         onSend(newMessage, true);
       } else {
-        submitQuery(newMessage, activeThreadId || "");
+        submitQuery(
+          {
+            type: "text",
+            message: newMessage,
+          },
+          activeThreadId || ""
+        );
       }
     };
 
@@ -396,7 +397,7 @@ function MessageContainer<TMessage extends IMessage = IMessage>(
         const newValue = {
           y,
           height,
-          createdAt: new Date((props.item as IMessage).createdAt).getTime(),
+          created_at: new Date((props.item as IMessage).created_at).getTime(),
         };
 
         daysPositions.modify((value) => {
@@ -415,7 +416,7 @@ function MessageContainer<TMessage extends IMessage = IMessage>(
 
           for (const [key, item] of Object.entries(value))
             if (
-              isSameDay(newValue.createdAt, item.createdAt) &&
+              isSameDay(newValue.created_at, item.createdAt) &&
               item.y <= newValue.y
             ) {
               delete value[key];
@@ -482,7 +483,7 @@ function MessageContainer<TMessage extends IMessage = IMessage>(
       <AnimatedFlatList
         extraData={extraData}
         ref={forwardRef as React.Ref<FlatList<unknown>>}
-        keyExtractor={keyExtractor as (item: IMessage, index: number) => string}
+        keyExtractor={keyExtractor as (item: unknown, index: number) => string}
         data={messagesByThread}
         renderItem={renderItem as any}
         inverted={true}

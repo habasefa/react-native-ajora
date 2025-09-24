@@ -3,4 +3,5 @@ export interface SourceProps {
   name: string;
   content: string;
   url: string;
+  profile: string;
 }

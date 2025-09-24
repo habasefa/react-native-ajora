@@ -13,7 +13,6 @@ export { ComposerProps } from "./Composer";
 export { HeaderProps } from "./Header";
 export { InputToolbarProps } from "./InputToolbar";
 export { LoadEarlierProps } from "./LoadEarlier";
-export { ThreadProps, ThreadItem } from "./Thread";
 export { MessageProps } from "./Message";
 export { MessageContainerProps } from "./MessageContainer";
 export { MessageImageProps } from "./MessageImage";
@@ -28,14 +27,12 @@ export interface LeftRightStyle<T> {
 }
 
 export interface IMessage {
-  _id: string | number;
+  _id: string;
+  thread_id: string;
   role: "user" | "model";
   parts: Part[];
-
-  // Detail
-  feedback?: "like" | "dislike";
-  createdAt: Date | number;
-  pending?: boolean;
+  created_at?: string;
+  updated_at?: string;
 }
 
 /** A function call. */

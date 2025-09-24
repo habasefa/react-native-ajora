@@ -1,9 +1,6 @@
-import { IMessage } from "../types";
-
-export interface ThreadItem {
+export interface Thread {
   id: string;
   title: string;
-  lastMessage?: IMessage;
   created_at?: string;
   updated_at?: string;
 }
@@ -11,7 +8,7 @@ export interface ThreadItem {
 export interface ThreadProps {
   isOpen: boolean;
   onClose: () => void;
-  onThreadSelect: (thread: ThreadItem) => void;
+  onThreadSelect: (thread: Thread) => void;
   onNewThread: () => void;
   containerStyle?: any;
   renderEmpty?: () => React.ReactElement;

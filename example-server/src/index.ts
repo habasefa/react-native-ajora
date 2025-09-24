@@ -20,36 +20,28 @@ app.use(express.json());
 async function initializeDatabase() {
   try {
     await dbService.initialize();
-    console.log("Database initialized successfully");
   } catch (error) {
-    console.error("Failed to initialize database:", error);
+    console.error("[Ajora:Server]: Failed to initialize database:", error);
     process.exit(1);
   }
 }
 
 // Streaming endpoint
 app.post("/api/stream", async (req, res) => {
+  console.log(
+    "[Ajora:Server]: Recieved query",
+    JSON.stringify(req.body, null, 2)
+  );
   try {
-    const { message, threadId = "" } = req.body;
-    console.log("message in stream", JSON.stringify(message, null, 2));
-    console.log("threadId received:", threadId);
-
+    const query = req.body;
+    const { type, message } = query;
     if (!message) {
-      return res.status(400).json({ error: "Query is required" });
+      return res
+        .status(400)
+        .json({ error: "Message is required in user query" });
+    } else if (!type) {
+      return res.status(400).json({ error: "Type is required in user query" });
     }
-
-    // Create or get thread
-    const thread = threadId
-      ? (await dbService.getThread(threadId)) ||
-        (await dbService.addThread({ title: "New Conversation" }))
-      : await dbService.addThread({ title: "New Conversation" });
-
-    // Save user message to database
-    const userMessage = await dbService.addMessage({
-      thread_id: thread.id,
-      role: "user",
-      parts: message.parts || [{ text: JSON.stringify(message) }],
-    });
 
     // Set headers for Server-Sent Events
     res.setHeader("Content-Type", "text/event-stream");
@@ -58,118 +50,37 @@ app.post("/api/stream", async (req, res) => {
     res.setHeader("Access-Control-Allow-Origin", "*");
     res.setHeader("Access-Control-Allow-Headers", "Cache-Control");
 
-    // Send thread ID to client only once
-    res.write(`data: ${JSON.stringify({ threadId: thread.id })}\n\n`);
-
-    const response = agent(message, {
-      threadId: thread.id,
-      dbService: dbService,
-      maxHistoryMessages: 20,
-    });
-    let modelMessageContent = "";
-    // Collect all non-text parts across the stream (functionCall/functionResponse/etc.)
-    const collectedNonTextParts: any[] = [];
+    const response = agent(query, dbService);
 
     for await (const chunk of response) {
-      // Accumulate model response for database storage
-      if (chunk.parts) {
-        for (const part of chunk.parts) {
-          if ((part as any)?.text) {
-            modelMessageContent += (part as any).text || "";
-          } else {
-            collectedNonTextParts.push(part);
-          }
-        }
-      }
-
       // Stream chunk to client
       res.write(`data: ${JSON.stringify(chunk)}\n\n`);
     }
 
-    // Save model message to database
-    if (modelMessageContent || collectedNonTextParts.length > 0) {
-      // Create final message with accumulated content
-      const finalMessageParts: any[] = [];
-
-      // Add text content if we have accumulated text
-      if (modelMessageContent) {
-        finalMessageParts.push({ text: modelMessageContent });
-      }
-
-      // Merge functionResponse into matching functionCall by id when possible
-      const callsById = new Map<string, any>();
-      const otherParts: any[] = [];
-
-      for (const part of collectedNonTextParts) {
-        const fc = (part as any).functionCall;
-        const fr = (part as any).functionResponse;
-        if (fc) {
-          const id: string = fc.id || `fc-${callsById.size}`;
-          // Keep last seen version; response may be merged later
-          callsById.set(id, { functionCall: { ...fc } });
-        } else if (fr) {
-          const id: string | undefined = fr.id;
-          if (id && callsById.has(id)) {
-            const existing = callsById.get(id);
-            callsById.set(id, {
-              functionCall: {
-                ...existing.functionCall,
-                response: fr.response,
-              },
-            });
-          } else {
-            // Keep unmatched responses as-is
-            otherParts.push(part);
-          }
-        } else {
-          otherParts.push(part);
-        }
-      }
-
-      finalMessageParts.push(...Array.from(callsById.values()));
-      if (otherParts.length > 0) {
-        finalMessageParts.push(...otherParts);
-      }
-
-      await dbService.addMessage({
-        thread_id: thread.id,
-        role: "model",
-        parts: finalMessageParts,
-      });
-    }
-
     // After streaming completes, compute and send updated thread title
     try {
-      const historyForTitle = await dbService.getMessages(thread.id);
+      const historyForTitle = await dbService.getMessages(message.thread_id);
       const totalMessages = historyForTitle.length;
       // Only update the title on the first turn (<= 2 messages) or every 10 messages
       if (totalMessages <= 2 || totalMessages % 10 === 0) {
-        const raw = await threadTitleUpdate(
-          historyForTitle.map((m) => ({ role: m.role as any, parts: m.parts }))
-        );
-        let title = String(raw || "").trim();
-        // If model returned JSON, extract the title field
-        try {
-          const parsed = JSON.parse(title);
-          if (parsed && typeof parsed.title === "string") {
-            title = parsed.title;
-          }
-        } catch {}
+        // Only use the last 10 messages for the title
+        const lastTenMessages = historyForTitle.slice(-10);
+        const title = await threadTitleUpdate(lastTenMessages);
+
         if (title) {
-          // Update thread title in DB
-          await dbService.updateThread(thread.id, { title });
-          // Notify client of new title
-          res.write(`data: ${JSON.stringify({ threadTitle: title })}\n\n`);
+          await dbService.updateThread(message.thread_id, { title });
+          res.write(
+            `data: ${JSON.stringify({ type: "thread_title", threadTitle: title })}\n\n`
+          );
         }
       }
     } catch (e) {
-      console.warn("Failed to update thread title:", e);
+      console.warn("[Ajora:Server]: Failed to update thread title:", e);
     }
 
     res.end();
-    console.log("SSE stream completed");
   } catch (error: any) {
-    console.error("Error in streaming:", error);
+    console.error("[Ajora:Server]: Error in streaming:", error);
     res.write(`data: ${JSON.stringify({ error: error.message })}\n\n`);
     res.end();
   }
@@ -179,10 +90,10 @@ app.post("/api/stream", async (req, res) => {
 app.get("/api/threads", async (req, res) => {
   try {
     const threads = await dbService.getThreads();
-    console.log("threads:", threads.length);
+    console.log("[Ajora:Server]: threads:", threads.length);
     res.json(threads);
   } catch (error: any) {
-    console.error("Error getting threads:", error);
+    console.error("[Ajora:Server]: Error getting threads:", error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -192,24 +103,28 @@ app.get("/api/threads/:threadId/messages", async (req, res) => {
   try {
     const { threadId } = req.params;
     const messages = await dbService.getMessages(threadId);
-    console.log("messages:", messages.length);
+    console.log("[Ajora:Server]: messages:", messages.length);
     res.json(messages);
   } catch (error: any) {
-    console.error("Error getting messages:", error);
+    console.error("[Ajora:Server]: Error getting messages:", error);
     res.status(500).json({ error: error.message });
   }
 });
 
 // Create new thread
 app.post("/api/threads", async (req, res) => {
+  console.log("[Ajora:Server]: createThread in API", req.body);
   try {
-    const { title } = req.body;
+    const title =
+      (req.body && (req.body as any).title) ??
+      ((req.query as any)?.title as string | undefined) ??
+      "New Conversation";
     const thread = await dbService.addThread({
-      title: title || "New Conversation",
+      title,
     });
     res.json(thread);
   } catch (error: any) {
-    console.error("Error creating thread:", error);
+    console.error("[Ajora:Server]: Error creating thread:", error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -225,7 +140,7 @@ app.put("/api/threads/:threadId", async (req, res) => {
     }
     res.json(thread);
   } catch (error: any) {
-    console.error("Error updating thread:", error);
+    console.error("[Ajora:Server]: Error updating thread:", error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -240,7 +155,7 @@ app.delete("/api/threads/:threadId", async (req, res) => {
     }
     res.json({ success: true });
   } catch (error: any) {
-    console.error("Error deleting thread:", error);
+    console.error("[Ajora:Server]: Error deleting thread:", error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -255,7 +170,7 @@ app.delete("/api/messages/:messageId", async (req, res) => {
     }
     res.json({ success: true });
   } catch (error: any) {
-    console.error("Error deleting message:", error);
+    console.error("[Ajora:Server]: Error deleting message:", error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -263,7 +178,7 @@ app.delete("/api/messages/:messageId", async (req, res) => {
 // Start server
 app.listen(port, async () => {
   await initializeDatabase();
-  console.log(`AI Backend Server listening on port ${port}`);
+  console.log(`[Ajora:Server]: AI Backend Server listening on port ${port}`);
   console.log(`Available endpoints:`);
   console.log(`  POST /api/stream - Streaming AI responses`);
   console.log(`  GET /api/threads - Get all conversation threads`);
@@ -278,13 +193,13 @@ app.listen(port, async () => {
 
 // Graceful shutdown
 process.on("SIGINT", async () => {
-  console.log("Shutting down gracefully...");
+  console.log("[Ajora:Server]: Shutting down gracefully...");
   await dbService.close();
   process.exit(0);
 });
 
 process.on("SIGTERM", async () => {
-  console.log("Shutting down gracefully...");
+  console.log("[Ajora:Server]: Shutting down gracefully...");
   await dbService.close();
   process.exit(0);
 });

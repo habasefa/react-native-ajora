@@ -2,6 +2,7 @@ import path from "path";
 import sqlite3 from "sqlite3";
 import { promisify } from "util";
 import { v4 as uuidv4 } from "uuid";
+import { Part } from "@google/genai";
 
 export interface Thread {
   id: string;
@@ -14,7 +15,7 @@ export interface Message {
   _id: string;
   thread_id: string;
   role: "user" | "model";
-  parts: any[];
+  parts: Part[];
   created_at?: string;
   updated_at?: string;
 }

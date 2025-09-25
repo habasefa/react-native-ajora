@@ -44,12 +44,58 @@ export const gemini = async function* (message: Message[]) {
     console.error("Error in gemini:", error);
   }
 };
+const CHECK_PROMPT = `
+Analyze *only* the content and structure of the turn history. Based *strictly* on that response, determine who should logically speak next: the 'user' or the 'model' (you).
 
-const CHECK_PROMPT = `Analyze *only* the content and structure of your immediately preceding response (your last turn in the conversation history). Based *strictly* on that response, determine who should logically speak next: the 'user' or the 'model' (you).
-**Decision Rules (apply in order):**
-1.  **Model Continues:** If your last response explicitly states an immediate next action *you* intend to take (e.g., "Next, I will...", "Now I'll process...", "Moving on to analyze...", indicates an intended tool call that didn't execute), OR if the response seems clearly incomplete (cut off mid-thought without a natural conclusion), then the **'model'** should speak next.
-2.  **Question to User:** If your last response ends with a direct question specifically addressed *to the user*, then the **'user'** should speak next.
-3.  **Waiting for User:** If your last response completed a thought, statement, or task *and* does not meet the criteria for Rule 1 (Model Continues) or Rule 2 (Question to User), it implies a pause expecting user input or reaction. In this case, the **'user'** should speak next.`;
+Your decision must respect the following rules and updated behavioral expectations based on the agent's new mandates (sequential tasking, tool articulation/reflection, and stepwise execution).
+
+---
+
+### 🔎 Decision Rules (Apply in Order):
+
+1. **Model Continues (Incomplete or Next Action Pending):**  
+   - If your last response explicitly indicates an *intended next step* that the model itself should take (e.g., "Next, I will…", "Now I'll call the tool…", "Proceeding to analyze…"),  
+   - OR if it mentions a tool action but the tool was **not yet called**,  
+   - OR if the response ends mid-thought or clearly lacks a natural conclusion,  
+   → Then the **'model'** should speak next.
+
+2. **Tool Articulation or Reflection Required:**  
+   - If your last response contains a plan to use a tool **but you have not yet articulated what you expect from that tool**, or you **have not reflected on the tool result after receiving it**,  
+   → Then the **'model'** should speak next.
+
+3. **Question to User:**  
+   - If your last response ends with a **direct question specifically addressed to the user** (e.g., clarification, confirmation, or input request),  
+   → Then the **'user'** should speak next.
+
+4. **Sequential Task Progression (Multi-step Objective):**  
+   - If the user's overall request involves a **sequence of subtasks** (e.g., answering questions 1–5 one by one) and **the next subtask is still pending**,  
+   - AND your last response completed the current subtask but did not explicitly request user input,  
+   → Then the **'model'** should speak next (to proceed to the next step in the sequence).
+
+5. **Objective Check (Past 5 Turns):**  
+   - If the overall objective (e.g., all subtasks completed, or final reflection delivered) is **not yet fully achieved**,  
+   - AND none of the above conditions apply,  
+   → Then the **'model'** should speak next.
+
+6. **Waiting for User:**  
+   - If your last response completed a thought or task, no further subtasks are pending, no tool reflection or articulation is missing, and there is no pending action,  
+   - OR if it ends with a user-facing question,  
+   → Then the **'user'** should speak next.
+
+---
+
+### ⚙️ Tool Context:
+- **Server Tools:** When a server tool is mentioned but not yet executed, the **model** must continue.  
+- **Client Tools:** When a client tool is invoked (e.g., confirm_action), the **user** must respond next.
+
+---
+
+### ✅ Additional Notes:
+- Always consider the **sequential nature of tasks**. If the user's multi-part question is not fully addressed yet, the default is usually **model continues**.  
+- The model should not stop between subtasks unless explicitly requiring user input.  
+- Reflective steps (before/after tool use) are considered part of the model’s responsibility — if they’re missing, the next speaker is the **model**.
+
+`;
 
 const RESPONSE_SCHEMA: Record<string, unknown> = {
   type: "object",
@@ -77,13 +123,16 @@ export interface NextSpeakerResponse {
 const nextSpeaker = async (
   history: Message[]
 ): Promise<NextSpeakerResponse | null> => {
+  const singleHistory = JSON.stringify(history, null, 2);
+
   const response = await genAI.models.generateContent({
     model: "gemini-2.0-flash-lite",
     contents: [
-      ...history,
       {
         role: "user",
-        parts: [{ text: CHECK_PROMPT }],
+        parts: [
+          { text: `Here is the history: ${singleHistory}\n\n${CHECK_PROMPT}` },
+        ],
       },
     ],
     config: {

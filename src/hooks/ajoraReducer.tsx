@@ -12,6 +12,10 @@ export type Action =
       payload: { message: IMessage; threadId: string };
     }
   | {
+      type: "ADD_FUNCTION_RESPONSE";
+      payload: { message: IMessage };
+    }
+  | {
       type: "UPDATE_STREAMING_MESSAGE";
       payload: { message: IMessage };
     }
@@ -45,6 +49,67 @@ export const ajoraReducer = (state: AjoraState, action: Action): AjoraState => {
       const threadId = messages[0].thread_id;
       const existingMessages = state.messages[threadId] || [];
       const updatedMessages = [...messages, ...existingMessages];
+      return {
+        ...state,
+        messages: { ...state.messages, [threadId]: updatedMessages },
+      };
+    }
+    case "ADD_FUNCTION_RESPONSE": {
+      const { message } = action.payload;
+      const threadId = message.thread_id;
+      const threadMessages = state.messages[threadId] || [];
+      const messageIndex = threadMessages.findIndex(
+        (msg) => msg._id === message._id
+      );
+      let updatedMessages: IMessage[];
+      if (messageIndex !== -1) {
+        // Merge with existing message, preserving existing functionCall once set
+        updatedMessages = [...threadMessages];
+
+        const existingMessage = threadMessages[messageIndex];
+
+        const findText = (parts?: IMessage["parts"]) =>
+          parts?.find((p) => p.text)?.text;
+        const findFunctionCall = (parts?: IMessage["parts"]) => {
+          const fc = parts?.find((p) => p.functionCall)?.functionCall;
+          if (!fc) return undefined;
+          // Treat empty objects as absent
+          const hasContent = Object.keys(fc).length > 0;
+          return hasContent ? fc : undefined;
+        };
+        const findFunctionResponse = (parts?: IMessage["parts"]) =>
+          parts?.find((p) => p.functionResponse)?.functionResponse;
+
+        const incomingText = findText(message.parts);
+        const incomingFnCall = findFunctionCall(message.parts);
+        const incomingFnResp = findFunctionResponse(message.parts);
+
+        const existingText = findText(existingMessage.parts);
+        const existingFnCall = findFunctionCall(existingMessage.parts);
+        const existingFnResp = findFunctionResponse(existingMessage.parts);
+
+        // Prefer incoming values if provided, otherwise keep existing
+        const mergedText = incomingText ?? existingText;
+        const mergedFnCall = incomingFnCall ?? existingFnCall;
+        const mergedFnResp = incomingFnResp ?? existingFnResp;
+
+        const mergedParts = [] as IMessage["parts"]; // preserve order: text, functionCall, functionResponse
+        if (mergedText) mergedParts.push({ text: mergedText });
+        if (mergedFnCall) mergedParts.push({ functionCall: mergedFnCall });
+        if (mergedFnResp) mergedParts.push({ functionResponse: mergedFnResp });
+
+        updatedMessages[messageIndex] = {
+          ...existingMessage,
+          ...message,
+          // Ensure stable _id and createdAt from existing when streaming
+          _id: existingMessage._id,
+          created_at: existingMessage.created_at,
+          parts: mergedParts,
+        };
+      } else {
+        updatedMessages = [...threadMessages, message];
+      }
+
       return {
         ...state,
         messages: { ...state.messages, [threadId]: updatedMessages },

@@ -1,5 +1,5 @@
 import EventSource from "react-native-sse";
-import { FunctionResponse, IMessage } from "./types";
+import { IMessage } from "./types";
 import { SourceProps } from "./source/types";
 import { SuggestionProps } from "./suggestion/types";
 import { Thread } from "./Thread/types";
@@ -31,11 +31,7 @@ export interface MessageEvent {
 
 export interface FunctionResponseEvent {
   type: "function_response";
-  data: {
-    thread_id: string;
-    message_id: string;
-    functionResponse: FunctionResponse;
-  };
+  message: IMessage;
 }
 
 export interface ThreadTitleEvent {
@@ -134,6 +130,7 @@ export class ApiService {
             case "suggestions":
               return onSuggestions(agentEvent as SuggestionsEvent);
             case "function_response":
+              console.log("Function Response received:", agentEvent);
               return onFunctionResponse(agentEvent as FunctionResponseEvent);
             case "error":
               this.close();

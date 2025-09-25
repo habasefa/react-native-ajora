@@ -170,19 +170,12 @@ const useAjora = ({
           }
         },
         onFunctionResponse: (fr: FunctionResponseEvent) => {
-          const { thread_id, message_id, functionResponse } = fr.data || {};
+          const { message } = fr;
 
-          if (!message_id || !thread_id) return;
-          const fnRespMessage: IMessage = {
-            _id: message_id,
-            thread_id: thread_id,
-            role: "model",
-            parts: [{ functionResponse }],
-            created_at: new Date().toISOString(),
-          };
+          if (!message._id || !message.thread_id) return;
           dispatch({
-            type: "UPDATE_STREAMING_MESSAGE",
-            payload: { message: fnRespMessage },
+            type: "ADD_FUNCTION_RESPONSE",
+            payload: { message },
           });
         },
         onThreadTitle: (tt: ThreadTitleEvent) => {

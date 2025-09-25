@@ -5,6 +5,7 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { AjoraProvider } from "../../src";
 import useAjora from "../../src/hooks/useAjora";
+import "react-native-get-random-values";
 
 export default function RootLayout() {
   const ajora = useAjora({

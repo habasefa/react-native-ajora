@@ -1,4 +1,4 @@
-import { FunctionCall, Part } from "@google/genai";
+import { FunctionCall, FunctionResponse, Part } from "@google/genai";
 import { nativeTools } from "../src/tools/toolsDeclaration";
 import { Message } from "../db/dbService";
 import { v4 as uuidv4 } from "uuid";
@@ -32,28 +32,43 @@ const isValidToolCall = (toolCall: FunctionCall) => {
   return true;
 };
 
-const getFunctionCall = (message?: Message): Part | undefined => {
+const getFunctionCall = (message?: Message): FunctionCall | undefined => {
   if (!message || !Array.isArray(message.parts)) return undefined;
-  return message.parts.find((part: Part) => (part as any)?.functionCall);
+  return message.parts.find((part: Part) => part?.functionCall)
+    ?.functionCall as FunctionCall | undefined;
 };
 
-const getFunctionResponse = (message?: Message): Part | undefined => {
+const getFunctionResponse = (
+  message?: Message
+): FunctionResponse | undefined => {
   if (!message || !Array.isArray(message.parts)) return undefined;
-  return message.parts.find((part: Part) => (part as any)?.functionResponse);
+  return message.parts.find((part: Part) => part?.functionResponse) as
+    | FunctionResponse
+    | undefined;
 };
 
 const getPendingToolCall = (
   history: Message[]
-): { functionCall: Part; originalMessage: Message } | undefined => {
+): { functionCall: FunctionCall; originalMessage: Message } | undefined => {
+  console.log(
+    "[Ajora:Server:getPendingToolCall][0.A]: History",
+    JSON.stringify(history, null, 2)
+  );
   if (!Array.isArray(history) || history.length === 0) return undefined;
+
   // Get the last message in the history and check if it has functionCall but no functionResponse else return undefined
-  const lastMessage = history[history.length - 1];
-  const functionCall = getFunctionCall(lastMessage);
-  const functionResponse = getFunctionResponse(lastMessage);
+  const originalMessage = history[history.length - 1];
+
+  console.log(
+    "[Ajora:Server:getPendingToolCall][0.B]: Last Message",
+    JSON.stringify(originalMessage, null, 2)
+  );
+  const functionCall = getFunctionCall(originalMessage);
+  const functionResponse = getFunctionResponse(originalMessage);
   if (functionCall && !functionResponse) {
     return {
-      functionCall: functionCall,
-      originalMessage: lastMessage,
+      functionCall,
+      originalMessage,
     };
   }
   return undefined;

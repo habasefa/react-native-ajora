@@ -109,12 +109,20 @@ export function MessageToolCall<TMessage extends IMessage = IMessage>({
   // Check if the tools are native tools
   if (nativeTools.includes(toolCallParts[0].functionCall?.name || "")) {
     const toolName = toolCallParts[0].functionCall?.name || "";
+    // Look for function response in the current message parts
+    const functionResponsePart = currentMessage.parts?.find(
+      (part) => part.functionResponse
+    );
+    const functionResponse = functionResponsePart?.functionResponse;
+
     const toolRequest = {
       callId: toolCallParts[0].functionCall?.id || `call_${0}`,
       tool: {
         name: toolName,
         description: `Tool: ${toolName}`,
         args: toolCallParts[0].functionCall?.args || {},
+        response:
+          functionResponse?.response || toolCallParts[0].functionCall?.response,
       },
     };
     switch (toolName) {

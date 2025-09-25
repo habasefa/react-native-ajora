@@ -32,6 +32,7 @@ const MessageActions: React.FC<MessageActionsProps> = ({
   if it is streaming, or 
   if the message is not the last message in the thread, (TODO: make it display for non last messages too, which remove all the message after it)
   return null */
+  return null;
   if (position === "right" || message.parts?.[0].functionCall) return null;
 
   if (renderMessageActions) {

@@ -202,24 +202,25 @@ function MessageContainer<TMessage extends IMessage = IMessage>(
 
     const suggestedQuestions = [
       {
-        title: "Science",
+        title: "Nutrition",
         question: "What does a nutritionist do?",
-        icon: "science",
+        icon: "restaurant",
       },
       {
-        title: "Food",
-        question: "What is the staple food of Ethiopia?",
-        icon: "memory",
+        title: "Culture",
+        question:
+          "Whose staple food is most liked by foreigners: Ethiopia, Kenya, or Nigeria?",
+        icon: "public",
       },
       {
         title: "History",
         question: "Who created burger?",
-        icon: "history-edu",
+        icon: "history",
       },
       {
-        title: "Life",
+        title: "Philosophy",
         question: "What is the chief end of life?",
-        icon: "emoji-emotions",
+        icon: "lightbulb",
       },
     ];
 
@@ -276,7 +277,7 @@ function MessageContainer<TMessage extends IMessage = IMessage>(
             color="#9CA3AF"
             style={styles.emptyChatIcon}
           />
-          <Text style={styles.emptyChatTitle}>Ajora is here to help!</Text>
+          <Text style={styles.emptyChatTitle}>Welcome to Ajora!</Text>
           <Text style={styles.emptyChatSubtitle}>
             Start a conversation by typing a message or select a topic below
           </Text>

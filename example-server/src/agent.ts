@@ -1,12 +1,9 @@
 import { gemini, nextSpeaker } from "./gemini";
-import {
-  generateId,
-  getFunctionResponse,
-  getPendingToolCall,
-} from "../utils/toolUtils";
+import { generateId, getPendingToolCall } from "../utils/toolUtils";
 import { executeTool } from "./toolExecutor";
 import { Message } from "../db/dbService";
 import DbService from "../db/dbService";
+import { TodoListService } from "./services/todoService";
 import { FunctionResponse, Part } from "@google/genai";
 
 export const serverTools = ["search_web", "search_document", "todo_list"];
@@ -35,6 +32,9 @@ export const agent = async function* (query: UserEvent, dbService: DbService) {
     throw new Error("Query is required ");
   }
   const { type, message } = query;
+
+  // Initialize TodoListService with the database service
+  const todoListService = new TodoListService(dbService);
 
   const thread_id = message.thread_id;
   let remainingTurns = MAX_TURNS;
@@ -110,7 +110,7 @@ export const agent = async function* (query: UserEvent, dbService: DbService) {
 
           if (serverTools.includes(toolName || "")) {
             const toolResult = await Promise.resolve(
-              executeTool(functionCall as any)
+              executeTool(functionCall, thread_id, todoListService)
             );
             console.log("[Ajora:Server][6]: toolResult", toolResult);
 

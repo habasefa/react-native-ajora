@@ -33,7 +33,7 @@ class WebSearchService {
     console.info("Searching web:", query);
     try {
       const response = await fetch(
-        `${this.apiUrl}?q=${encodeURIComponent(query)}&count=3`,
+        `${this.apiUrl}?q=${encodeURIComponent(query)}&count=5`,
         {
           headers: {
             Accept: "application/json",

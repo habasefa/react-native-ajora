@@ -20,6 +20,28 @@ export interface Message {
   updated_at?: string;
 }
 
+export interface TodoList {
+  id: string;
+  thread_id: string;
+  name: string;
+  description: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface Todo {
+  id: string;
+  todo_list_id: string;
+  name: string;
+  status: "queue" | "executing" | "completed" | "error";
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface TodoListWithTodos extends TodoList {
+  todos: Todo[];
+}
+
 class DbService {
   private db_path: string;
   private db: sqlite3.Database | null = null;
@@ -72,6 +94,32 @@ class DbService {
         )
       `);
 
+      // Create todo_lists table
+      await run(`
+        CREATE TABLE IF NOT EXISTS todo_lists (
+          id TEXT PRIMARY KEY,
+          thread_id TEXT NOT NULL,
+          name TEXT NOT NULL,
+          description TEXT NOT NULL,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (thread_id) REFERENCES threads (id) ON DELETE CASCADE
+        )
+      `);
+
+      // Create todos table
+      await run(`
+        CREATE TABLE IF NOT EXISTS todos (
+          id TEXT PRIMARY KEY,
+          todo_list_id TEXT NOT NULL,
+          name TEXT NOT NULL,
+          status TEXT NOT NULL CHECK (status IN ('queue', 'executing', 'completed', 'error')),
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (todo_list_id) REFERENCES todo_lists (id) ON DELETE CASCADE
+        )
+      `);
+
       // Create indexes for better performance
       await run(
         `CREATE INDEX IF NOT EXISTS idx_messages_thread_id ON messages (thread_id)`
@@ -81,6 +129,15 @@ class DbService {
       );
       await run(
         `CREATE INDEX IF NOT EXISTS idx_threads_updated_at ON threads (updated_at)`
+      );
+      await run(
+        `CREATE INDEX IF NOT EXISTS idx_todo_lists_thread_id ON todo_lists (thread_id)`
+      );
+      await run(
+        `CREATE INDEX IF NOT EXISTS idx_todos_todo_list_id ON todos (todo_list_id)`
+      );
+      await run(
+        `CREATE INDEX IF NOT EXISTS idx_todos_status ON todos (status)`
       );
 
       console.log("Database tables created successfully");
@@ -356,6 +413,387 @@ class DbService {
       return (result as any).changes > 0;
     } catch (error) {
       console.error("Error deleting message:", error);
+      throw error;
+    }
+  }
+
+  // TodoList methods
+  async addTodoList(
+    todoList: Omit<TodoList, "id" | "created_at" | "updated_at">
+  ): Promise<TodoList> {
+    if (!this.db) throw new Error("Database not initialized");
+
+    const run = promisify(this.db.run.bind(this.db)) as (
+      sql: string,
+      params?: any[]
+    ) => Promise<any>;
+    const _id = uuidv4();
+    const now = new Date().toISOString();
+
+    try {
+      await run(
+        `INSERT INTO todo_lists (id, thread_id, name, description, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)`,
+        [_id, todoList.thread_id, todoList.name, todoList.description, now, now]
+      );
+
+      return {
+        id: _id,
+        thread_id: todoList.thread_id,
+        name: todoList.name,
+        description: todoList.description,
+        created_at: now,
+        updated_at: now,
+      };
+    } catch (error) {
+      console.error("Error adding todo list:", error);
+      throw error;
+    }
+  }
+
+  async getTodoLists(thread_id: string): Promise<TodoList[]> {
+    if (!this.db) throw new Error("Database not initialized");
+
+    const all = promisify(this.db.all.bind(this.db)) as (
+      sql: string,
+      params?: any[]
+    ) => Promise<any[]>;
+
+    try {
+      const todoLists = await all(
+        `SELECT * FROM todo_lists WHERE thread_id = ? ORDER BY created_at DESC`,
+        [thread_id]
+      );
+      return todoLists as TodoList[];
+    } catch (error) {
+      console.error("Error getting todo lists:", error);
+      throw error;
+    }
+  }
+
+  async getTodoListsWithTodos(thread_id: string): Promise<TodoListWithTodos[]> {
+    if (!this.db) throw new Error("Database not initialized");
+
+    const all = promisify(this.db.all.bind(this.db)) as (
+      sql: string,
+      params?: any[]
+    ) => Promise<any[]>;
+
+    try {
+      const todoListsWithTodos = await all(
+        `SELECT 
+          tl.id as todo_list_id,
+          tl.thread_id,
+          tl.name as todo_list_name,
+          tl.description,
+          tl.created_at as todo_list_created_at,
+          tl.updated_at as todo_list_updated_at,
+          t.id as todo_id,
+          t.name as todo_name,
+          t.status,
+          t.created_at as todo_created_at,
+          t.updated_at as todo_updated_at
+        FROM todo_lists tl
+        LEFT JOIN todos t ON tl.id = t.todo_list_id
+        WHERE tl.thread_id = ?
+        ORDER BY tl.created_at DESC, t.created_at ASC`,
+        [thread_id]
+      );
+
+      // Group the results by todo list
+      const todoListMap = new Map<string, TodoListWithTodos>();
+
+      for (const row of todoListsWithTodos) {
+        const todoListId = row.todo_list_id;
+
+        if (!todoListMap.has(todoListId)) {
+          todoListMap.set(todoListId, {
+            id: todoListId,
+            thread_id: row.thread_id,
+            name: row.todo_list_name,
+            description: row.description,
+            created_at: row.todo_list_created_at,
+            updated_at: row.todo_list_updated_at,
+            todos: [],
+          });
+        }
+
+        // Add todo if it exists (LEFT JOIN might return null for todos)
+        if (row.todo_id) {
+          const todoList = todoListMap.get(todoListId)!;
+          todoList.todos.push({
+            id: row.todo_id,
+            todo_list_id: todoListId,
+            name: row.todo_name,
+            status: row.status,
+            created_at: row.todo_created_at,
+            updated_at: row.todo_updated_at,
+          });
+        }
+      }
+
+      return Array.from(todoListMap.values());
+    } catch (error) {
+      console.error("Error getting todo lists with todos:", error);
+      throw error;
+    }
+  }
+
+  async getTodoList(id: string): Promise<TodoList | null> {
+    if (!this.db) throw new Error("Database not initialized");
+
+    const get = promisify(this.db.get.bind(this.db)) as (
+      sql: string,
+      params?: any[]
+    ) => Promise<any>;
+
+    try {
+      const todoList = await get(`SELECT * FROM todo_lists WHERE id = ?`, [id]);
+      return todoList as TodoList | null;
+    } catch (error) {
+      console.error("Error getting todo list:", error);
+      throw error;
+    }
+  }
+
+  async getTodoListWithTodos(id: string): Promise<TodoListWithTodos | null> {
+    if (!this.db) throw new Error("Database not initialized");
+
+    const all = promisify(this.db.all.bind(this.db)) as (
+      sql: string,
+      params?: any[]
+    ) => Promise<any[]>;
+
+    try {
+      const todoListWithTodos = await all(
+        `SELECT 
+          tl.id as todo_list_id,
+          tl.thread_id,
+          tl.name as todo_list_name,
+          tl.description,
+          tl.created_at as todo_list_created_at,
+          tl.updated_at as todo_list_updated_at,
+          t.id as todo_id,
+          t.name as todo_name,
+          t.status,
+          t.created_at as todo_created_at,
+          t.updated_at as todo_updated_at
+        FROM todo_lists tl
+        LEFT JOIN todos t ON tl.id = t.todo_list_id
+        WHERE tl.id = ?
+        ORDER BY t.created_at ASC`,
+        [id]
+      );
+
+      if (todoListWithTodos.length === 0) {
+        return null;
+      }
+
+      // Build the todo list with todos
+      const firstRow = todoListWithTodos[0];
+      const todoList: TodoListWithTodos = {
+        id: firstRow.todo_list_id,
+        thread_id: firstRow.thread_id,
+        name: firstRow.todo_list_name,
+        description: firstRow.description,
+        created_at: firstRow.todo_list_created_at,
+        updated_at: firstRow.todo_list_updated_at,
+        todos: [],
+      };
+
+      // Add all todos
+      for (const row of todoListWithTodos) {
+        if (row.todo_id) {
+          todoList.todos.push({
+            id: row.todo_id,
+            todo_list_id: firstRow.todo_list_id,
+            name: row.todo_name,
+            status: row.status,
+            created_at: row.todo_created_at,
+            updated_at: row.todo_updated_at,
+          });
+        }
+      }
+
+      return todoList;
+    } catch (error) {
+      console.error("Error getting todo list with todos:", error);
+      throw error;
+    }
+  }
+
+  async updateTodoList(
+    id: string,
+    updates: Partial<Pick<TodoList, "name" | "description">>
+  ): Promise<TodoList | null> {
+    if (!this.db) throw new Error("Database not initialized");
+
+    const run = promisify(this.db.run.bind(this.db)) as (
+      sql: string,
+      params?: any[]
+    ) => Promise<any>;
+    const get = promisify(this.db.get.bind(this.db)) as (
+      sql: string,
+      params?: any[]
+    ) => Promise<any>;
+
+    try {
+      const setClause = Object.keys(updates)
+        .map((key) => `${key} = ?`)
+        .join(", ");
+
+      if (setClause) {
+        await run(
+          `UPDATE todo_lists SET ${setClause}, updated_at = ? WHERE id = ?`,
+          [...Object.values(updates), new Date().toISOString(), id]
+        );
+      }
+
+      const updatedTodoList = await get(
+        `SELECT * FROM todo_lists WHERE id = ?`,
+        [id]
+      );
+      return updatedTodoList as TodoList | null;
+    } catch (error) {
+      console.error("Error updating todo list:", error);
+      throw error;
+    }
+  }
+
+  async deleteTodoList(id: string): Promise<boolean> {
+    if (!this.db) throw new Error("Database not initialized");
+
+    const run = promisify(this.db.run.bind(this.db)) as (
+      sql: string,
+      params?: any[]
+    ) => Promise<any>;
+
+    try {
+      const result = await run(`DELETE FROM todo_lists WHERE id = ?`, [id]);
+      return (result as any).changes > 0;
+    } catch (error) {
+      console.error("Error deleting todo list:", error);
+      throw error;
+    }
+  }
+
+  // Todo methods
+  async addTodo(
+    todo: Omit<Todo, "id" | "created_at" | "updated_at">
+  ): Promise<Todo> {
+    if (!this.db) throw new Error("Database not initialized");
+
+    const run = promisify(this.db.run.bind(this.db)) as (
+      sql: string,
+      params?: any[]
+    ) => Promise<any>;
+    const _id = uuidv4();
+    const now = new Date().toISOString();
+
+    try {
+      await run(
+        `INSERT INTO todos (id, todo_list_id, name, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)`,
+        [_id, todo.todo_list_id, todo.name, todo.status, now, now]
+      );
+
+      return {
+        id: _id,
+        todo_list_id: todo.todo_list_id,
+        name: todo.name,
+        status: todo.status,
+        created_at: now,
+        updated_at: now,
+      };
+    } catch (error) {
+      console.error("Error adding todo:", error);
+      throw error;
+    }
+  }
+
+  async getTodos(todo_list_id: string): Promise<Todo[]> {
+    if (!this.db) throw new Error("Database not initialized");
+
+    const all = promisify(this.db.all.bind(this.db)) as (
+      sql: string,
+      params?: any[]
+    ) => Promise<any[]>;
+
+    try {
+      const todos = await all(
+        `SELECT * FROM todos WHERE todo_list_id = ? ORDER BY created_at ASC`,
+        [todo_list_id]
+      );
+      return todos as Todo[];
+    } catch (error) {
+      console.error("Error getting todos:", error);
+      throw error;
+    }
+  }
+
+  async getTodo(id: string): Promise<Todo | null> {
+    if (!this.db) throw new Error("Database not initialized");
+
+    const get = promisify(this.db.get.bind(this.db)) as (
+      sql: string,
+      params?: any[]
+    ) => Promise<any>;
+
+    try {
+      const todo = await get(`SELECT * FROM todos WHERE id = ?`, [id]);
+      return todo as Todo | null;
+    } catch (error) {
+      console.error("Error getting todo:", error);
+      throw error;
+    }
+  }
+
+  async updateTodo(
+    id: string,
+    updates: Partial<Pick<Todo, "name" | "status">>
+  ): Promise<Todo | null> {
+    if (!this.db) throw new Error("Database not initialized");
+
+    const run = promisify(this.db.run.bind(this.db)) as (
+      sql: string,
+      params?: any[]
+    ) => Promise<any>;
+    const get = promisify(this.db.get.bind(this.db)) as (
+      sql: string,
+      params?: any[]
+    ) => Promise<any>;
+
+    try {
+      const setClause = Object.keys(updates)
+        .map((key) => `${key} = ?`)
+        .join(", ");
+
+      if (setClause) {
+        await run(
+          `UPDATE todos SET ${setClause}, updated_at = ? WHERE id = ?`,
+          [...Object.values(updates), new Date().toISOString(), id]
+        );
+      }
+
+      const updatedTodo = await get(`SELECT * FROM todos WHERE id = ?`, [id]);
+      return updatedTodo as Todo | null;
+    } catch (error) {
+      console.error("Error updating todo:", error);
+      throw error;
+    }
+  }
+
+  async deleteTodo(id: string): Promise<boolean> {
+    if (!this.db) throw new Error("Database not initialized");
+
+    const run = promisify(this.db.run.bind(this.db)) as (
+      sql: string,
+      params?: any[]
+    ) => Promise<any>;
+
+    try {
+      const result = await run(`DELETE FROM todos WHERE id = ?`, [id]);
+      return (result as any).changes > 0;
+    } catch (error) {
+      console.error("Error deleting todo:", error);
       throw error;
     }
   }

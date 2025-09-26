@@ -4,9 +4,16 @@ import {
   Text,
   View,
   TouchableOpacity,
-  ActivityIndicator,
   Dimensions,
+  Image,
 } from "react-native";
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  withSequence,
+  interpolate,
+} from "react-native-reanimated";
 import { ToolRequest, ToolResponse } from "../Tool/types";
 import MaterialIcons from "@expo/vector-icons/build/MaterialIcons";
 
@@ -32,7 +39,7 @@ const WebSearchTool: React.FC<WebSearchToolProps> = ({
   const styles = createStyles();
 
   const { tool } = request;
-  const { query = [] } = tool.args || {};
+  const { query = "" } = tool.args || {};
 
   const performSearch = useCallback(async () => {
     setLoading(true);
@@ -67,7 +74,7 @@ const WebSearchTool: React.FC<WebSearchToolProps> = ({
         // Transform the server response to match the expected format
         const serverResponse = request.tool.response;
         const transformedResults = {
-          query: query.join(" "),
+          query: query,
           results: serverResponse.output || [],
           totalResults: serverResponse.output?.length || 0,
           searchTime: "0.45s", // Default value since server doesn't provide this
@@ -90,14 +97,114 @@ const WebSearchTool: React.FC<WebSearchToolProps> = ({
     );
   }
 
+  const renderAvatarsGroup = () => {
+    if (!searchResults?.results || searchResults.results.length === 0) {
+      return <MaterialIcons name="search" size={20} color="#374151" />;
+    }
+
+    const avatars = searchResults.results
+      .slice(0, 4) // Show max 4 avatars
+      .map((result: any, index: number) => {
+        const imgUrl = result.profile?.img;
+        return (
+          <View key={index} style={styles.avatarContainer}>
+            {imgUrl ? (
+              <Image
+                source={{ uri: imgUrl }}
+                style={styles.avatar}
+                onError={() => {}}
+              />
+            ) : (
+              <View style={[styles.avatar, styles.avatarFallback]}>
+                <MaterialIcons name="public" size={12} color="#6b7280" />
+              </View>
+            )}
+          </View>
+        );
+      });
+
+    return (
+      <View style={styles.avatarsGroup}>
+        {avatars}
+        {searchResults.results.length > 4 && (
+          <View style={[styles.avatar, styles.avatarMore]}>
+            <Text style={styles.avatarMoreText}>
+              +{searchResults.results.length - 4}
+            </Text>
+          </View>
+        )}
+      </View>
+    );
+  };
+
+  const SearchingAnimation = () => {
+    return (
+      <View style={styles.searchingAnimation}>
+        <SearchingDots />
+      </View>
+    );
+  };
+
+  const SearchingDots = () => {
+    const dot1 = useSharedValue(0);
+    const dot2 = useSharedValue(0);
+    const dot3 = useSharedValue(0);
+
+    useEffect(() => {
+      const animateDots = () => {
+        dot1.value = withSequence(
+          withTiming(1, { duration: 200 }),
+          withTiming(0, { duration: 200 })
+        );
+        dot2.value = withSequence(
+          withTiming(0, { duration: 200 }),
+          withTiming(1, { duration: 200 }),
+          withTiming(0, { duration: 200 })
+        );
+        dot3.value = withSequence(
+          withTiming(0, { duration: 400 }),
+          withTiming(1, { duration: 200 }),
+          withTiming(0, { duration: 200 })
+        );
+      };
+
+      const interval = setInterval(animateDots, 600);
+      return () => clearInterval(interval);
+    }, []);
+
+    const dot1Style = useAnimatedStyle(() => ({
+      opacity: interpolate(dot1.value, [0, 1], [0.3, 1]),
+      transform: [{ scale: interpolate(dot1.value, [0, 1], [0.8, 1.2]) }],
+    }));
+
+    const dot2Style = useAnimatedStyle(() => ({
+      opacity: interpolate(dot2.value, [0, 1], [0.3, 1]),
+      transform: [{ scale: interpolate(dot2.value, [0, 1], [0.8, 1.2]) }],
+    }));
+
+    const dot3Style = useAnimatedStyle(() => ({
+      opacity: interpolate(dot3.value, [0, 1], [0.3, 1]),
+      transform: [{ scale: interpolate(dot3.value, [0, 1], [0.8, 1.2]) }],
+    }));
+
+    return (
+      <View style={styles.dotsContainer}>
+        <Animated.View style={[styles.dot, dot1Style]} />
+        <Animated.View style={[styles.dot, dot2Style]} />
+        <Animated.View style={[styles.dot, dot3Style]} />
+      </View>
+    );
+  };
+
   if (loading && !request.tool.response) {
     return (
       <View style={styles.container}>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="small" color="#007AFF" />
-          <Text style={styles.loadingText}>
-            Searching for "{query.join(" ")}"...
+        <View style={styles.loadingContainerSearched}>
+          <Text style={styles.loadingTextSearched}>
+            <Text style={{ fontWeight: "bold" }}>Searching for</Text> "{query}{" "}
+            "...
           </Text>
+          <SearchingAnimation />
         </View>
       </View>
     );
@@ -123,11 +230,12 @@ const WebSearchTool: React.FC<WebSearchToolProps> = ({
 
   return (
     <View style={styles.container}>
-      <View style={styles.loadingContainer}>
-        <MaterialIcons name="search" size={20} color="#374151" />
-        <Text style={styles.loadingText}>
-          Searched for "{query.join(" ")}"...
+      <View style={styles.loadingContainerSearched}>
+        <Text style={styles.loadingTextSearched}>
+          <Text style={{ fontWeight: "bold" }}>Searched for</Text> " "{query}{" "}
+          "...
         </Text>
+        {renderAvatarsGroup()}
       </View>
     </View>
   );
@@ -147,11 +255,27 @@ const createStyles = () => {
       width: cardWidth,
       flexDirection: "row",
       alignItems: "center",
+      gap: 10,
       padding: 16,
       backgroundColor: "#f8f9fa",
       borderRadius: 12,
       borderWidth: 1,
       borderColor: "#e2e8f0",
+    },
+    loadingContainerSearched: {
+      width: cardWidth,
+      // flexDirection: "row",
+      // alignItems: "center",
+      gap: 10,
+      padding: 16,
+      backgroundColor: "#f8f9fa",
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: "#e2e8f0",
+    },
+    loadingTextSearched: {
+      fontSize: 14,
+      color: "#6b7280",
     },
     loadingText: {
       marginLeft: 8,
@@ -263,6 +387,55 @@ const createStyles = () => {
       fontSize: 13,
       color: "#4b5563",
       lineHeight: 18,
+    },
+    avatarsGroup: {
+      flexDirection: "row",
+      alignItems: "center",
+      marginRight: 8,
+    },
+    avatarContainer: {
+      marginLeft: -4, // Overlap avatars slightly
+    },
+    avatar: {
+      width: 22,
+      height: 22,
+      borderRadius: 11,
+      borderWidth: 0.5,
+      backgroundColor: "white",
+      borderColor: "grey",
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    avatarFallback: {
+      backgroundColor: "#f3f4f6",
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    avatarMore: {
+      backgroundColor: "#e5e7eb",
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    avatarMoreText: {
+      fontSize: 10,
+      fontWeight: "600",
+      color: "#6b7280",
+    },
+    searchingAnimation: {
+      flexDirection: "row",
+      alignItems: "center",
+      marginTop: 8,
+    },
+    dotsContainer: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 4,
+    },
+    dot: {
+      width: 6,
+      height: 6,
+      borderRadius: 3,
+      backgroundColor: "#000000",
     },
   });
 };

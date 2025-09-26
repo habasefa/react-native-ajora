@@ -39,59 +39,84 @@ const searchDocumentFunctionDeclaration = {
   },
 };
 
-// Get, add, remove, update the todo list
+// Get, add, create, and update the todo list
 const todoListFunctionDeclaration = {
   name: "todo_list",
   description:
-    "Get, add, remove, and update the todo list for the given query to get the latest information.",
+    "Create, get, add todos, and update todo status in the todo list. Supports creating new todo lists, adding todos, retrieving todo lists, and marking todos as queue, executing, completed, or error.",
   parameters: {
     type: Type.OBJECT,
     properties: {
       action: {
         type: Type.STRING,
-        enum: ["create_list", "add", "get", "remove", "update"],
+        enum: [
+          "create_list",
+          "add",
+          "get",
+          "mark_as_queue",
+          "mark_as_executing",
+          "mark_as_completed",
+          "mark_as_error",
+        ],
         description: "Action to perform on the todo list.",
       },
       name: {
         type: Type.STRING,
-        description: "Name of the todo list (for create_list action).",
+        description: "Name of the todo list (required for create_list action).",
       },
       description: {
         type: Type.STRING,
-        description: "Description of the todo list (for create_list action).",
+        description:
+          "Description of the todo list (required for create_list action).",
       },
-      todoListId: {
+      todo_list_id: {
         type: Type.STRING,
         description:
-          "ID of the todo list (for add, get, remove, update actions). Optional for get action - will use default list if not provided.",
+          "ID of the todo list (required for add, mark_as_queue, mark_as_executing, mark_as_completed, mark_as_error actions).",
+      },
+      todos: {
+        type: Type.ARRAY,
+        description:
+          "Array of todos to create with the todo list (required for create_list action).",
+        items: {
+          type: Type.OBJECT,
+          properties: {
+            name: {
+              type: Type.STRING,
+              description: "Name/description of the todo item.",
+            },
+            status: {
+              type: Type.STRING,
+              enum: ["queue", "executing", "completed", "error"],
+              description: "Status of the todo item. Defaults to 'queue'.",
+            },
+          },
+          required: ["name"],
+        },
       },
       todo: {
         type: Type.OBJECT,
         description:
-          "Todo object (for add, update actions). Should contain: text (string), completed (boolean), priority (high|medium|low), category (string).",
+          "Todo object (required for add, mark_as_queue, mark_as_executing, mark_as_completed, mark_as_error actions).",
         properties: {
-          text: {
+          id: {
             type: Type.STRING,
-            description: "The todo text content.",
+            description:
+              "ID of the todo item (required for status update actions).",
           },
-          completed: {
-            type: Type.BOOLEAN,
-            description: "Whether the todo is completed.",
-          },
-          priority: {
+          name: {
             type: Type.STRING,
-            enum: ["high", "medium", "low"],
-            description: "Priority level of the todo.",
+            description:
+              "Name/description of the todo item (required for add action).",
           },
-          category: {
+          status: {
             type: Type.STRING,
-            description: "Category of the todo.",
+            enum: ["queue", "executing", "completed", "error"],
+            description:
+              "Status of the todo item. Defaults to 'queue' for new todos.",
           },
         },
-      },
-      id: {
-        type: Type.STRING,
-        description: "ID of the todo item (for remove, update actions).",
+        required: ["name"],
       },
     },
     required: ["action"],

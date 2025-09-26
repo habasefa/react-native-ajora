@@ -116,7 +116,7 @@ export default StyleSheet.create({
   },
   suggestedQuestionCard: {
     width: 160,
-    height: 150,
+    height: 170,
     backgroundColor: "#F8FAFC",
     paddingHorizontal: 10,
     paddingVertical: 12,
@@ -149,10 +149,10 @@ export default StyleSheet.create({
   },
   suggestedQuestionText: {
     fontSize: 15,
-    fontWeight: "600",
+    fontWeight: "500",
     color: "#1E293B",
     textAlign: "center",
-    lineHeight: 22,
+    lineHeight: 18,
     letterSpacing: -0.1,
   },
 });

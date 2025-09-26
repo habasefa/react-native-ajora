@@ -4,18 +4,24 @@ import {
   Text,
   View,
   TouchableOpacity,
-  ActivityIndicator,
   ScrollView,
   Dimensions,
 } from "react-native";
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  withSequence,
+  interpolate,
+} from "react-native-reanimated";
 import { ToolRequest, ToolResponse } from "../Tool/types";
 import Color from "../Color";
 import MaterialIcons from "@expo/vector-icons/build/MaterialIcons";
 
-// Get responsive card width (80% of screen width, max 400px, min 280px)
+// Get responsive card width (90% of screen width, max 400px, min 280px)
 const getCardWidth = () => {
   const screenWidth = Dimensions.get("window").width;
-  const cardWidth = screenWidth * 0.8;
+  const cardWidth = screenWidth * 0.9;
   return Math.min(Math.max(cardWidth, 280), 400);
 };
 
@@ -38,59 +44,9 @@ const TodoListTool: React.FC<TodoListToolProps> = ({ request, onResponse }) => {
     setError(null);
 
     try {
-      // Simulate API call - in real implementation, this would be handled by the server
-      await new Promise((resolve) => setTimeout(resolve, 500));
-
-      // For now, we'll use mock data that matches the expected schema
-      // In production, this would come from the actual API response
-      const mockTodoData = {
-        action: action,
-        todos: [
-          {
-            id: "1",
-            text: "Plan weekly meal prep",
-            completed: false,
-            priority: "high",
-            category: "meal planning",
-          },
-          {
-            id: "2",
-            text: "Research nutrition guidelines",
-            completed: true,
-            priority: "medium",
-            category: "research",
-          },
-          {
-            id: "3",
-            text: "Create shopping list",
-            completed: false,
-            priority: "high",
-            category: "shopping",
-          },
-          {
-            id: "4",
-            text: "Review dietary restrictions",
-            completed: false,
-            priority: "low",
-            category: "planning",
-          },
-        ],
-        totalTodos: 4,
-        completedTodos: 1,
-        pendingTodos: 3,
-        listName: "My Todo List",
-        listDescription: "Default todo list for managing tasks",
-      };
-
-      setTodoData(mockTodoData);
-
-      // Send response back
-      if (onResponse && request) {
-        onResponse({
-          callId: request.callId,
-          response: mockTodoData,
-        });
-      }
+      // The actual API call is handled by the server
+      // This function is called when there's no response data yet
+      // The response will be handled in the useEffect when it arrives
     } catch {
       setError("Failed to process todo action");
       if (onResponse && request) {
@@ -108,14 +64,108 @@ const TodoListTool: React.FC<TodoListToolProps> = ({ request, onResponse }) => {
     if (request?.tool.name === "todo_list") {
       // Use response data from the merged functionCall
       if (request.tool.response) {
-        setTodoData(request.tool.response);
+        const responseData = request.tool.response;
+
+        // Handle the new response format with output array
+        let todoData;
+        if (responseData.output && Array.isArray(responseData.output)) {
+          // If response has output array with todo lists, use the first one
+          const todoList = responseData.output[0];
+          if (todoList) {
+            todoData = {
+              action: action,
+              todos: todoList.todos || [],
+              totalTodos: todoList.todos?.length || 0,
+              queueTodos:
+                todoList.todos?.filter((todo: any) => todo.status === "queue")
+                  .length || 0,
+              executingTodos:
+                todoList.todos?.filter(
+                  (todo: any) => todo.status === "executing"
+                ).length || 0,
+              completedTodos:
+                todoList.todos?.filter(
+                  (todo: any) => todo.status === "completed"
+                ).length || 0,
+              errorTodos:
+                todoList.todos?.filter((todo: any) => todo.status === "error")
+                  .length || 0,
+              listName: todoList.name || "Todo List",
+              listDescription: todoList.description || "",
+            };
+          }
+        } else if (Array.isArray(responseData)) {
+          // Fallback: If response is directly an array of todo lists, use the first one
+          const todoList = responseData[0];
+          if (todoList) {
+            todoData = {
+              action: action,
+              todos: todoList.todos || [],
+              totalTodos: todoList.todos?.length || 0,
+              queueTodos:
+                todoList.todos?.filter((todo: any) => todo.status === "queue")
+                  .length || 0,
+              executingTodos:
+                todoList.todos?.filter(
+                  (todo: any) => todo.status === "executing"
+                ).length || 0,
+              completedTodos:
+                todoList.todos?.filter(
+                  (todo: any) => todo.status === "completed"
+                ).length || 0,
+              errorTodos:
+                todoList.todos?.filter((todo: any) => todo.status === "error")
+                  .length || 0,
+              listName: todoList.name || "Todo List",
+              listDescription: todoList.description || "",
+            };
+          }
+        } else if (responseData && responseData.todos) {
+          // Fallback: If response is a single todo list object
+          todoData = {
+            action: action,
+            todos: responseData.todos || [],
+            totalTodos: responseData.todos?.length || 0,
+            queueTodos:
+              responseData.todos?.filter((todo: any) => todo.status === "queue")
+                .length || 0,
+            executingTodos:
+              responseData.todos?.filter(
+                (todo: any) => todo.status === "executing"
+              ).length || 0,
+            completedTodos:
+              responseData.todos?.filter(
+                (todo: any) => todo.status === "completed"
+              ).length || 0,
+            errorTodos:
+              responseData.todos?.filter((todo: any) => todo.status === "error")
+                .length || 0,
+            listName: responseData.name || "Todo List",
+            listDescription: responseData.description || "",
+          };
+        } else {
+          // Handle error or empty response
+          todoData = {
+            action: action,
+            todos: [],
+            totalTodos: 0,
+            queueTodos: 0,
+            executingTodos: 0,
+            completedTodos: 0,
+            errorTodos: 0,
+            listName: "Todo List",
+            listDescription: "No todos found",
+          };
+        }
+
+        setTodoData(todoData);
         setLoading(false);
       } else {
         setLoading(true);
         setError(null);
       }
     }
-  }, [request]);
+  }, [request, action]);
 
   if (!request) {
     return (
@@ -125,17 +175,73 @@ const TodoListTool: React.FC<TodoListToolProps> = ({ request, onResponse }) => {
     );
   }
 
+  const LoadingAnimation = () => {
+    return (
+      <View style={styles.loadingAnimation}>
+        <LoadingDots />
+      </View>
+    );
+  };
+
+  const LoadingDots = () => {
+    const dot1 = useSharedValue(0);
+    const dot2 = useSharedValue(0);
+    const dot3 = useSharedValue(0);
+
+    useEffect(() => {
+      const animateDots = () => {
+        dot1.value = withSequence(
+          withTiming(1, { duration: 200 }),
+          withTiming(0, { duration: 200 })
+        );
+        dot2.value = withSequence(
+          withTiming(0, { duration: 200 }),
+          withTiming(1, { duration: 200 }),
+          withTiming(0, { duration: 200 })
+        );
+        dot3.value = withSequence(
+          withTiming(0, { duration: 400 }),
+          withTiming(1, { duration: 200 }),
+          withTiming(0, { duration: 200 })
+        );
+      };
+
+      const interval = setInterval(animateDots, 600);
+      return () => clearInterval(interval);
+    }, []);
+
+    const dot1Style = useAnimatedStyle(() => ({
+      opacity: interpolate(dot1.value, [0, 1], [0.3, 1]),
+      transform: [{ scale: interpolate(dot1.value, [0, 1], [0.8, 1.2]) }],
+    }));
+
+    const dot2Style = useAnimatedStyle(() => ({
+      opacity: interpolate(dot2.value, [0, 1], [0.3, 1]),
+      transform: [{ scale: interpolate(dot2.value, [0, 1], [0.8, 1.2]) }],
+    }));
+
+    const dot3Style = useAnimatedStyle(() => ({
+      opacity: interpolate(dot3.value, [0, 1], [0.3, 1]),
+      transform: [{ scale: interpolate(dot3.value, [0, 1], [0.8, 1.2]) }],
+    }));
+
+    return (
+      <View style={styles.dotsContainer}>
+        <Animated.View style={[styles.dot, dot1Style]} />
+        <Animated.View style={[styles.dot, dot2Style]} />
+        <Animated.View style={[styles.dot, dot3Style]} />
+      </View>
+    );
+  };
+
   if (loading) {
     return (
       <View style={styles.container}>
-        <View style={styles.todoCard}>
-          <View style={styles.header}>
-            <ActivityIndicator size="small" color={Color.primary} />
-            <Text style={styles.todoTitle}>Processing...</Text>
-          </View>
-          <Text style={styles.messageText}>
-            Please wait while we process your todo list action.
+        <View style={styles.loadingContainer}>
+          <Text style={styles.loadingText}>
+            <Text style={{ fontWeight: "bold" }}>Updating todo list</Text>...
           </Text>
+          <LoadingAnimation />
         </View>
       </View>
     );
@@ -171,27 +277,16 @@ const TodoListTool: React.FC<TodoListToolProps> = ({ request, onResponse }) => {
     return null;
   }
 
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case "high":
-        return "#dc2626";
-      case "medium":
-        return "#d97706";
-      case "low":
-        return "#059669";
-      default:
-        return "#6b7280";
-    }
-  };
-
-  const getPriorityIcon = (priority: string) => {
-    switch (priority) {
-      case "high":
-        return "keyboard-arrow-up";
-      case "medium":
-        return "remove";
-      case "low":
-        return "keyboard-arrow-down";
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case "queue":
+        return "schedule";
+      case "executing":
+        return "play-circle";
+      case "completed":
+        return "check-circle";
+      case "error":
+        return "error";
       default:
         return "help-outline";
     }
@@ -211,78 +306,48 @@ const TodoListTool: React.FC<TodoListToolProps> = ({ request, onResponse }) => {
           </Text>
         </View>
 
-        <View style={styles.statsContainer}>
-          <View style={styles.statItem}>
-            <Text style={styles.statNumber}>{todoData.totalTodos}</Text>
-            <Text style={styles.statLabel}>Total</Text>
-          </View>
-          <View style={styles.statItem}>
-            <Text style={[styles.statNumber, { color: "#059669" }]}>
-              {todoData.completedTodos}
-            </Text>
-            <Text style={styles.statLabel}>Completed</Text>
-          </View>
-          <View style={styles.statItem}>
-            <Text style={[styles.statNumber, { color: "#d97706" }]}>
-              {todoData.pendingTodos}
-            </Text>
-            <Text style={styles.statLabel}>Pending</Text>
-          </View>
-        </View>
-
         <ScrollView
           style={styles.todosContainer}
           showsVerticalScrollIndicator={false}
         >
-          {todoData.todos.map((todo: any) => (
-            <View key={todo.id} style={styles.todoItem}>
-              <View style={styles.todoHeader}>
-                <View style={styles.todoInfo}>
-                  <MaterialIcons
-                    name={getPriorityIcon(todo.priority)}
-                    size={16}
-                    color={getPriorityColor(todo.priority)}
-                    style={styles.priorityIcon}
-                  />
-                  <Text
-                    style={[
-                      styles.todoText,
-                      todo.completed && styles.completedTodo,
-                    ]}
-                    numberOfLines={2}
-                  >
-                    {todo.text}
-                  </Text>
-                </View>
-                <View style={styles.todoStatus}>
-                  {todo.completed ? (
+          {todoData.todos.length > 0 ? (
+            todoData.todos.map((todo: any) => (
+              <View key={todo.id} style={styles.todoItem}>
+                <View style={styles.todoHeader}>
+                  <View style={styles.todoInfo}>
                     <MaterialIcons
-                      name="check-circle"
+                      name={getStatusIcon(todo.status)}
                       size={20}
-                      color={Color.primary}
+                      color={todo.status === "error" ? "#dc2626" : "#000000"}
+                      style={styles.statusIcon}
                     />
-                  ) : (
-                    <MaterialIcons
-                      name="radio-button-unchecked"
-                      size={20}
-                      color={Color.mutedForeground}
-                    />
-                  )}
+                    <Text
+                      style={[
+                        styles.todoText,
+                        todo.status === "completed" && styles.completedTodo,
+                      ]}
+                      numberOfLines={2}
+                    >
+                      {todo.name}
+                    </Text>
+                  </View>
                 </View>
               </View>
-              <View style={styles.todoMeta}>
-                <Text
-                  style={[
-                    styles.priorityText,
-                    { color: getPriorityColor(todo.priority) },
-                  ]}
-                >
-                  {todo.priority.toUpperCase()}
-                </Text>
-                <Text style={styles.categoryText}>{todo.category}</Text>
-              </View>
+            ))
+          ) : (
+            <View style={styles.emptyContainer}>
+              <MaterialIcons
+                name="assignment"
+                size={32}
+                color={Color.mutedForeground}
+              />
+              <Text style={styles.emptyText}>No todos found</Text>
+              <Text style={styles.emptySubtext}>
+                {todoData.listDescription ||
+                  "Create your first todo to get started"}
+              </Text>
             </View>
-          ))}
+          )}
         </ScrollView>
       </View>
     </View>
@@ -374,29 +439,8 @@ const createStyles = () => {
       fontWeight: "600",
       color: Color.primaryForeground,
     },
-    statsContainer: {
-      flexDirection: "row",
-      justifyContent: "space-around",
-      marginBottom: 16,
-      paddingVertical: 12,
-      backgroundColor: Color.secondary,
-      borderRadius: 8,
-    },
-    statItem: {
-      alignItems: "center",
-    },
-    statNumber: {
-      fontSize: 20,
-      fontWeight: "700",
-      color: Color.cardForeground,
-    },
-    statLabel: {
-      fontSize: 12,
-      color: Color.mutedForeground,
-      marginTop: 2,
-    },
     todosContainer: {
-      maxHeight: 200,
+      maxHeight: 300,
     },
     todoItem: {
       paddingVertical: 12,
@@ -405,7 +449,6 @@ const createStyles = () => {
     },
     todoHeader: {
       flexDirection: "row",
-      justifyContent: "space-between",
       alignItems: "flex-start",
       marginBottom: 6,
     },
@@ -414,7 +457,7 @@ const createStyles = () => {
       alignItems: "flex-start",
       flex: 1,
     },
-    priorityIcon: {
+    statusIcon: {
       marginRight: 8,
       marginTop: 2,
     },
@@ -428,22 +471,52 @@ const createStyles = () => {
       textDecorationLine: "line-through",
       color: Color.mutedForeground,
     },
-    todoStatus: {
-      marginLeft: 8,
-    },
-    todoMeta: {
-      flexDirection: "row",
-      justifyContent: "space-between",
+    emptyContainer: {
       alignItems: "center",
+      justifyContent: "center",
+      paddingVertical: 32,
     },
-    priorityText: {
-      fontSize: 11,
+    emptyText: {
+      fontSize: 16,
       fontWeight: "600",
-    },
-    categoryText: {
-      fontSize: 11,
       color: Color.mutedForeground,
-      textTransform: "capitalize",
+      marginTop: 12,
+      marginBottom: 4,
+    },
+    emptySubtext: {
+      fontSize: 14,
+      color: Color.mutedForeground,
+      textAlign: "center",
+      lineHeight: 20,
+    },
+    loadingContainer: {
+      width: cardWidth,
+      gap: 10,
+      padding: 16,
+      backgroundColor: "#f8f9fa",
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: "#e2e8f0",
+    },
+    loadingText: {
+      fontSize: 14,
+      color: "#6b7280",
+    },
+    loadingAnimation: {
+      flexDirection: "row",
+      alignItems: "center",
+      marginTop: 8,
+    },
+    dotsContainer: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 4,
+    },
+    dot: {
+      width: 6,
+      height: 6,
+      borderRadius: 3,
+      backgroundColor: "#000000",
     },
   });
 };

@@ -1,16 +1,19 @@
 import { TodoListService, TodoType } from "../services/todoService";
 
-// Create a singleton instance to maintain state across calls
-const todoListService = new TodoListService();
-
-async function todolistTool(args: any) {
+async function todolistTool(
+  args: any,
+  todoListService: TodoListService,
+  thread_id: string
+) {
   // Map the action string to TodoType enum
   const actionMap: Record<string, TodoType> = {
     create_list: TodoType.CREATE_LIST,
     add: TodoType.ADD,
     get: TodoType.GET,
-    remove: TodoType.REMOVE,
-    update: TodoType.UPDATE,
+    mark_as_queue: TodoType.MARK_AS_QUEUE,
+    mark_as_executing: TodoType.MARK_AS_EXECUTING,
+    mark_as_completed: TodoType.MARK_AS_COMPLETED,
+    mark_as_error: TodoType.MARK_AS_ERROR,
   };
 
   const action = actionMap[args.action];
@@ -19,7 +22,11 @@ async function todolistTool(args: any) {
   }
 
   try {
-    const result = todoListService.execute({ action, ...args }, args);
+    const result = await todoListService.execute(
+      { action, ...args },
+      args,
+      thread_id
+    );
     return result;
   } catch (error) {
     throw new Error(

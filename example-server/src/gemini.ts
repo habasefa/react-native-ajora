@@ -95,6 +95,19 @@ Your decision must respect the following rules and updated behavioral expectatio
 - The model should not stop between subtasks unless explicitly requiring user input.  
 - Reflective steps (before/after tool use) are considered part of the model’s responsibility — if they’re missing, the next speaker is the **model**.
 
+
+
+IF THE THERE IS A TOOL CALL, AND THE TOOL CALL IS SERVER TOOL, THEN THE NEXT SPEAKER **MUST BE** THE **MODEL**.
+
+Even if the models seems to have completed its task, if its last resposne has intention of next action like I'll mark the last step as complete, then the next speaker **MUST BE** THE **MODEL**.
+
+<example>
+Last response: "... I'll mark the last step as complete."
+
+The next speaker **MUST BE** THE **MODEL**.
+
+</example>
+
 `;
 
 const RESPONSE_SCHEMA: Record<string, unknown> = {

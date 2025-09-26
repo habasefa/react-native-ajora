@@ -1,214 +1,237 @@
 import { v4 as uuidv4 } from "uuid";
-
-interface Todo {
-  id: string;
-  text: string;
-  completed: boolean;
-  priority: "high" | "medium" | "low";
-  category: string;
-}
-
-interface TodoList {
-  id: string;
-  name: string;
-  description: string;
-  todos: Todo[];
-}
+import DbService, {
+  TodoList,
+  Todo,
+  TodoListWithTodos,
+} from "../../db/dbService";
 
 enum TodoType {
   CREATE_LIST = "create_list",
   ADD = "add",
   GET = "get",
-  REMOVE = "remove",
-  UPDATE = "update",
+  MARK_AS_QUEUE = "mark_as_queue",
+  MARK_AS_EXECUTING = "mark_as_executing",
+  MARK_AS_COMPLETED = "mark_as_completed",
+  MARK_AS_ERROR = "mark_as_error",
 }
 
 type TodoAction =
   | {
-      action: TodoType.ADD;
-      name: string;
-      description: string;
-      todos: Todo[];
-    }
-  | {
       action: TodoType.CREATE_LIST;
       todoListId: string;
-      todo: Omit<Todo, "id"> & Partial<Pick<Todo, "id">>;
+      todo: Todo[];
+    }
+  | {
+      action: TodoType.ADD;
+      todo: Todo;
     }
   | { action: TodoType.GET; todoListId: string }
-  | { action: TodoType.REMOVE; todoListId: string; id: string }
-  | {
-      action: TodoType.UPDATE;
-      todoListId: string;
-      todo: Partial<Todo> & { id: string };
-    };
+  | { action: TodoType.MARK_AS_QUEUE; todo: Todo }
+  | { action: TodoType.MARK_AS_EXECUTING; todo: Todo }
+  | { action: TodoType.MARK_AS_COMPLETED; todo: Todo }
+  | { action: TodoType.MARK_AS_ERROR; todo: Todo };
+
+/**
+ * TodoListService is a class that manages the todo list and the todos in the todo list.
+ * It has the following methods:
+ * - createTodoList: creates a new todo list
+ * - addTodo: adds a new todo to the todo list
+ * - getTodos: gets the todos in the todo list
+ * - markTodoAsCompleted: marks a todo as completed
+ * - markTodoAsPending: marks a todo as pending
+ * - markTodoAsError: marks a todo as error
+ * It also has the execute method that executes the action based on the action type.
+ *
+ * IMPORTANT: All methods return the todoLists object. This helps the model to get the latest todoLists state.
+ */
 
 class TodoListService {
-  private todoLists: TodoList[] = [];
-  private defaultListId: string | null = null;
+  private dbService: DbService;
 
-  createTodoList(name: string, description: string, todos: Todo[] = []) {
-    if (name.trim() === "" || description.trim() === "") {
-      throw new Error(
-        "Name and description are required to create a todo list"
-      );
+  constructor(dbService: DbService) {
+    this.dbService = dbService;
+  }
+
+  async createTodoList(
+    name: string,
+    description: string,
+    todos: Todo[],
+    thread_id: string
+  ): Promise<TodoListWithTodos[]> {
+    if (name.trim() === "") {
+      throw new Error("Name is required to create a todo list");
     }
 
-    const newList: TodoList = {
-      id: uuidv4(),
+    if (description.trim() === "") {
+      throw new Error("Description is required to create a todo list");
+    }
+
+    if (todos.length === 0) {
+      throw new Error("Todos are required to create a todo list");
+    }
+
+    const newList = await this.dbService.addTodoList({
+      thread_id: thread_id,
       name: name.trim(),
       description: description.trim(),
-      todos,
-    };
+    });
 
-    this.todoLists.push(newList);
-
-    // Set as default if it's the first list
-    if (!this.defaultListId) {
-      this.defaultListId = newList.id;
+    // Add all todos to the database
+    for (const todo of todos) {
+      await this.dbService.addTodo({
+        todo_list_id: newList.id,
+        name: todo.name.trim(),
+        status: todo.status ?? "queue",
+      });
     }
 
-    return newList;
+    return await this.getTodoLists(thread_id);
   }
 
-  getDefaultList() {
-    if (!this.defaultListId) {
-      // Create a default list if none exists
-      const defaultList = this.createTodoList(
-        "My Todo List",
-        "Default todo list for managing tasks",
-        [
-          {
-            id: uuidv4(),
-            text: "Plan weekly meal prep",
-            completed: false,
-            priority: "high",
-            category: "meal planning",
-          },
-          {
-            id: uuidv4(),
-            text: "Research nutrition guidelines",
-            completed: true,
-            priority: "medium",
-            category: "research",
-          },
-          {
-            id: uuidv4(),
-            text: "Create shopping list",
-            completed: false,
-            priority: "high",
-            category: "shopping",
-          },
-          {
-            id: uuidv4(),
-            text: "Review dietary restrictions",
-            completed: false,
-            priority: "low",
-            category: "planning",
-          },
-        ]
-      );
-      return this.getTodos(defaultList.id);
-    }
-
-    return this.getTodos(this.defaultListId);
-  }
-
-  private getList(todoListId: string): TodoList {
-    const list = this.todoLists.find((t) => t.id === todoListId);
-    if (!list) throw new Error("Todo list not found");
-    return list;
-  }
-
-  addTodo({
-    todoListId,
+  async addTodo({
     todo,
+    todo_list_id,
   }: {
-    todoListId: string;
-    todo: Omit<Todo, "id"> & Partial<Pick<Todo, "id">>;
-  }) {
-    if (todo.text.trim() === "") {
-      throw new Error("Text is required to add a todo");
+    todo: Todo;
+    todo_list_id: string;
+  }): Promise<TodoListWithTodos[]> {
+    const todoList = await this.dbService.getTodoList(todo_list_id);
+    if (!todoList) {
+      throw new Error("Todo list not found. Create a todo list first.");
     }
 
-    const list = this.getList(todoListId);
-
-    const newTodo: Todo = {
-      id: todo.id ?? uuidv4(),
-      text: todo.text.trim(),
-      completed: todo.completed ?? false,
-      priority: todo.priority ?? "medium",
-      category: todo.category ?? "general",
-    };
-
-    if (list.todos.some((t) => t.id === newTodo.id)) {
-      throw new Error("Todo with this ID already exists");
+    if (todo.name.trim() === "") {
+      throw new Error("Name is required to add a todo");
     }
 
-    list.todos.push(newTodo);
-    return newTodo;
+    await this.dbService.addTodo({
+      todo_list_id: todo_list_id,
+      name: todo.name.trim(),
+      status: todo.status ?? "queue",
+    });
+
+    return await this.getTodoLists(todoList.thread_id);
   }
 
-  getTodos(todoListId: string) {
-    const list = this.getList(todoListId);
-    const todos = list.todos;
-    const completedTodos = todos.filter((todo) => todo.completed).length;
-    const pendingTodos = todos.filter((todo) => !todo.completed).length;
-
-    return {
-      action: "get",
-      todos,
-      totalTodos: todos.length,
-      completedTodos,
-      pendingTodos,
-      listName: list.name,
-      listDescription: list.description,
-    };
+  async getTodoLists(thread_id: string): Promise<TodoListWithTodos[]> {
+    return await this.dbService.getTodoListsWithTodos(thread_id);
   }
 
-  removeTodo(todoListId: string, id: string) {
-    const list = this.getList(todoListId);
+  async markTodoAsQueue(
+    todo: Todo,
+    todo_list_id: string
+  ): Promise<TodoListWithTodos[]> {
+    const todoList = await this.dbService.getTodoList(todo_list_id);
+    if (!todoList) {
+      throw new Error("Todo list not found. Create a todo list first.");
+    }
 
-    const index = list.todos.findIndex((t) => t.id === id);
-    if (index === -1) throw new Error("Todo not found");
+    const existingTodo = await this.dbService.getTodo(todo.id);
+    if (!existingTodo) {
+      throw new Error("Todo not found");
+    }
 
-    list.todos.splice(index, 1);
-    return list.todos;
+    await this.dbService.updateTodo(todo.id, { status: "queue" });
+
+    return await this.getTodoLists(todoList.thread_id);
   }
 
-  updateTodo(todoListId: string, partial: Partial<Todo> & { id: string }) {
-    const list = this.getList(todoListId);
+  async markTodoAsExecuting(
+    todo: Todo,
+    todo_list_id: string
+  ): Promise<TodoListWithTodos[]> {
+    const todoList = await this.dbService.getTodoList(todo_list_id);
+    if (!todoList) {
+      throw new Error("Todo list not found. Create a todo list first.");
+    }
 
-    const index = list.todos.findIndex((t) => t.id === partial.id);
-    if (index === -1) throw new Error("Todo not found");
+    const existingTodo = await this.dbService.getTodo(todo.id);
+    if (!existingTodo) {
+      throw new Error("Todo not found");
+    }
 
-    list.todos[index] = { ...list.todos[index], ...partial };
-    return list.todos[index];
+    await this.dbService.updateTodo(todo.id, { status: "executing" });
+
+    return await this.getTodoLists(todoList.thread_id);
   }
 
-  execute(action: TodoAction, args: any) {
+  async markTodoAsCompleted(
+    todo: Todo,
+    todo_list_id: string
+  ): Promise<TodoListWithTodos[]> {
+    const todoList = await this.dbService.getTodoList(todo_list_id);
+    if (!todoList) {
+      throw new Error("Todo list not found. Create a todo list first.");
+    }
+
+    const existingTodo = await this.dbService.getTodo(todo.id);
+    if (!existingTodo) {
+      throw new Error("Todo not found");
+    }
+
+    await this.dbService.updateTodo(todo.id, { status: "completed" });
+
+    return await this.getTodoLists(todoList.thread_id);
+  }
+
+  async markTodoAsError(
+    todo: Todo,
+    todo_list_id: string
+  ): Promise<TodoListWithTodos[]> {
+    const todoList = await this.dbService.getTodoList(todo_list_id);
+    if (!todoList) {
+      throw new Error("Todo list not found. Create a todo list first.");
+    }
+
+    const existingTodo = await this.dbService.getTodo(todo.id);
+    if (!existingTodo) {
+      throw new Error("Todo not found");
+    }
+
+    await this.dbService.updateTodo(todo.id, { status: "error" });
+
+    return await this.getTodoLists(todoList.thread_id);
+  }
+
+  async execute(
+    action: TodoAction,
+    args: any,
+    thread_id: string
+  ): Promise<TodoListWithTodos[] | TodoListWithTodos | null> {
     switch (action.action) {
       case TodoType.CREATE_LIST:
-        return this.createTodoList(args.name, args.description, args.todos);
+        return await this.createTodoList(
+          args.name,
+          args.description,
+          args.todos,
+          thread_id
+        );
       case TodoType.ADD:
-        return this.addTodo({
-          todoListId: args.todoListId,
+        return await this.addTodo({
           todo: args.todo,
+          todo_list_id: args.todo_list_id,
         });
       case TodoType.GET:
-        // If no todoListId provided, return default list
-        if (!args.todoListId) {
-          return this.getDefaultList();
-        }
-        return this.getTodos(args.todoListId);
-      case TodoType.REMOVE:
-        return this.removeTodo(args.todoListId, args.id);
-      case TodoType.UPDATE:
-        return this.updateTodo(args.todoListId, args.todo);
+        return await this.getTodoLists(thread_id);
+      case TodoType.MARK_AS_QUEUE:
+        return await this.markTodoAsQueue(args.todo, args.todo_list_id);
+      case TodoType.MARK_AS_EXECUTING:
+        return await this.markTodoAsExecuting(args.todo, args.todo_list_id);
+      case TodoType.MARK_AS_COMPLETED:
+        return await this.markTodoAsCompleted(args.todo, args.todo_list_id);
+      case TodoType.MARK_AS_ERROR:
+        return await this.markTodoAsError(args.todo, args.todo_list_id);
       default:
         throw new Error("Invalid action");
     }
   }
 }
 
-export { TodoListService, Todo, TodoList, TodoType, TodoAction };
+export {
+  TodoListService,
+  Todo,
+  TodoList,
+  TodoListWithTodos,
+  TodoType,
+  TodoAction,
+};

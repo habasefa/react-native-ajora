@@ -38,8 +38,7 @@ export default StyleSheet.create({
     paddingHorizontal: 24,
     paddingVertical: 20,
     backgroundColor: Color.white,
-    borderBottomWidth: 1,
-    borderBottomColor: Color.gray200,
+
     shadowColor: Color.shadow,
     shadowOffset: {
       width: 0,
@@ -48,6 +47,18 @@ export default StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 4,
     elevation: 2,
+  },
+  searchContainer: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: Color.gray50,
+    borderWidth: 1,
+    borderColor: Color.gray200,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    marginRight: 12,
   },
   headerContent: {
     flex: 1,
@@ -239,5 +250,18 @@ export default StyleSheet.create({
     color: "#6B7280",
     textAlign: "center",
     lineHeight: 20,
+  },
+
+  searchInput: {
+    flex: 1,
+    fontSize: 16,
+    color: Color.gray800,
+    paddingVertical: 8,
+    paddingHorizontal: 8,
+  },
+  searchIcon: {
+    fontSize: 20,
+    marginRight: 8,
+    color: Color.gray500,
   },
 });

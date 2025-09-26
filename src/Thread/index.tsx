@@ -1,5 +1,12 @@
 import React, { useRef } from "react";
-import { View, Text, TouchableOpacity, Animated, FlatList } from "react-native";
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  Animated,
+  FlatList,
+  TextInput,
+} from "react-native";
 import styles, { DRAWER_WIDTH } from "./styles";
 import { ThreadItem, ThreadProps } from "./types";
 import { MaterialIcons } from "@expo/vector-icons";
@@ -43,6 +50,7 @@ export function Thread({
   containerStyle,
   renderEmpty,
 }: ThreadProps) {
+  const [searchQuery, setSearchQuery] = React.useState("");
   const slideAnim = useRef(new Animated.Value(-DRAWER_WIDTH)).current;
   const { ajora } = useChatContext();
   const { activeThreadId, getThreads } = ajora;
@@ -69,7 +77,11 @@ export function Thread({
     onClose();
   };
 
-  const renderThreadItem = ({ item }: { item: ThreadItem }) => (
+  type ThreadListItem = Thread & {
+    lastMessage?: { parts?: { text?: string }[] };
+  };
+
+  const renderThreadItem = ({ item }: { item: ThreadListItem }) => (
     <TouchableOpacity
       style={[
         styles.threadItem,
@@ -126,13 +138,19 @@ export function Thread({
           color="#9CA3AF"
           style={styles.threadEmptyIcon}
         />
-        <Text style={styles.threadEmptyTitle}>No chat threads yet</Text>
+        <Text style={styles.threadEmptyTitle}>No chats yet</Text>
         <Text style={styles.threadEmptySubtitle}>
-          Tap &quot;New Thread&quot; to start your first chat thread
+          Tap &quot;Plus&quot; to start your first chat
         </Text>
       </View>
     );
   };
+
+  const filteredThreads = React.useMemo(() => {
+    return threads.filter((thread) => {
+      return thread.title?.toLowerCase().includes(searchQuery.toLowerCase());
+    });
+  }, [threads, searchQuery]);
 
   return (
     <>
@@ -157,32 +175,30 @@ export function Thread({
       >
         {/* Header */}
         <View style={styles.drawerHeader}>
-          <View style={styles.headerContent}>
-            <Text style={styles.drawerTitle}>Threads</Text>
-            <Text style={styles.drawerSubtitle}>Manage your conversations</Text>
+          {/* Search Bar */}
+          <View style={styles.searchContainer}>
+            <MaterialIcons name="search" style={styles.searchIcon} />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search..."
+              placeholderTextColor="#9CA3AF"
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+            />
           </View>
+
           <TouchableOpacity
             style={styles.closeButton}
-            onPress={onClose}
+            onPress={onNewThread}
             activeOpacity={0.7}
           >
-            <Text style={styles.closeIcon}>×</Text>
+            <MaterialIcons name="add" size={24} color="#6B7280" />
           </TouchableOpacity>
         </View>
 
-        {/* New Thread Button */}
-        <TouchableOpacity
-          style={styles.newThreadButton}
-          onPress={onNewThread}
-          activeOpacity={0.7}
-        >
-          <Text style={styles.newThreadIcon}>+</Text>
-          <Text style={styles.newThreadText}>New Thread</Text>
-        </TouchableOpacity>
-
         {/* Thread List */}
         <FlatList
-          data={threads}
+          data={filteredThreads}
           keyExtractor={(item) => item.id}
           renderItem={renderThreadItem}
           style={styles.threadList}

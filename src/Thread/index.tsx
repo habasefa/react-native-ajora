@@ -196,6 +196,11 @@ export function Thread({
           </TouchableOpacity>
         </View>
 
+        {/* Chats Header */}
+        <View style={styles.chatsHeader}>
+          <Text style={styles.chatsHeaderText}>Chats</Text>
+        </View>
+
         {/* Thread List */}
         <FlatList
           data={filteredThreads}
@@ -204,6 +209,7 @@ export function Thread({
           style={styles.threadList}
           showsVerticalScrollIndicator={false}
           ListEmptyComponent={renderEmptyThreads}
+          ItemSeparatorComponent={() => <View style={styles.threadSeparator} />}
         />
       </Animated.View>
     </>

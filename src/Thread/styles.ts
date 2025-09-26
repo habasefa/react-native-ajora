@@ -133,15 +133,18 @@ export default StyleSheet.create({
     paddingTop: 8,
     paddingBottom: 16,
   },
+  threadSeparator: {
+    height: 1,
+    backgroundColor: Color.gray100,
+    marginHorizontal: 16,
+  },
   threadItem: {
-    paddingHorizontal: 24,
+    paddingHorizontal: 12,
     paddingVertical: 18,
     marginHorizontal: 16,
     marginVertical: 4,
     backgroundColor: Color.white,
     borderRadius: 12,
-    borderWidth: 1,
-    borderColor: Color.gray200,
     shadowColor: Color.shadow,
     shadowOffset: {
       width: 0,
@@ -163,6 +166,17 @@ export default StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 2,
+  },
+  chatsHeader: {
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    backgroundColor: Color.white,
+  },
+  chatsHeaderText: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: Color.gray800,
+    letterSpacing: -0.3,
   },
   threadContent: {
     flex: 1,

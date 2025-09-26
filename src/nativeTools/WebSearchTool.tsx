@@ -5,7 +5,6 @@ import {
   View,
   TouchableOpacity,
   ActivityIndicator,
-  ScrollView,
   Dimensions,
 } from "react-native";
 import { ToolRequest, ToolResponse } from "../Tool/types";
@@ -132,49 +131,6 @@ const WebSearchTool: React.FC<WebSearchToolProps> = ({
       </View>
     </View>
   );
-
-  // return (
-  //   <View style={styles.container}>
-  //     <View style={styles.searchCard}>
-  //       <View style={styles.header}>
-  //         <MaterialIcons name="search" size={20} color="#374151" />
-  //         <Text style={styles.searchTitle}>Web Search Results</Text>
-  //         {request.tool.response && (
-  //           <View style={styles.completedIndicator}>
-  //             <MaterialIcons name="check" size={12} color="#ffffff" />
-  //             <Text style={styles.completedText}>Done</Text>
-  //           </View>
-  //         )}
-  //       </View>
-
-  //       <View style={styles.queryContainer}>
-  //         <Text style={styles.queryText}>"{searchResults.query}"</Text>
-  //         <Text style={styles.metaText}>
-  //           {searchResults.totalResults} results in {searchResults.searchTime}
-  //         </Text>
-  //       </View>
-
-  //       <ScrollView
-  //         style={styles.resultsContainer}
-  //         showsVerticalScrollIndicator={false}
-  //       >
-  //         {searchResults.results.map((result: any, index: number) => (
-  //           <View key={index} style={styles.resultItem}>
-  //             <Text style={styles.resultTitle} numberOfLines={2}>
-  //               {result.title}
-  //             </Text>
-  //             <Text style={styles.resultUrl} numberOfLines={1}>
-  //               {result.url}
-  //             </Text>
-  //             <Text style={styles.resultSnippet} numberOfLines={3}>
-  //               {result.description || result.snippet}
-  //             </Text>
-  //           </View>
-  //         ))}
-  //       </ScrollView>
-  //     </View>
-  //   </View>
-  // );
 };
 
 WebSearchTool.displayName = "search_web";

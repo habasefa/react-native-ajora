@@ -13,7 +13,7 @@ const styles = {
       minHeight: 20,
       justifyContent: "flex-end",
       paddingHorizontal: 16,
-      paddingVertical: 12,
+      paddingVertical: 6,
       shadowColor: Color.shadow,
       shadowOffset: {
         width: 0,

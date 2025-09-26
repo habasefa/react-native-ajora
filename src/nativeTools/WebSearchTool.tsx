@@ -185,7 +185,7 @@ const createStyles = () => {
 
   return StyleSheet.create({
     container: {
-      marginVertical: 8,
+      // marginVertical: 8,
     },
     loadingContainer: {
       width: cardWidth,

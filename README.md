@@ -1,4 +1,9 @@
-# 🚧 This library is under construction! 🛠️📚
+
+
+
+# 🚧 This library is under construction! 🛠️
+
+# 📅 It will be ready by October 15, 2025 🚀
 
 # 🤖 React Native Ajora
 

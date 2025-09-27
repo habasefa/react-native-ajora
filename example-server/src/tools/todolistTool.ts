@@ -1,37 +1,29 @@
-import { TodoListService, TodoType } from "../services/todoService";
+import { TodoListService } from "../services/todoService";
+import { ToolResult } from "../toolExecutor";
 
 async function todolistTool(
   args: any,
   todoListService: TodoListService,
   thread_id: string
-) {
-  // Map the action string to TodoType enum
-  const actionMap: Record<string, TodoType> = {
-    create_list: TodoType.CREATE_LIST,
-    add: TodoType.ADD,
-    get: TodoType.GET,
-    mark_as_queue: TodoType.MARK_AS_QUEUE,
-    mark_as_executing: TodoType.MARK_AS_EXECUTING,
-    mark_as_completed: TodoType.MARK_AS_COMPLETED,
-    mark_as_error: TodoType.MARK_AS_ERROR,
-  };
-
-  const action = actionMap[args.action];
-  if (!action) {
-    throw new Error(`Invalid action: ${args.action}`);
-  }
-
+): Promise<ToolResult> {
   try {
+    if (!todoListService) {
+      throw new Error(
+        "TodoListService is not initialized. Please provide a TodoListService instance."
+      );
+    }
+    if (!thread_id) {
+      throw new Error("Thread ID is not provided. Please provide a thread ID.");
+    }
     const result = await todoListService.execute(
-      { action, ...args },
+      { action: args.action, ...args },
       args,
       thread_id
     );
+    // Return the result directly since TodoListService already returns ToolResult
     return result;
   } catch (error) {
-    throw new Error(
-      `Todo operation failed: ${error instanceof Error ? error.message : "Unknown error"}`
-    );
+    return { output: null, error: error };
   }
 }
 

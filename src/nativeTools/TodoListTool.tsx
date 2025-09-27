@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect } from "react";
 import {
   StyleSheet,
   Text,
@@ -30,35 +30,15 @@ interface TodoListToolProps {
   onResponse?: (response: ToolResponse) => void;
 }
 
-const TodoListTool: React.FC<TodoListToolProps> = ({ request, onResponse }) => {
+const TodoListTool: React.FC<TodoListToolProps> = ({ request }) => {
   const [todoData, setTodoData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isCollapsed, setIsCollapsed] = useState(false);
   const styles = createStyles();
 
   const { tool } = request;
   const { action = "get" } = tool.args || {};
-
-  const processTodoAction = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-
-    try {
-      // The actual API call is handled by the server
-      // This function is called when there's no response data yet
-      // The response will be handled in the useEffect when it arrives
-    } catch {
-      setError("Failed to process todo action");
-      if (onResponse && request) {
-        onResponse({
-          callId: request.callId,
-          response: { error: "Failed to process todo action" },
-        });
-      }
-    } finally {
-      setLoading(false);
-    }
-  }, [action, request, onResponse]);
 
   useEffect(() => {
     if (request?.tool.name === "todo_list") {
@@ -66,7 +46,13 @@ const TodoListTool: React.FC<TodoListToolProps> = ({ request, onResponse }) => {
       if (request.tool.response) {
         const responseData = request.tool.response;
 
-        // Handle the new response format with output array
+        // Handle the new response format with output and error fields
+        if (responseData.error) {
+          setError(responseData.error);
+          setLoading(false);
+          return;
+        }
+
         let todoData;
         if (responseData.output && Array.isArray(responseData.output)) {
           // If response has output array with todo lists, use the first one
@@ -79,10 +65,6 @@ const TodoListTool: React.FC<TodoListToolProps> = ({ request, onResponse }) => {
               queueTodos:
                 todoList.todos?.filter((todo: any) => todo.status === "queue")
                   .length || 0,
-              executingTodos:
-                todoList.todos?.filter(
-                  (todo: any) => todo.status === "executing"
-                ).length || 0,
               completedTodos:
                 todoList.todos?.filter(
                   (todo: any) => todo.status === "completed"
@@ -94,9 +76,9 @@ const TodoListTool: React.FC<TodoListToolProps> = ({ request, onResponse }) => {
               listDescription: todoList.description || "",
             };
           }
-        } else if (Array.isArray(responseData)) {
-          // Fallback: If response is directly an array of todo lists, use the first one
-          const todoList = responseData[0];
+        } else if (Array.isArray(responseData.output)) {
+          // Fallback: If output is directly an array of todo lists, use the first one
+          const todoList = responseData.output[0];
           if (todoList) {
             todoData = {
               action: action,
@@ -105,10 +87,6 @@ const TodoListTool: React.FC<TodoListToolProps> = ({ request, onResponse }) => {
               queueTodos:
                 todoList.todos?.filter((todo: any) => todo.status === "queue")
                   .length || 0,
-              executingTodos:
-                todoList.todos?.filter(
-                  (todo: any) => todo.status === "executing"
-                ).length || 0,
               completedTodos:
                 todoList.todos?.filter(
                   (todo: any) => todo.status === "completed"
@@ -120,28 +98,26 @@ const TodoListTool: React.FC<TodoListToolProps> = ({ request, onResponse }) => {
               listDescription: todoList.description || "",
             };
           }
-        } else if (responseData && responseData.todos) {
-          // Fallback: If response is a single todo list object
+        } else if (responseData.output && responseData.output.todos) {
+          // Fallback: If output is a single todo list object
           todoData = {
             action: action,
-            todos: responseData.todos || [],
-            totalTodos: responseData.todos?.length || 0,
+            todos: responseData.output.todos || [],
+            totalTodos: responseData.output.todos?.length || 0,
             queueTodos:
-              responseData.todos?.filter((todo: any) => todo.status === "queue")
-                .length || 0,
-            executingTodos:
-              responseData.todos?.filter(
-                (todo: any) => todo.status === "executing"
+              responseData.output.todos?.filter(
+                (todo: any) => todo.status === "queue"
               ).length || 0,
             completedTodos:
-              responseData.todos?.filter(
+              responseData.output.todos?.filter(
                 (todo: any) => todo.status === "completed"
               ).length || 0,
             errorTodos:
-              responseData.todos?.filter((todo: any) => todo.status === "error")
-                .length || 0,
-            listName: responseData.name || "Todo List",
-            listDescription: responseData.description || "",
+              responseData.output.todos?.filter(
+                (todo: any) => todo.status === "error"
+              ).length || 0,
+            listName: responseData.output.name || "Todo List",
+            listDescription: responseData.output.description || "",
           };
         } else {
           // Handle error or empty response
@@ -150,7 +126,6 @@ const TodoListTool: React.FC<TodoListToolProps> = ({ request, onResponse }) => {
             todos: [],
             totalTodos: 0,
             queueTodos: 0,
-            executingTodos: 0,
             completedTodos: 0,
             errorTodos: 0,
             listName: "Todo List",
@@ -160,6 +135,12 @@ const TodoListTool: React.FC<TodoListToolProps> = ({ request, onResponse }) => {
 
         setTodoData(todoData);
         setLoading(false);
+        setError(null);
+
+        // Auto-collapse if there are completed todos
+        if (todoData && todoData.completedTodos > 0) {
+          setIsCollapsed(true);
+        }
       } else {
         setLoading(true);
         setError(null);
@@ -170,7 +151,15 @@ const TodoListTool: React.FC<TodoListToolProps> = ({ request, onResponse }) => {
   if (!request) {
     return (
       <View style={styles.container}>
-        <Text style={styles.errorText}>No request provided</Text>
+        <Text
+          style={{
+            fontSize: 14,
+            color: Color.destructive,
+            textAlign: "center",
+          }}
+        >
+          No todo list data provided
+        </Text>
       </View>
     );
   }
@@ -250,23 +239,23 @@ const TodoListTool: React.FC<TodoListToolProps> = ({ request, onResponse }) => {
   if (error) {
     return (
       <View style={styles.container}>
-        <View style={styles.errorContainer}>
-          <View style={styles.header}>
+        <View
+          style={[
+            styles.collapsedCard,
+            { flexDirection: "row", alignItems: "center", gap: 8 },
+          ]}
+        >
+          <View style={styles.collapsedHeader}>
             <MaterialIcons
-              name="error-outline"
+              name="format-list-bulleted"
               size={20}
-              color={Color.destructive}
+              color={Color.cardForeground}
             />
-            <Text style={styles.todoTitle}>Error</Text>
           </View>
-          <Text style={styles.messageText}>{error}</Text>
-          <View style={styles.buttonContainer}>
-            <TouchableOpacity
-              style={[styles.button, styles.retryButton]}
-              onPress={processTodoAction}
-            >
-              <Text style={styles.retryText}>Retry</Text>
-            </TouchableOpacity>
+          <View style={styles.collapsedProgress}>
+            <Text style={styles.errorMessage}>
+              The model messed up something while updating the todo list
+            </Text>
           </View>
         </View>
       </View>
@@ -281,8 +270,6 @@ const TodoListTool: React.FC<TodoListToolProps> = ({ request, onResponse }) => {
     switch (status) {
       case "queue":
         return "schedule";
-      case "executing":
-        return "play-circle";
       case "completed":
         return "check-circle";
       case "error":
@@ -292,64 +279,108 @@ const TodoListTool: React.FC<TodoListToolProps> = ({ request, onResponse }) => {
     }
   };
 
-  return (
-    <View style={styles.container}>
-      <View style={styles.todoCard}>
-        <View style={styles.header}>
+  // Collapsed UI component
+  const CollapsedView = () => {
+    return (
+      <TouchableOpacity
+        style={styles.collapsedCard}
+        onPress={() => setIsCollapsed(false)}
+        activeOpacity={0.7}
+      >
+        <View style={styles.collapsedHeader}>
           <MaterialIcons
             name="assignment"
             size={20}
             color={Color.cardForeground}
           />
-          <Text style={styles.todoTitle}>
+          <Text style={styles.collapsedTitle}>
             {todoData.listName || "Todo List"}
           </Text>
+          <MaterialIcons
+            name="expand-more"
+            size={20}
+            color={Color.mutedForeground}
+          />
         </View>
+        <View style={styles.collapsedProgress}>
+          <Text style={styles.collapsedProgressText}>
+            {todoData.completedTodos} of {todoData.totalTodos} Done
+          </Text>
+        </View>
+      </TouchableOpacity>
+    );
+  };
 
-        <ScrollView
-          style={styles.todosContainer}
-          showsVerticalScrollIndicator={false}
-        >
-          {todoData.todos.length > 0 ? (
-            todoData.todos.map((todo: any) => (
-              <View key={todo.id} style={styles.todoItem}>
-                <View style={styles.todoHeader}>
-                  <View style={styles.todoInfo}>
-                    <MaterialIcons
-                      name={getStatusIcon(todo.status)}
-                      size={20}
-                      color={todo.status === "error" ? "#dc2626" : "#000000"}
-                      style={styles.statusIcon}
-                    />
-                    <Text
-                      style={[
-                        styles.todoText,
-                        todo.status === "completed" && styles.completedTodo,
-                      ]}
-                      numberOfLines={2}
-                    >
-                      {todo.name}
-                    </Text>
-                  </View>
+  // Expanded UI component
+  const ExpandedView = () => (
+    <View style={styles.todoCard}>
+      <TouchableOpacity
+        style={styles.header}
+        onPress={() => setIsCollapsed(true)}
+        activeOpacity={0.7}
+      >
+        <MaterialIcons
+          name="assignment"
+          size={20}
+          color={Color.cardForeground}
+        />
+        <Text style={styles.todoTitle}>{todoData.listName || "Todo List"}</Text>
+        <MaterialIcons
+          name="expand-less"
+          size={20}
+          color={Color.mutedForeground}
+        />
+      </TouchableOpacity>
+
+      <ScrollView
+        style={styles.todosContainer}
+        showsVerticalScrollIndicator={false}
+      >
+        {todoData.todos.length > 0 ? (
+          todoData.todos.map((todo: any) => (
+            <View key={todo.id} style={styles.todoItem}>
+              <View style={styles.todoHeader}>
+                <View style={styles.todoInfo}>
+                  <MaterialIcons
+                    name={getStatusIcon(todo.status)}
+                    size={20}
+                    color={todo.status === "error" ? "#dc2626" : "#000000"}
+                    style={styles.statusIcon}
+                  />
+                  <Text
+                    style={[
+                      styles.todoText,
+                      todo.status === "completed" && styles.completedTodo,
+                    ]}
+                    numberOfLines={2}
+                  >
+                    {todo.name}
+                  </Text>
                 </View>
               </View>
-            ))
-          ) : (
-            <View style={styles.emptyContainer}>
-              <MaterialIcons
-                name="assignment"
-                size={32}
-                color={Color.mutedForeground}
-              />
-              <Text style={styles.emptyText}>No todos found</Text>
-              <Text style={styles.emptySubtext}>
-                {todoData.listDescription ||
-                  "Create your first todo to get started"}
-              </Text>
             </View>
-          )}
-        </ScrollView>
-      </View>
+          ))
+        ) : (
+          <View style={styles.emptyContainer}>
+            <MaterialIcons
+              name="assignment"
+              size={32}
+              color={Color.mutedForeground}
+            />
+            <Text style={styles.emptyText}>No todos found</Text>
+            <Text style={styles.emptySubtext}>
+              {todoData.listDescription ||
+                "Create your first todo to get started"}
+            </Text>
+          </View>
+        )}
+      </ScrollView>
+    </View>
+  );
+
+  return (
+    <View style={styles.container}>
+      {isCollapsed ? <CollapsedView /> : <ExpandedView />}
     </View>
   );
 };
@@ -363,28 +394,6 @@ const createStyles = () => {
   return StyleSheet.create({
     container: {
       marginVertical: 8,
-    },
-    errorContainer: {
-      width: cardWidth,
-      padding: 16,
-      backgroundColor: Color.card,
-      borderRadius: 12,
-      borderWidth: 1,
-      borderColor: Color.destructive,
-      alignItems: "center",
-      shadowColor: Color.shadow,
-      shadowOffset: {
-        width: 0,
-        height: 2,
-      },
-      shadowOpacity: 0.1,
-      shadowRadius: 4,
-      elevation: 2,
-    },
-    errorText: {
-      fontSize: 14,
-      color: Color.destructive,
-      textAlign: "center",
     },
     todoCard: {
       width: cardWidth,
@@ -408,44 +417,56 @@ const createStyles = () => {
       marginBottom: 12,
       gap: 8,
     },
+    collapsedCard: {
+      width: cardWidth,
+      backgroundColor: Color.card,
+      borderRadius: 12,
+      padding: 16,
+      borderWidth: 1,
+      borderColor: Color.border,
+      shadowColor: Color.shadow,
+      shadowOffset: {
+        width: 0,
+        height: 2,
+      },
+      shadowOpacity: 0.1,
+      shadowRadius: 4,
+      elevation: 2,
+    },
+    collapsedHeader: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+    },
+    collapsedTitle: {
+      fontSize: 16,
+      fontWeight: "600",
+      color: Color.cardForeground,
+      flex: 1,
+    },
+    collapsedProgress: {
+      marginTop: 8,
+    },
+    collapsedProgressText: {
+      fontSize: 14,
+      color: Color.mutedForeground,
+      fontWeight: "500",
+    },
+    errorMessage: {
+      fontSize: 14,
+      color: Color.mutedForeground,
+      fontStyle: "italic",
+    },
     todoTitle: {
       fontSize: 16,
       fontWeight: "600",
       color: Color.cardForeground,
     },
-    messageText: {
-      fontSize: 14,
-      color: Color.mutedForeground,
-      marginBottom: 16,
-      lineHeight: 20,
-    },
-    buttonContainer: {
-      flexDirection: "row",
-      justifyContent: "space-between",
-      gap: 12,
-    },
-    button: {
-      flex: 1,
-      paddingVertical: 12,
-      paddingHorizontal: 16,
-      borderRadius: 8,
-      alignItems: "center",
-    },
-    retryButton: {
-      backgroundColor: Color.destructive,
-    },
-    retryText: {
-      fontSize: 14,
-      fontWeight: "600",
-      color: Color.primaryForeground,
-    },
     todosContainer: {
       maxHeight: 300,
     },
     todoItem: {
-      paddingVertical: 12,
-      borderBottomWidth: 1,
-      borderBottomColor: Color.border,
+      paddingVertical: 6,
     },
     todoHeader: {
       flexDirection: "row",

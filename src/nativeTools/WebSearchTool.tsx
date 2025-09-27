@@ -71,8 +71,16 @@ const WebSearchTool: React.FC<WebSearchToolProps> = ({
     if (request?.tool.name === "search_web") {
       // Use response data from the merged functionCall
       if (request.tool.response) {
-        // Transform the server response to match the expected format
         const serverResponse = request.tool.response;
+
+        // Handle the new response format with output and error fields
+        if (serverResponse.error) {
+          setError(serverResponse.error);
+          setLoading(false);
+          return;
+        }
+
+        // Transform the server response to match the expected format
         const transformedResults = {
           query: query,
           results: serverResponse.output || [],

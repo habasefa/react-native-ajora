@@ -136,7 +136,13 @@ export interface NextSpeakerResponse {
 const nextSpeaker = async (
   history: Message[]
 ): Promise<NextSpeakerResponse | null> => {
-  const singleHistory = JSON.stringify(history, null, 2);
+  // Only take the last 10 messages
+  const last10Messages = history.slice(-10);
+  console.log(
+    "[Ajora:Server][nextSpeaker][0.A]: Last Messages",
+    JSON.stringify(last10Messages[last10Messages.length - 1], null, 2)
+  );
+  const singleHistory = JSON.stringify(last10Messages, null, 2);
 
   const response = await genAI.models.generateContent({
     model: "gemini-2.0-flash-lite",
@@ -144,7 +150,11 @@ const nextSpeaker = async (
       {
         role: "user",
         parts: [
-          { text: `Here is the history: ${singleHistory}\n\n${CHECK_PROMPT}` },
+          {
+            text: `Here is the history: ${singleHistory}\n\n${CHECK_PROMPT}. 
+            Just to remind about the last message, here it is: ${JSON.stringify(last10Messages[last10Messages.length - 1], null, 2)}. 
+            You must consider this message for your decision, especially if it has any tool call or function call or anything that is relevant to the decision.`,
+          },
         ],
       },
     ],

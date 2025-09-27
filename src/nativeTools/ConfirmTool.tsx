@@ -117,8 +117,20 @@ const ConfirmTool: React.FC<ConfirmToolProps> = ({ request, onResponse }) => {
     if (request?.tool.name === "confirm_action") {
       // Use response data from the merged functionCall
       if (request.tool.response) {
-        setConfirmed(request.tool.response.confirmed);
+        const responseData = request.tool.response;
+
+        // Handle the new response format with output and error fields
+        if (responseData.error) {
+          setError(responseData.error);
+          setLoading(false);
+          return;
+        }
+
+        // Handle the response data - could be in output field or directly in response
+        const confirmationData = responseData.output || responseData;
+        setConfirmed(confirmationData.confirmed);
         setLoading(false);
+        setError(null);
       } else {
         setLoading(false);
         setError(null);

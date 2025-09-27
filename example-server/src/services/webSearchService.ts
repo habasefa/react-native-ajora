@@ -1,4 +1,5 @@
 import dotenv from "dotenv";
+import { ToolResult } from "../toolExecutor";
 dotenv.config();
 
 interface WebSearchProfile {
@@ -29,7 +30,7 @@ class WebSearchService {
     this.apiUrl = "https://api.search.brave.com/res/v1/web/search";
   }
 
-  async searchWeb(query: string) {
+  async searchWeb(query: string): Promise<ToolResult> {
     console.info("Searching web:", query);
     try {
       const response = await fetch(
@@ -59,21 +60,12 @@ class WebSearchService {
           img: result.profile.img,
         },
       }));
-      return formattedData as WebSearchResult[];
+      return { output: formattedData, error: null };
     } catch (error) {
       console.error("Error searching web:", error);
-      throw error;
+      return { output: null, error: error };
     }
   }
 }
 
 export { WebSearchService };
-
-// const webSearchService = new WebSearchService();
-
-// // Note: Do not execute searches at import time; the agent/tools will call this service.
-// webSearchService
-//   .searchWeb("What is the staple food of Ethiopia?")
-//   .then((result) => {
-//     console.log(result);
-//   });

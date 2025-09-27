@@ -1,12 +1,18 @@
 import { WebSearchService } from "../services/webSearchService";
+import { ToolResult } from "../toolExecutor";
 
-async function websearchTool(args: any) {
-  const webSearchService = new WebSearchService();
-  // toolsDeclaration defines { query: string[] }, but service expects a single string
-  const queryArg = Array.isArray(args?.query)
-    ? args.query.join(" ")
-    : (args?.query ?? String(args));
-  return webSearchService.searchWeb(queryArg);
+async function websearchTool(args: any): Promise<ToolResult> {
+  try {
+    const webSearchService = new WebSearchService();
+    const queryArg = args.query;
+    if (!queryArg) {
+      throw new Error("Query is required");
+    }
+    return webSearchService.searchWeb(queryArg);
+  } catch (error) {
+    console.error("Error searching web:", error);
+    return { output: null, error: error };
+  }
 }
 
 export { websearchTool };

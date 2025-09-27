@@ -3,6 +3,7 @@ import { OllamaEmbeddings } from "@langchain/ollama";
 import { FaissStore } from "@langchain/community/vectorstores/faiss";
 import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters";
 import fs from "fs";
+import { ToolResult } from "../toolExecutor";
 
 const embeddings = new OllamaEmbeddings({
   model: "nomic-embed-text:latest",
@@ -117,15 +118,20 @@ class DocSearchService {
     return this.initPromise;
   }
 
-  async searchPdf(query: string) {
-    if (query.trim() === "") {
-      throw new Error("Query is required");
+  async searchPdf(query: string): Promise<ToolResult> {
+    try {
+      if (query.trim() === "") {
+        throw new Error("Query is required");
+      }
+      const store = this.vectorStore ?? (await this.init());
+      console.info("Searching PDF...");
+      const results = await store.similaritySearch(query);
+      console.info("PDF searched successfully " + results.length);
+      return { output: results, error: null };
+    } catch (error) {
+      console.error("Error searching PDF:", error);
+      return { output: null, error: error };
     }
-    const store = this.vectorStore ?? (await this.init());
-    console.info("Searching PDF...");
-    const results = await store.similaritySearch(query);
-    console.info("PDF searched successfully " + results.length);
-    return results;
   }
 }
 

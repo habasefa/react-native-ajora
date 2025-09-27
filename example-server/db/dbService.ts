@@ -33,7 +33,7 @@ export interface Todo {
   id: string;
   todo_list_id: string;
   name: string;
-  status: "queue" | "executing" | "completed" | "error";
+  status: "queue" | "completed" | "error";
   created_at?: string;
   updated_at?: string;
 }
@@ -113,7 +113,7 @@ class DbService {
           id TEXT PRIMARY KEY,
           todo_list_id TEXT NOT NULL,
           name TEXT NOT NULL,
-          status TEXT NOT NULL CHECK (status IN ('queue', 'executing', 'completed', 'error')),
+          status TEXT NOT NULL CHECK (status IN ('queue', 'completed', 'error')),
           created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
           updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
           FOREIGN KEY (todo_list_id) REFERENCES todo_lists (id) ON DELETE CASCADE

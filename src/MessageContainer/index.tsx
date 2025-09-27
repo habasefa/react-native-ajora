@@ -273,7 +273,7 @@ function MessageContainer<TMessage extends IMessage = IMessage>(
         <View style={styles.emptyChatContent}>
           <MaterialIcons
             name="chat-bubble-outline"
-            size={88}
+            size={70}
             color="#9CA3AF"
             style={styles.emptyChatIcon}
           />

@@ -92,8 +92,20 @@ const DocSearchTool: React.FC<DocSearchToolProps> = ({
     if (request?.tool.name === "search_document") {
       // Use response data from the merged functionCall
       if (request.tool.response) {
-        setSearchResults(request.tool.response);
+        const responseData = request.tool.response;
+
+        // Handle the new response format with output and error fields
+        if (responseData.error) {
+          setError(responseData.error);
+          setLoading(false);
+          return;
+        }
+
+        // Handle the response data - could be in output field or directly in response
+        const searchData = responseData.output || responseData;
+        setSearchResults(searchData);
         setLoading(false);
+        setError(null);
       } else {
         setLoading(true);
         setError(null);

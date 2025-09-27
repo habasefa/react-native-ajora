@@ -109,10 +109,15 @@ export const agent = async function* (query: UserEvent, dbService: DbService) {
           console.log("[Ajora:Server][5]: Tool Name", toolName);
 
           if (serverTools.includes(toolName || "")) {
-            const toolResult = await Promise.resolve(
+            const { output, error } = await Promise.resolve(
               executeTool(functionCall, thread_id, todoListService)
             );
-            console.log("[Ajora:Server][6]: toolResult", toolResult);
+            console.log(
+              "[Ajora:Server][6]: toolResult",
+              output
+                ? JSON.stringify(output, null, 2)
+                : JSON.stringify(error, null, 2)
+            );
 
             const updatedMessage: Message = {
               ...originalMessage,
@@ -122,7 +127,8 @@ export const agent = async function* (query: UserEvent, dbService: DbService) {
                   functionResponse: {
                     name: toolName,
                     response: {
-                      output: toolResult,
+                      output: output,
+                      error: error,
                     },
                   },
                 },
@@ -213,7 +219,21 @@ export const agent = async function* (query: UserEvent, dbService: DbService) {
       turn.messages.push(finalMessage);
       await dbService.addMessage(finalMessage);
 
+      console.log("[Ajora:Server][11.5]: Turn Messages", turn.messages.length);
+
       console.log("[Ajora:Server][12]: About to get next speaker");
+
+      // // Check for pending server tool calls first
+      // const pendingServerToolCall = getPendingToolCall(turn.messages);
+      // if (pendingServerToolCall) {
+      //   const toolName = pendingServerToolCall.functionCall?.name;
+      //   if (serverTools.includes(toolName || "")) {
+      //     console.log(
+      //       "[Ajora:Server][12.5]: Pending server tool call detected, continuing with model"
+      //     );
+      //     continue; // Continue the loop to process the pending tool call
+      //   }
+      // }
 
       const nextSpeakerResponse = await nextSpeaker(turn.messages);
       console.log(

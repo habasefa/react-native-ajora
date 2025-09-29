@@ -204,20 +204,6 @@ const WebSearchTool: React.FC<WebSearchToolProps> = ({
     );
   };
 
-  if (loading && !request.tool.response) {
-    return (
-      <View style={styles.container}>
-        <View style={styles.loadingContainerSearched}>
-          <Text style={styles.loadingTextSearched}>
-            <Text style={{ fontWeight: "bold" }}>Searching for</Text> "{query}{" "}
-            "...
-          </Text>
-          <SearchingAnimation />
-        </View>
-      </View>
-    );
-  }
-
   if (error && !request.tool.response) {
     return (
       <View style={styles.container}>
@@ -232,18 +218,27 @@ const WebSearchTool: React.FC<WebSearchToolProps> = ({
     );
   }
 
-  if (!searchResults) {
+  if (!request) {
     return null;
   }
+
+  const isSearching = loading && !request.tool.response;
+  const hasResults = searchResults && searchResults.results;
 
   return (
     <View style={styles.container}>
       <View style={styles.loadingContainerSearched}>
         <Text style={styles.loadingTextSearched}>
-          <Text style={{ fontWeight: "bold" }}>Searched for</Text> " "{query}{" "}
-          "...
+          <Text style={{ fontWeight: "bold" }}>
+            {isSearching ? "Searching for" : "Searched for"}
+          </Text>{" "}
+          "{query}"...
         </Text>
-        {renderAvatarsGroup()}
+        {isSearching ? (
+          <SearchingAnimation />
+        ) : (
+          hasResults && renderAvatarsGroup()
+        )}
       </View>
     </View>
   );

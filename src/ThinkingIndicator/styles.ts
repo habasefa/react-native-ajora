@@ -23,14 +23,6 @@ export default StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  dot: {
-    marginLeft: 3,
-    marginRight: 3,
-    borderRadius: 3,
-    width: 6,
-    height: 6,
-    backgroundColor: Color.mutedForeground,
-  },
   // Modern shadcn-inspired typing indicator styles
   wrapper: {
     flexDirection: "row",

@@ -7,16 +7,10 @@ import {
   ScrollView,
   Dimensions,
 } from "react-native";
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withTiming,
-  withSequence,
-  interpolate,
-} from "react-native-reanimated";
 import { ToolRequest, ToolResponse } from "../Tool/types";
 import Color from "../Color";
 import MaterialIcons from "@expo/vector-icons/build/MaterialIcons";
+import LoadingAnimation from "../LoadingAnimation";
 
 // Get responsive card width (90% of screen width, max 400px, min 280px)
 const getCardWidth = () => {
@@ -36,6 +30,7 @@ const TodoListTool: React.FC<TodoListToolProps> = ({ request }) => {
   const [error, setError] = useState<string | null>(null);
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [lastCompletedTodo, setLastCompletedTodo] = useState<any>(null);
+  const [nextPendingTodo, setNextPendingTodo] = useState<any>(null);
   const styles = createStyles();
 
   const { tool } = request;
@@ -138,15 +133,28 @@ const TodoListTool: React.FC<TodoListToolProps> = ({ request }) => {
         setLoading(false);
         setError(null);
 
-        // Track the last completed todo
+        // Track the last completed todo and next pending todo
         if (todoData && todoData.todos) {
           const completedTodos = todoData.todos.filter(
             (todo: any) => todo.status === "completed"
           );
+          const pendingTodos = todoData.todos.filter(
+            (todo: any) => todo.status === "queue"
+          );
+
+          // Set the last completed todo
           if (completedTodos.length > 0) {
-            // Find the most recently completed todo (assuming they're ordered by completion time)
             const lastCompleted = completedTodos[completedTodos.length - 1];
             setLastCompletedTodo(lastCompleted);
+          } else {
+            setLastCompletedTodo(null);
+          }
+
+          // Set the next pending todo (first one in queue)
+          if (pendingTodos.length > 0) {
+            setNextPendingTodo(pendingTodos[0]);
+          } else {
+            setNextPendingTodo(null);
           }
         }
 
@@ -177,65 +185,6 @@ const TodoListTool: React.FC<TodoListToolProps> = ({ request }) => {
     );
   }
 
-  const LoadingAnimation = () => {
-    return (
-      <View style={styles.loadingAnimation}>
-        <LoadingDots />
-      </View>
-    );
-  };
-
-  const LoadingDots = () => {
-    const dot1 = useSharedValue(0);
-    const dot2 = useSharedValue(0);
-    const dot3 = useSharedValue(0);
-
-    useEffect(() => {
-      const animateDots = () => {
-        dot1.value = withSequence(
-          withTiming(1, { duration: 200 }),
-          withTiming(0, { duration: 200 })
-        );
-        dot2.value = withSequence(
-          withTiming(0, { duration: 200 }),
-          withTiming(1, { duration: 200 }),
-          withTiming(0, { duration: 200 })
-        );
-        dot3.value = withSequence(
-          withTiming(0, { duration: 400 }),
-          withTiming(1, { duration: 200 }),
-          withTiming(0, { duration: 200 })
-        );
-      };
-
-      const interval = setInterval(animateDots, 600);
-      return () => clearInterval(interval);
-    }, []);
-
-    const dot1Style = useAnimatedStyle(() => ({
-      opacity: interpolate(dot1.value, [0, 1], [0.3, 1]),
-      transform: [{ scale: interpolate(dot1.value, [0, 1], [0.8, 1.2]) }],
-    }));
-
-    const dot2Style = useAnimatedStyle(() => ({
-      opacity: interpolate(dot2.value, [0, 1], [0.3, 1]),
-      transform: [{ scale: interpolate(dot2.value, [0, 1], [0.8, 1.2]) }],
-    }));
-
-    const dot3Style = useAnimatedStyle(() => ({
-      opacity: interpolate(dot3.value, [0, 1], [0.3, 1]),
-      transform: [{ scale: interpolate(dot3.value, [0, 1], [0.8, 1.2]) }],
-    }));
-
-    return (
-      <View style={styles.dotsContainer}>
-        <Animated.View style={[styles.dot, dot1Style]} />
-        <Animated.View style={[styles.dot, dot2Style]} />
-        <Animated.View style={[styles.dot, dot3Style]} />
-      </View>
-    );
-  };
-
   if (loading) {
     return (
       <View style={styles.container}>
@@ -243,7 +192,7 @@ const TodoListTool: React.FC<TodoListToolProps> = ({ request }) => {
           <Text style={styles.loadingText}>
             <Text style={{ fontWeight: "bold" }}>Updating todo list</Text>...
           </Text>
-          <LoadingAnimation />
+          <LoadingAnimation containerStyle={styles.loadingAnimation} />
         </View>
       </View>
     );
@@ -282,7 +231,7 @@ const TodoListTool: React.FC<TodoListToolProps> = ({ request }) => {
   const getStatusIcon = (status: string) => {
     switch (status) {
       case "queue":
-        return "schedule";
+        return "radio-button-unchecked";
       case "completed":
         return "check-circle";
       case "error":
@@ -302,7 +251,7 @@ const TodoListTool: React.FC<TodoListToolProps> = ({ request }) => {
       >
         <View style={styles.collapsedHeader}>
           <MaterialIcons
-            name="assignment"
+            name="checklist"
             size={20}
             color={Color.cardForeground}
           />
@@ -316,9 +265,6 @@ const TodoListTool: React.FC<TodoListToolProps> = ({ request }) => {
           />
         </View>
         <View style={styles.collapsedProgress}>
-          <Text style={styles.collapsedProgressText}>
-            {todoData.completedTodos} of {todoData.totalTodos} Done
-          </Text>
           {lastCompletedTodo && (
             <View style={styles.todoItem}>
               <View style={styles.todoHeader}>
@@ -347,6 +293,35 @@ const TodoListTool: React.FC<TodoListToolProps> = ({ request }) => {
               </View>
             </View>
           )}
+          {nextPendingTodo && (
+            <View style={styles.todoItem}>
+              <View style={styles.todoHeader}>
+                <View style={styles.todoInfo}>
+                  <MaterialIcons
+                    name={getStatusIcon(nextPendingTodo.status)}
+                    size={20}
+                    color={
+                      nextPendingTodo.status === "error" ? "#dc2626" : "#000000"
+                    }
+                    style={styles.statusIcon}
+                  />
+                  <Text
+                    style={[
+                      styles.todoText,
+                      nextPendingTodo.status === "completed" &&
+                        styles.completedTodo,
+                    ]}
+                    numberOfLines={1}
+                  >
+                    {nextPendingTodo.name}
+                  </Text>
+                </View>
+              </View>
+            </View>
+          )}
+          <Text style={styles.collapsedProgressText}>
+            {todoData.completedTodos} of {todoData.totalTodos} Done
+          </Text>
         </View>
       </TouchableOpacity>
     );
@@ -361,7 +336,7 @@ const TodoListTool: React.FC<TodoListToolProps> = ({ request }) => {
         activeOpacity={0.7}
       >
         <MaterialIcons
-          name="assignment"
+          name="checklist"
           size={20}
           color={Color.cardForeground}
         />
@@ -404,7 +379,7 @@ const TodoListTool: React.FC<TodoListToolProps> = ({ request }) => {
         ) : (
           <View style={styles.emptyContainer}>
             <MaterialIcons
-              name="assignment"
+              name="checklist"
               size={32}
               color={Color.mutedForeground}
             />
@@ -489,9 +464,10 @@ const createStyles = () => {
       marginTop: 8,
     },
     collapsedProgressText: {
-      fontSize: 14,
+      fontSize: 12,
       color: Color.mutedForeground,
       fontWeight: "500",
+      fontStyle: "italic",
     },
     errorMessage: {
       fontSize: 14,
@@ -565,20 +541,7 @@ const createStyles = () => {
       color: "#6b7280",
     },
     loadingAnimation: {
-      flexDirection: "row",
-      alignItems: "center",
       marginTop: 8,
-    },
-    dotsContainer: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 4,
-    },
-    dot: {
-      width: 6,
-      height: 6,
-      borderRadius: 3,
-      backgroundColor: "#000000",
     },
   });
 };

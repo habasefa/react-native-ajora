@@ -13,14 +13,17 @@ export type UserEvent =
   | {
       type: "text";
       message: IMessage;
+      mode?: string;
     }
   | {
       type: "function_response";
       message: IMessage;
+      mode?: string;
     }
   | {
       type: "regenerate";
       message: IMessage;
+      mode?: string;
     };
 
 // AgentEvent types from the API

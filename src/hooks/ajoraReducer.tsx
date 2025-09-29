@@ -44,6 +44,10 @@ export type Action =
   | {
       type: "SET_MESSAGES";
       payload: { messages: IMessage[]; threadId: string };
+    }
+  | {
+      type: "SET_COMPLETE";
+      payload: { isComplete: boolean };
     };
 
 export const ajoraReducer = (state: AjoraState, action: Action): AjoraState => {
@@ -240,6 +244,9 @@ export const ajoraReducer = (state: AjoraState, action: Action): AjoraState => {
     }
     case "SET_LOADING_MESSAGES": {
       return { ...state, isLoadingMessages: action.payload.isLoading } as any;
+    }
+    case "SET_COMPLETE": {
+      return { ...state, isComplete: action.payload.isComplete };
     }
     default:
       return state;

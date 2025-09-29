@@ -30,6 +30,7 @@ export type AjoraState = {
   mode: string;
   baseUrl: string;
   apiService: ApiService | null;
+  isComplete: boolean;
 };
 
 export type Ajora = AjoraState & {
@@ -43,6 +44,7 @@ export type Ajora = AjoraState & {
   setIsLoadingEarlier: (loadEarlier: boolean) => void;
   setMode: (mode: string) => void;
   regenerateMessage: (message: IMessage) => void;
+  setIsComplete: (isComplete: boolean) => void;
 };
 
 const useAjora = ({
@@ -65,6 +67,7 @@ const useAjora = ({
     mode: "auto",
     baseUrl,
     apiService: null,
+    isComplete: false,
   });
 
   const apiServiceRef = useRef<ApiService | null>(null);
@@ -170,6 +173,9 @@ const useAjora = ({
     // Ensure outgoing message has the thread id
     query.message.thread_id = threadId;
 
+    // Add the current mode to the query
+    const queryWithMode = { ...query, mode: ajora.mode };
+
     dispatch({
       type: "ADD_MESSAGES",
       payload: { messages: [query.message] },
@@ -181,7 +187,7 @@ const useAjora = ({
         throw new Error("[Ajora]: API service not initialized.");
       }
 
-      const cleanup = apiServiceRef.current.streamResponse(query, {
+      const cleanup = apiServiceRef.current.streamResponse(queryWithMode, {
         onIsThinking: (isThinking: IsThinkingEvent) => {
           console.log("[Ajora]: Is thinking received:", isThinking);
           dispatch({
@@ -238,9 +244,7 @@ const useAjora = ({
             cleanupRef.current = null;
           }
           console.log("[Ajora]: Streaming complete!");
-          getMessages(threadId);
-
-          dispatch({ type: "SET_THINKING", payload: { isThinking: false } });
+          dispatch({ type: "SET_COMPLETE", payload: { isComplete: true } });
         },
         onError: (err: ErrorEvent) => {
           console.error("[Ajora]: Error in streaming:", err);
@@ -265,6 +269,7 @@ const useAjora = ({
             cleanupRef.current = null;
           }
           dispatch({ type: "SET_THINKING", payload: { isThinking: false } });
+          dispatch({ type: "SET_COMPLETE", payload: { isComplete: false } });
         },
       });
       cleanupRef.current = cleanup ?? null;
@@ -314,7 +319,7 @@ const useAjora = ({
       type: "REMOVE_MESSAGE",
       payload: { messageId: userMessage._id, threadId: ajora.activeThreadId },
     });
-    submitQuery({ type: "regenerate", message: userMessage });
+    submitQuery({ type: "regenerate", message: userMessage, mode: ajora.mode });
   };
 
   // Compute messagesByThread from the current active thread
@@ -338,6 +343,8 @@ const useAjora = ({
     setMode: (mode: string) =>
       dispatch({ type: "SET_MODE", payload: { mode } }),
     regenerateMessage,
+    setIsComplete: (isComplete: boolean) =>
+      dispatch({ type: "SET_COMPLETE", payload: { isComplete } }),
   };
 };
 

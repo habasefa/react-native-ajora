@@ -85,14 +85,12 @@ export function Actions({
     );
   }, [showActionSheetWithOptions, submitQuery]);
 
-  const onAutoPress = useCallback(() => {
-    const options = ["Agent", "Assistant", "Search", "Cancel"];
-    const cancelButtonIndex = options.length - 1;
+  const onModePress = useCallback(() => {
+    const options = ["Agent", "Assistant"];
 
     showActionSheetWithOptions(
       {
         options,
-        cancelButtonIndex,
       },
       async (buttonIndex) => {
         switch (buttonIndex) {
@@ -101,12 +99,6 @@ export function Actions({
             return;
           case 1:
             setMode("assistant");
-            return;
-          case 2:
-            setMode("search");
-            return;
-          case 3:
-            setMode("cancel");
             return;
 
           default:
@@ -138,7 +130,7 @@ export function Actions({
       >
         {renderIcon()}
       </TouchableOpacity>
-      <TouchableOpacity style={{ width: 100 }} onPress={onAutoPress}>
+      <TouchableOpacity style={{ width: 100 }} onPress={onModePress}>
         <Text style={[styles.iconText, iconTextStyle]}>
           {ajora.mode.charAt(0).toUpperCase() + ajora.mode.slice(1)}
         </Text>

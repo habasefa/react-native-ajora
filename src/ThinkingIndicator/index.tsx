@@ -1,110 +1,18 @@
-import React, { useCallback, useEffect, useState, useMemo } from "react";
-import { View } from "react-native";
+import React, { useCallback, useEffect, useState } from "react";
 import Animated, {
   runOnJS,
   useAnimatedStyle,
   useSharedValue,
-  withDelay,
-  withRepeat,
-  withSequence,
   withTiming,
 } from "react-native-reanimated";
 import { TypingIndicatorProps } from "./types";
+import LoadingAnimation from "../LoadingAnimation";
+import Color from "../Color";
 
 import stylesCommon from "../styles";
 import styles from "./styles";
 
 export * from "./types";
-
-const DotsAnimation = () => {
-  const dot1 = useSharedValue(0);
-  const dot2 = useSharedValue(0);
-  const dot3 = useSharedValue(0);
-
-  const topY = useMemo(() => -5, []);
-  const bottomY = useMemo(() => 5, []);
-  const duration = useMemo(() => 500, []);
-
-  const dot1Style = useAnimatedStyle(
-    () => ({
-      transform: [
-        {
-          translateY: dot1.value,
-        },
-      ],
-    }),
-    [dot1]
-  );
-
-  const dot2Style = useAnimatedStyle(
-    () => ({
-      transform: [
-        {
-          translateY: dot2.value,
-        },
-      ],
-    }),
-    [dot2]
-  );
-
-  const dot3Style = useAnimatedStyle(
-    () => ({
-      transform: [
-        {
-          translateY: dot3.value,
-        },
-      ],
-    }),
-    [dot3]
-  );
-
-  useEffect(() => {
-    dot1.value = withRepeat(
-      withSequence(
-        withTiming(topY, { duration }),
-        withTiming(bottomY, { duration })
-      ),
-      0,
-      true
-    );
-  }, [dot1, topY, bottomY, duration]);
-
-  useEffect(() => {
-    dot2.value = withDelay(
-      100,
-      withRepeat(
-        withSequence(
-          withTiming(topY, { duration }),
-          withTiming(bottomY, { duration })
-        ),
-        0,
-        true
-      )
-    );
-  }, [dot2, topY, bottomY, duration]);
-
-  useEffect(() => {
-    dot3.value = withDelay(
-      200,
-      withRepeat(
-        withSequence(
-          withTiming(topY, { duration }),
-          withTiming(bottomY, { duration })
-        ),
-        0,
-        true
-      )
-    );
-  }, [dot3, topY, bottomY, duration]);
-
-  return (
-    <View style={[stylesCommon.fill, stylesCommon.centerItems, styles.dots]}>
-      <Animated.View style={[styles.dot, dot1Style]} />
-      <Animated.View style={[styles.dot, dot2Style]} />
-      <Animated.View style={[styles.dot, dot3Style]} />
-    </View>
-  );
-};
 
 const TypingIndicator = ({ isThinking }: TypingIndicatorProps) => {
   const yCoords = useSharedValue(200);
@@ -158,7 +66,16 @@ const TypingIndicator = ({ isThinking }: TypingIndicatorProps) => {
 
   return (
     <Animated.View style={[styles.container, containerStyle]}>
-      <DotsAnimation />
+      <LoadingAnimation
+        containerStyle={[
+          stylesCommon.fill,
+          stylesCommon.centerItems,
+          styles.dots,
+        ]}
+        dotColor={Color.mutedForeground}
+        dotSize={6}
+        gap={6}
+      />
     </Animated.View>
   );
 };

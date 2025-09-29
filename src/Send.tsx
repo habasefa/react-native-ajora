@@ -68,17 +68,14 @@ export const Send = <TMessage extends IMessage = IMessage>({
       } as IMessage;
 
       // Call onSend to trigger input clearing and other side effects
-      if (false) {
-        onSend(message as Partial<TMessage>, true);
+      if (onSend) {
+        onSend([message as Partial<TMessage>], true);
       } else {
         // Fallback to direct submitQuery if onSend is not provided
-        submitQuery(
-          {
-            type: "text",
-            message,
-          },
-          activeThreadId || ""
-        );
+        submitQuery({
+          type: "text",
+          message,
+        });
       }
     }
   }, [text, submitQuery, activeThreadId, onSend]);

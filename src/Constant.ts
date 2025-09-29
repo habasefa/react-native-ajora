@@ -1,10 +1,10 @@
 import { Platform } from "react-native";
 
 export const MIN_COMPOSER_HEIGHT = Platform.select({
-  ios: 33,
-  android: 100,
-  web: 34,
-  windows: 34,
+  ios: 28,
+  android: 40,
+  web: 28,
+  windows: 28,
 });
 export const MAX_COMPOSER_HEIGHT = 200;
 export const DEFAULT_PLACEHOLDER = "Type a message...";

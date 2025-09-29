@@ -1,4 +1,4 @@
-import React, { ReactNode, useCallback, useState } from "react";
+import React, { ReactNode, useCallback } from "react";
 import {
   StyleSheet,
   Text,
@@ -55,7 +55,10 @@ export function Actions({
     const cancelButtonIndex = options.length - 1;
 
     const onSend = (messages: IMessage) => {
-      submitQuery(messages, activeThreadId || "");
+      submitQuery({
+        type: "text",
+        message: messages,
+      });
     };
 
     showActionSheetWithOptions(
@@ -83,7 +86,7 @@ export function Actions({
   }, [showActionSheetWithOptions, submitQuery]);
 
   const onAutoPress = useCallback(() => {
-    const options = ["Auto", "Thinking", "Image", "Search", "Cancel"];
+    const options = ["Agent", "Assistant", "Search", "Cancel"];
     const cancelButtonIndex = options.length - 1;
 
     showActionSheetWithOptions(
@@ -94,21 +97,21 @@ export function Actions({
       async (buttonIndex) => {
         switch (buttonIndex) {
           case 0:
-            setMode("auto");
+            setMode("agent");
             return;
           case 1:
-            setMode("thinking");
+            setMode("assistant");
             return;
           case 2:
-            setMode("image");
+            setMode("search");
             return;
           case 3:
-            setMode("search");
+            setMode("cancel");
             return;
         }
       }
     );
-  }, [showActionSheetWithOptions, setMode]);
+  }, [showActionSheetWithOptions, setMode, options]);
 
   const renderIcon = useCallback(() => {
     return (

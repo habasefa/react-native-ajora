@@ -49,13 +49,11 @@ export function InputToolbar<TMessage extends IMessage = IMessage>(
 
     return (
       <View style={styles.actionsContainer}>
-        {renderActions?.(props) ||
-          (onPressActionButton && <Actions {...props} />)}
+        {renderActions?.(props) || <Actions {...props} />}
       </View>
     );
   }, [
     renderActions,
-    onPressActionButton,
     options,
     optionTintColor,
     icon,

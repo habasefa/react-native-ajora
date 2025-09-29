@@ -90,6 +90,7 @@ function Ajora<TMessage extends IMessage = IMessage>(
     onNewThread,
     onHeaderMenuPress,
     onHeaderPlusPress,
+    onPressActionButton,
   } = props;
 
   const { ajora } = useChatContext();
@@ -283,7 +284,10 @@ function Ajora<TMessage extends IMessage = IMessage>(
 
       // Send the message to the server
       if (newMessages.length > 0) {
-        submitQuery(newMessages[0], activeThreadId || "");
+        submitQuery({
+          type: "text",
+          message: newMessages[0],
+        });
       }
 
       onSend?.(newMessages);

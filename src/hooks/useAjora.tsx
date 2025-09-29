@@ -32,7 +32,7 @@ export type AjoraState = {
 
 export type Ajora = AjoraState & {
   messagesByThread: IMessage[];
-  submitQuery: (message: UserEvent, threadId: string) => Promise<void>;
+  submitQuery: (query: UserEvent) => Promise<void>;
   addNewThread: () => void;
   switchThread: (threadId: string) => void;
   getThreads: () => void;

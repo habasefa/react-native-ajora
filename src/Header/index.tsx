@@ -2,6 +2,7 @@ import React from "react";
 import { View, Text, TouchableOpacity } from "react-native";
 import styles from "./styles";
 import { MaterialIcons } from "@expo/vector-icons";
+import { useChatContext } from "../AjoraContext";
 
 export interface HeaderProps {
   title?: string;
@@ -11,11 +12,15 @@ export interface HeaderProps {
 }
 
 export function Header({
-  title = "Thread",
+  title,
   onMenuPress,
   onPlusPress,
   containerStyle,
 }: HeaderProps) {
+  const { ajora } = useChatContext();
+
+  const { threads, activeThreadId } = ajora;
+  const activeThread = threads.find((thread) => thread.id === activeThreadId);
   return (
     <View style={[styles.container, containerStyle]}>
       {/* Left: Menu Icon */}
@@ -30,7 +35,7 @@ export function Header({
       {/* Center: Title */}
       <View style={styles.titleContainer}>
         <Text style={styles.title} numberOfLines={1}>
-          {title}
+          {activeThread?.title ?? title ?? "New Chat"}
         </Text>
       </View>
 

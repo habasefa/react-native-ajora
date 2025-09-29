@@ -10,6 +10,8 @@ export const serverTools = ["search_web", "search_document", "todo_list"];
 
 export type AgentEvent =
   | { type: "message"; message: Message }
+  | { type: "thought"; thought: string }
+  | { type: "is_thinking"; is_thinking: boolean }
   | { type: "function_response"; message: Message }
   | { type: "thread_title"; thread_id: string; title: string }
   | { type: "error"; thread_id: string; message_id: string; error: string };
@@ -31,6 +33,13 @@ export const agent = async function* (query: UserEvent, dbService: DbService) {
   if (!query) {
     throw new Error("Query is required ");
   }
+  let is_thinking = true;
+
+  yield {
+    type: "is_thinking",
+    is_thinking: is_thinking,
+  };
+
   const { type, message } = query;
 
   // Initialize TodoListService with the database service
@@ -43,7 +52,6 @@ export const agent = async function* (query: UserEvent, dbService: DbService) {
   await dbService.addMessage(message);
 
   let history: Message[] = await dbService.getMessages(thread_id);
-  console.log("[Ajora:Server][0]: History", JSON.stringify(history, null, 2));
 
   const turn: Turn = {
     turn_id: generateId(),
@@ -53,10 +61,8 @@ export const agent = async function* (query: UserEvent, dbService: DbService) {
   try {
     // --- Handle incoming message ---
     const pendingFromHistory = getPendingToolCall(turn.messages);
-    console.log("[Ajora:Server][1]: pendingFromHistory", pendingFromHistory);
 
     if (type === "function_response" && pendingFromHistory) {
-      console.log("[Ajora:Server][2]: Function Response from User", message);
       const { functionCall, originalMessage } = pendingFromHistory;
       const functionResponse: FunctionResponse = {
         name: functionCall?.name,
@@ -68,9 +74,8 @@ export const agent = async function* (query: UserEvent, dbService: DbService) {
       };
       const idx = turn.messages.findIndex((m) => m._id === originalMessage._id);
       if (idx !== -1) turn.messages[idx] = updatedMessage;
-      await dbService.updateMessage(originalMessage._id, updatedMessage);
+      await dbService.updateMessage(originalMessage._id!, updatedMessage);
     } else if (type === "text" && pendingFromHistory) {
-      console.log("[Ajora:Server][3]: Ignored Tool Call from User", message);
       const { functionCall, originalMessage } = pendingFromHistory;
       const functionResponse: FunctionResponse = {
         name: functionCall?.name,
@@ -86,37 +91,27 @@ export const agent = async function* (query: UserEvent, dbService: DbService) {
       };
       const idx = turn.messages.findIndex((m) => m._id === originalMessage._id);
       if (idx !== -1) turn.messages[idx] = updatedMessage;
-      await dbService.updateMessage(originalMessage._id, updatedMessage);
+      await dbService.updateMessage(originalMessage._id!, updatedMessage);
     }
 
     let isComingFromTheUser = true;
 
     // --- Main loop ---
     while (remainingTurns-- > 0) {
-      console.log("[Ajora:Server][4]: Entering Main Loop", remainingTurns);
-
       // If the query is coming from the user, means it is already processed above
       if (isComingFromTheUser) {
         isComingFromTheUser = false;
       } else {
         // Processing Tool Calls from the previous turn
         const pendingToolCall = getPendingToolCall(turn.messages);
-        console.log("[Ajora:Server][4.5]: pendingToolCall", pendingToolCall);
 
         if (pendingToolCall) {
           const { functionCall, originalMessage } = pendingToolCall;
           const toolName = functionCall?.name;
-          console.log("[Ajora:Server][5]: Tool Name", toolName);
 
           if (serverTools.includes(toolName || "")) {
             const { output, error } = await Promise.resolve(
               executeTool(functionCall, thread_id, todoListService)
-            );
-            console.log(
-              "[Ajora:Server][6]: toolResult",
-              output
-                ? JSON.stringify(output, null, 2)
-                : JSON.stringify(error, null, 2)
             );
 
             const updatedMessage: Message = {
@@ -139,17 +134,28 @@ export const agent = async function* (query: UserEvent, dbService: DbService) {
               (m) => m._id === originalMessage._id
             );
             if (idx !== -1) turn.messages[idx] = updatedMessage;
-            await dbService.updateMessage(originalMessage._id, updatedMessage);
+            await dbService.updateMessage(originalMessage._id!, {
+              parts: updatedMessage.parts,
+            });
+
+            yield {
+              type: "is_thinking",
+              is_thinking: true,
+            };
+
             yield {
               type: "function_response",
               message: updatedMessage,
             };
           } else {
-            console.log("[Ajora:Server][7]: Non-server tool", toolName);
+            yield {
+              type: "is_thinking",
+              is_thinking: false,
+            };
             yield {
               type: "function_call",
               message: {
-                _id: originalMessage._id,
+                _id: originalMessage._id!,
                 thread_id,
                 role: "model",
                 parts: [{ functionCall }],
@@ -165,10 +171,13 @@ export const agent = async function* (query: UserEvent, dbService: DbService) {
 
       const response = gemini(turn.messages);
       for await (const chunk of response) {
-        console.log(
-          "[Ajora:Server][8]: Streaming Chunk",
-          JSON.stringify(chunk.candidates?.[0]?.content, null, 2)
-        );
+        if (is_thinking) {
+          is_thinking = false;
+          yield {
+            type: "is_thinking",
+            is_thinking: is_thinking,
+          };
+        }
         const text = chunk.candidates?.[0]?.content?.parts?.[0]?.text;
         const functionCall = chunk.candidates?.[0]?.content?.parts?.find(
           (p: Part) => p?.functionCall
@@ -176,12 +185,7 @@ export const agent = async function* (query: UserEvent, dbService: DbService) {
 
         if (functionCall) {
           if (!functionCall.id) {
-            console.log("[Ajora:Server][9]: Function Call does not have id");
             functionCall.id = generateId();
-            console.log(
-              "[Ajora:Server][9]: ID added to function call",
-              functionCall
-            );
           }
           pendingStreamParts.push({ functionCall });
         }
@@ -190,7 +194,6 @@ export const agent = async function* (query: UserEvent, dbService: DbService) {
           const textIndex = pendingStreamParts.findIndex((p) => p?.text);
           if (textIndex === -1) pendingStreamParts.unshift({ text });
           else pendingStreamParts[textIndex].text += text;
-          console.log("[Ajora:Server][10]: Text updated", text);
         }
 
         const pendingMessage: Message = {
@@ -199,8 +202,6 @@ export const agent = async function* (query: UserEvent, dbService: DbService) {
           role: "model",
           parts: pendingStreamParts,
         };
-
-        console.log("[Ajora:Server][11]: Pending Message", pendingMessage);
 
         yield {
           type: "message",
@@ -215,13 +216,8 @@ export const agent = async function* (query: UserEvent, dbService: DbService) {
         parts: pendingStreamParts,
         created_at: new Date().toISOString(),
       };
-      console.log("[Ajora:Server][11]: Final Message", finalMessage);
       turn.messages.push(finalMessage);
       await dbService.addMessage(finalMessage);
-
-      console.log("[Ajora:Server][11.5]: Turn Messages", turn.messages.length);
-
-      console.log("[Ajora:Server][12]: About to get next speaker");
 
       // // Check for pending server tool calls first
       // const pendingServerToolCall = getPendingToolCall(turn.messages);
@@ -234,15 +230,21 @@ export const agent = async function* (query: UserEvent, dbService: DbService) {
       //     continue; // Continue the loop to process the pending tool call
       //   }
       // }
+      yield {
+        type: "is_thinking",
+        is_thinking: true,
+      };
 
       const nextSpeakerResponse = await nextSpeaker(turn.messages);
-      console.log(
-        "[Ajora:Server][12]: Next Speaker Response",
-        nextSpeakerResponse
-      );
+      if (is_thinking) {
+        is_thinking = false;
+        yield {
+          type: "is_thinking",
+          is_thinking: is_thinking,
+        };
+      }
 
       if (nextSpeakerResponse?.next_speaker !== "model") {
-        console.log("[Ajora:Server][14]: Breaking Main Loop");
         break;
       }
     }
@@ -253,6 +255,11 @@ export const agent = async function* (query: UserEvent, dbService: DbService) {
       thread_id,
       message_id: message._id,
       error: error?.message || "Unknown agent error",
+    };
+  } finally {
+    yield {
+      type: "is_thinking",
+      is_thinking: false,
     };
   }
 };

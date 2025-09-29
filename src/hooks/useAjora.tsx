@@ -4,6 +4,7 @@ import ApiService, {
   AgentEvent,
   ErrorEvent,
   FunctionResponseEvent,
+  IsThinkingEvent,
   SourcesEvent,
   SuggestionsEvent,
   ThreadTitleEvent,
@@ -25,6 +26,7 @@ export type AjoraState = {
   activeThreadId: string | null;
   isThinking: boolean;
   loadEarlier: boolean;
+  isLoadingMessages?: boolean;
   mode: string;
   baseUrl: string;
   apiService: ApiService | null;
@@ -54,11 +56,12 @@ const useAjora = ({
 }) => {
   const [ajora, dispatch] = useReducer(ajoraReducer, {
     stream: [],
+    isThinking: false,
     messages: mergeFunctionCallsAndResponses(initialMessages),
     threads: initialThreads,
     activeThreadId: null,
-    isThinking: false,
     loadEarlier: false,
+    isLoadingMessages: false,
     mode: "auto",
     baseUrl,
     apiService: null,
@@ -106,6 +109,7 @@ const useAjora = ({
         console.warn("[Ajora]: API service not initialized");
         return;
       }
+      dispatch({ type: "SET_LOADING_MESSAGES", payload: { isLoading: true } });
       const messages = await apiServiceRef.current.getMessages(threadId);
       if (messages) {
         dispatch({
@@ -120,8 +124,20 @@ const useAjora = ({
         type: "SET_MESSAGES",
         payload: { messages: [], threadId },
       });
+    } finally {
+      dispatch({ type: "SET_LOADING_MESSAGES", payload: { isLoading: false } });
     }
   };
+
+  // Auto-load messages when active thread changes and not yet loaded
+  useEffect(() => {
+    if (!ajora.activeThreadId) return;
+    const threadId = ajora.activeThreadId;
+    const hasMessages = (ajora.messages[threadId] || []).length > 0;
+    if (!hasMessages) {
+      getMessages(threadId);
+    }
+  }, [ajora.activeThreadId]);
 
   const submitQuery = async (query: UserEvent) => {
     let threadId = query.message.thread_id;
@@ -137,6 +153,11 @@ const useAjora = ({
         throw new Error("[Ajora]: Failed to create a new thread.");
       }
       threadId = newThread.id;
+      // Ensure the new thread is available in state immediately
+      dispatch({
+        type: "SET_THREADS",
+        payload: { threads: [...(ajora.threads || []), newThread] as Thread[] },
+      });
       // Switch to the newly created thread immediately
       dispatch({ type: "SWITCH_THREAD", payload: { threadId } });
     } else {
@@ -161,6 +182,14 @@ const useAjora = ({
       }
 
       const cleanup = apiServiceRef.current.streamResponse(query, {
+        onIsThinking: (isThinking: IsThinkingEvent) => {
+          console.log("[Ajora]: Is thinking received:", isThinking);
+          dispatch({
+            type: "SET_THINKING",
+            payload: { isThinking: isThinking.is_thinking },
+          });
+        },
+
         onChunk: (agentEvent: AgentEvent) => {
           if (agentEvent?.type === "message") {
             dispatch({
@@ -169,6 +198,7 @@ const useAjora = ({
             });
           }
         },
+
         onFunctionResponse: (fr: FunctionResponseEvent) => {
           const { message } = fr;
 
@@ -179,11 +209,21 @@ const useAjora = ({
           });
         },
         onThreadTitle: (tt: ThreadTitleEvent) => {
-          const thread = tt.threadTitle;
-          if (!thread.id) return;
+          console.log("[Ajora]: Thread title received:", tt);
+          const incoming = tt.threadTitle as any;
+          // Server may send a plain title string or a full Thread
+          const normalizedThread: Thread | null =
+            typeof incoming === "string"
+              ? { id: threadId, title: incoming }
+              : incoming && incoming.id
+                ? incoming
+                : null;
+
+          if (!normalizedThread) return;
+
           dispatch({
             type: "UPDATE_THREAD_TITLE",
-            payload: { thread },
+            payload: { thread: normalizedThread },
           });
         },
         onSources: (sources: SourcesEvent) => {

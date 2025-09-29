@@ -7,7 +7,8 @@
     "dev": "npx nodemon ./src/index.ts",
     "start": "ts-node src/index.ts",
     "build": "tsc",
-    "serve": "node dist/index.js"
+    "serve": "node dist/index.js",
+    "seed:thread": "ts-node src/scripts/seedThread.ts"
   },
   "author": "",
   "license": "ISC",

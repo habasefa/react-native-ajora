@@ -22,7 +22,6 @@ export type AnimatedList<TMessage> = Component<
 
 export interface MessageContainerProps<TMessage extends IMessage = IMessage> {
   forwardRef?: RefObject<AnimatedList<TMessage>>;
-  isThinking?: boolean;
   role?: "user" | "model";
   listViewProps?: ListViewProps;
   loadEarlier?: boolean;

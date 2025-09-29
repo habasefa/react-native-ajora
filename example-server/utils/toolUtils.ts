@@ -50,19 +50,11 @@ const getFunctionResponse = (
 const getPendingToolCall = (
   history: Message[]
 ): { functionCall: FunctionCall; originalMessage: Message } | undefined => {
-  console.log(
-    "[Ajora:Server:getPendingToolCall][0.A]: History",
-    JSON.stringify(history, null, 2)
-  );
   if (!Array.isArray(history) || history.length === 0) return undefined;
 
   // Get the last message in the history and check if it has functionCall but no functionResponse else return undefined
   const originalMessage = history[history.length - 1];
 
-  console.log(
-    "[Ajora:Server:getPendingToolCall][0.B]: Last Message",
-    JSON.stringify(originalMessage, null, 2)
-  );
   const functionCall = getFunctionCall(originalMessage);
   const functionResponse = getFunctionResponse(originalMessage);
   if (functionCall && !functionResponse) {

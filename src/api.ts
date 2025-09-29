@@ -36,7 +36,8 @@ export interface FunctionResponseEvent {
 
 export interface ThreadTitleEvent {
   type: "thread_title";
-  threadTitle: Thread;
+  // Server may send just a title string or a full Thread object
+  threadTitle: string | Thread;
 }
 
 export interface SourcesEvent {
@@ -47,6 +48,11 @@ export interface SourcesEvent {
 export interface SuggestionsEvent {
   type: "suggestions";
   suggestions: SuggestionProps[];
+}
+
+export interface IsThinkingEvent {
+  type: "is_thinking";
+  is_thinking: boolean;
 }
 
 export interface ErrorEvent {
@@ -64,6 +70,7 @@ export type AgentEvent =
   | ThreadTitleEvent
   | SourcesEvent
   | SuggestionsEvent
+  | IsThinkingEvent
   | ErrorEvent;
 
 export interface StreamResponseOptions {
@@ -74,6 +81,7 @@ export interface StreamResponseOptions {
   onSources: (sources: SourcesEvent) => void;
   onSuggestions: (suggestions: SuggestionsEvent) => void;
   onComplete: (complete: AgentEvent) => void;
+  onIsThinking: (isThinking: IsThinkingEvent) => void;
   onError: (error: ErrorEvent) => void;
 }
 
@@ -96,6 +104,7 @@ export class ApiService {
       onThreadTitle,
       onSources,
       onSuggestions,
+      onIsThinking,
       onError,
       onComplete,
     } = options;
@@ -135,6 +144,9 @@ export class ApiService {
             case "error":
               this.close();
               return onError(agentEvent as ErrorEvent);
+
+            case "is_thinking":
+              return onIsThinking(agentEvent as IsThinkingEvent);
             case "message":
               return onChunk(agentEvent as MessageEvent);
             default:
@@ -216,7 +228,9 @@ export class ApiService {
   getMessages(threadId: string): Promise<IMessage[]> {
     return fetch(
       `${this.config.baseUrl}/api/threads/${threadId}/messages`
-    ).then((res) => res.json());
+    ).then((res) => {
+      return res.json();
+    });
   }
 
   updateConfig(newConfig: Partial<ApiConfig>): void {

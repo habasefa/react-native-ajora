@@ -26,7 +26,8 @@ import MessageContainer, { AnimatedList } from "../MessageContainer";
 import { MessageImage } from "../MessageImage";
 import { MessageText } from "../MessageText";
 import { Thread } from "../Thread";
-import { IMessage, ThreadItem } from "../types";
+import type { Thread as ThreadType } from "../Thread/types";
+import { IMessage } from "../types";
 import { Send } from "../Send";
 import * as utils from "../utils";
 import Animated, {
@@ -53,7 +54,6 @@ function Ajora<TMessage extends IMessage = IMessage>(
 ) {
   const {
     initialText = "",
-    isThinking,
 
     // "random" function from here: https://stackoverflow.com/a/8084248/3452513
     // we do not use uuid since it would add extra native dependency (https://www.npmjs.com/package/react-native-get-random-values)
@@ -173,22 +173,22 @@ function Ajora<TMessage extends IMessage = IMessage>(
     isTextInputWasFocused.current = false;
   }, [textInputRef]);
 
-  const disableTyping = useCallback(() => {
+  const disableThinking = useCallback(() => {
     clearTimeout(debounceEnableThinkingTimeoutId.current);
     setIsThinkingDisabled(true);
   }, []);
 
-  const enableTyping = useCallback(() => {
+  const enableThinking = useCallback(() => {
     clearTimeout(debounceEnableThinkingTimeoutId.current);
     setIsThinkingDisabled(false);
   }, []);
 
-  const debounceEnableTyping = useCallback(() => {
+  const debounceEnableThinking = useCallback(() => {
     clearTimeout(debounceEnableThinkingTimeoutId.current);
     debounceEnableThinkingTimeoutId.current = setTimeout(() => {
-      enableTyping();
+      enableThinking();
     }, 50);
-  }, [enableTyping]);
+  }, [enableThinking]);
 
   const scrollToBottom = useCallback(
     (isAnimated = true) => {
@@ -222,7 +222,7 @@ function Ajora<TMessage extends IMessage = IMessage>(
   }, [onHeaderPlusPress, addNewThread]);
 
   const handleThreadSelect = useCallback(
-    (thread: ThreadItem) => {
+    (thread: ThreadType) => {
       setIsThreadDrawerOpen(false);
 
       if (onThreadSelect) {
@@ -254,13 +254,13 @@ function Ajora<TMessage extends IMessage = IMessage>(
 
     setComposerHeight(minComposerHeight!);
     setText(getTextFromProp(""));
-    enableTyping();
+    enableThinking();
   }, [
     minComposerHeight,
     getTextFromProp,
     textInputRef,
     notifyInputTextReset,
-    enableTyping,
+    enableThinking,
   ]);
 
   const _onSend = useCallback(
@@ -277,7 +277,7 @@ function Ajora<TMessage extends IMessage = IMessage>(
       });
 
       if (shouldResetInputToolbar === true) {
-        disableTyping();
+        disableThinking();
 
         resetInputToolbar();
       }
@@ -299,7 +299,7 @@ function Ajora<TMessage extends IMessage = IMessage>(
       onSend,
       role,
       resetInputToolbar,
-      disableTyping,
+      disableThinking,
       scrollToBottom,
       submitQuery,
       activeThreadId,
@@ -323,7 +323,6 @@ function Ajora<TMessage extends IMessage = IMessage>(
       <View style={[stylesCommon.fill, messagesContainerStyle]}>
         {showHeader && (
           <Header
-            title={currentThread ? currentThread.title : "New Chat"}
             onMenuPress={handleHeaderMenuPress}
             onPlusPress={handleHeaderPlusPress}
             {...headerProps}
@@ -335,7 +334,6 @@ function Ajora<TMessage extends IMessage = IMessage>(
             keyboardShouldPersistTaps,
           }}
           forwardRef={messageContainerRef}
-          isThinking={isThinking}
           onSend={handleMessageContainerSend}
         />
         {renderChatFooter?.()}
@@ -343,7 +341,7 @@ function Ajora<TMessage extends IMessage = IMessage>(
     );
   }, [
     isInitialized,
-    isThinking,
+    ajora.isThinking,
     props,
     keyboardShouldPersistTaps,
     messageContainerRef,
@@ -479,10 +477,10 @@ function Ajora<TMessage extends IMessage = IMessage>(
             else runOnJS(handleTextInputFocusWhenKeyboardHide)();
 
           if (value === 0) {
-            runOnJS(enableTyping)();
+            runOnJS(enableThinking)();
           } else {
-            runOnJS(disableTyping)();
-            runOnJS(debounceEnableTyping)();
+            runOnJS(disableThinking)();
+            runOnJS(debounceEnableThinking)();
           }
         }
       }
@@ -493,9 +491,9 @@ function Ajora<TMessage extends IMessage = IMessage>(
       focusOnInputWhenOpeningKeyboard,
       handleTextInputFocusWhenKeyboardHide,
       handleTextInputFocusWhenKeyboardShow,
-      enableTyping,
-      disableTyping,
-      debounceEnableTyping,
+      enableThinking,
+      disableThinking,
+      debounceEnableThinking,
       bottomOffset,
     ]
   );

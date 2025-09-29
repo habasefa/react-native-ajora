@@ -9,6 +9,7 @@ import {
   FlatList,
   CellRendererProps,
   ScrollView,
+  ActivityIndicator,
 } from "react-native";
 import Animated, {
   runOnJS,
@@ -42,7 +43,6 @@ function MessageContainer<TMessage extends IMessage = IMessage>(
 ) {
   const {
     role = "model",
-    isThinking = false,
     renderChatEmpty: renderChatEmptyProp,
     onLoadEarlier,
     loadEarlier = false,
@@ -68,8 +68,8 @@ function MessageContainer<TMessage extends IMessage = IMessage>(
 
   const { ajora } = useChatContext();
 
-  const { activeThreadId, messagesByThread, submitQuery } = ajora;
-
+  const { activeThreadId, messagesByThread, submitQuery, isLoadingMessages } =
+    ajora;
   const scrollToBottomOpacity = useSharedValue(0);
   const [isScrollToBottomVisible, setIsScrollToBottomVisible] = useState(false);
   const scrollToBottomStyleAnim = useAnimatedStyle(
@@ -86,8 +86,8 @@ function MessageContainer<TMessage extends IMessage = IMessage>(
   const renderThinkingIndicator = useCallback(() => {
     if (renderThinkingIndicatorProp) return renderThinkingIndicatorProp();
 
-    return <ThinkingIndicator isThinking={isThinking} />;
-  }, [isThinking, renderThinkingIndicatorProp]);
+    return <ThinkingIndicator isThinking={ajora.isThinking} />;
+  }, [ajora.isThinking, renderThinkingIndicatorProp]);
 
   const ListFooterComponent = useMemo(() => {
     if (renderFooterProp) return <>{renderFooterProp(props)}</>;
@@ -198,6 +198,23 @@ function MessageContainer<TMessage extends IMessage = IMessage>(
   );
 
   const renderChatEmpty = useCallback(() => {
+    if (isLoadingMessages) {
+      return (
+        <View
+          style={[
+            styles.emptyChatContainer,
+            { transform: [{ scaleY: -1 }, { scaleX: -1 }] },
+          ]}
+        >
+          <View style={styles.emptyChatContent}>
+            <ActivityIndicator size="small" color="#6B7280" />
+            <Text style={[styles.emptyChatSubtitle, { marginTop: 8 }]}>
+              Loading messages…
+            </Text>
+          </View>
+        </View>
+      );
+    }
     if (renderSuggestedQuestions) return renderSuggestedQuestions();
 
     const suggestedQuestions = [
@@ -238,16 +255,13 @@ function MessageContainer<TMessage extends IMessage = IMessage>(
       };
 
       // Use onSend if available, otherwise fallback to submitQuery
-      if (false) {
+      if (onSend) {
         onSend(newMessage, true);
       } else {
-        submitQuery(
-          {
-            type: "text",
-            message: newMessage,
-          },
-          activeThreadId || ""
-        );
+        submitQuery({
+          type: "text",
+          message: newMessage,
+        });
       }
     };
 
@@ -316,6 +330,7 @@ function MessageContainer<TMessage extends IMessage = IMessage>(
     onSend,
     renderChatEmptyProp,
     messagesByThread,
+    isLoadingMessages,
   ]);
 
   const ListHeaderComponent = useMemo(() => {

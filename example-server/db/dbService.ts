@@ -12,7 +12,7 @@ export interface Thread {
 }
 
 export interface Message {
-  _id: string;
+  _id?: string;
   thread_id: string;
   role: "user" | "model";
   parts: Part[];
@@ -270,7 +270,7 @@ class DbService {
 
   // Message methods
   async addMessage(
-    message: Omit<Message, "_id" | "created_at" | "updated_at">
+    message: Omit<Message, "created_at" | "updated_at">
   ): Promise<Message> {
     if (!this.db) throw new Error("Database not initialized");
 
@@ -278,7 +278,7 @@ class DbService {
       sql: string,
       params?: any[]
     ) => Promise<any>;
-    const _id = uuidv4();
+    const _id = message._id || uuidv4();
     const now = new Date().toISOString();
 
     try {
@@ -360,6 +360,9 @@ class DbService {
   ): Promise<Message | null> {
     if (!this.db) throw new Error("Database not initialized");
 
+    if (!Array.isArray(updates.parts)) {
+      console.warn("[WARN] Message parts parsed to non-array:", updates.parts);
+    }
     const run = promisify(this.db.run.bind(this.db)) as (
       sql: string,
       params?: any[]

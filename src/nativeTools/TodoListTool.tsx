@@ -35,6 +35,7 @@ const TodoListTool: React.FC<TodoListToolProps> = ({ request }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [lastCompletedTodo, setLastCompletedTodo] = useState<any>(null);
   const styles = createStyles();
 
   const { tool } = request;
@@ -136,6 +137,18 @@ const TodoListTool: React.FC<TodoListToolProps> = ({ request }) => {
         setTodoData(todoData);
         setLoading(false);
         setError(null);
+
+        // Track the last completed todo
+        if (todoData && todoData.todos) {
+          const completedTodos = todoData.todos.filter(
+            (todo: any) => todo.status === "completed"
+          );
+          if (completedTodos.length > 0) {
+            // Find the most recently completed todo (assuming they're ordered by completion time)
+            const lastCompleted = completedTodos[completedTodos.length - 1];
+            setLastCompletedTodo(lastCompleted);
+          }
+        }
 
         // Auto-collapse if there are completed todos
         if (todoData && todoData.completedTodos > 0) {
@@ -306,6 +319,34 @@ const TodoListTool: React.FC<TodoListToolProps> = ({ request }) => {
           <Text style={styles.collapsedProgressText}>
             {todoData.completedTodos} of {todoData.totalTodos} Done
           </Text>
+          {lastCompletedTodo && (
+            <View style={styles.todoItem}>
+              <View style={styles.todoHeader}>
+                <View style={styles.todoInfo}>
+                  <MaterialIcons
+                    name={getStatusIcon(lastCompletedTodo.status)}
+                    size={20}
+                    color={
+                      lastCompletedTodo.status === "error"
+                        ? "#dc2626"
+                        : "#000000"
+                    }
+                    style={styles.statusIcon}
+                  />
+                  <Text
+                    style={[
+                      styles.todoText,
+                      lastCompletedTodo.status === "completed" &&
+                        styles.completedTodo,
+                    ]}
+                    numberOfLines={1}
+                  >
+                    {lastCompletedTodo.name}
+                  </Text>
+                </View>
+              </View>
+            </View>
+          )}
         </View>
       </TouchableOpacity>
     );

@@ -103,7 +103,9 @@ app.get("/api/threads/:threadId/messages", async (req, res) => {
   try {
     const { threadId } = req.params;
     const messages = await dbService.getMessages(threadId);
-    console.log("[Ajora:Server]: messages:", messages.length);
+    console.log("[Ajora:Server]: messages:", JSON.stringify(messages, null, 2));
+
+    console.log("messages", JSON.stringify(messages, null, 2));
     res.json(messages);
   } catch (error: any) {
     console.error("[Ajora:Server]: Error getting messages:", error);

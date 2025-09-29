@@ -8,6 +8,10 @@ export type Action =
       payload: { messages: IMessage[] };
     }
   | {
+      type: "SET_LOADING_MESSAGES";
+      payload: { isLoading: boolean };
+    }
+  | {
       type: "ADD_PENDING_MESSAGE";
       payload: { message: IMessage; threadId: string };
     }
@@ -189,8 +193,10 @@ export const ajoraReducer = (state: AjoraState, action: Action): AjoraState => {
       const threads = [...state.threads];
       const threadIndex = threads.findIndex((t) => t.id === id);
       if (threadIndex !== -1) {
-        threads[threadIndex].title = title;
+        threads[threadIndex] = { ...threads[threadIndex], title } as Thread;
       } else {
+        // If the thread doesn't exist yet, add it so header/UI can resolve it
+        threads.push({ id, title } as Thread);
       }
       return { ...state, threads };
     }
@@ -231,6 +237,9 @@ export const ajoraReducer = (state: AjoraState, action: Action): AjoraState => {
           [action.payload.threadId]: action.payload.messages,
         },
       };
+    }
+    case "SET_LOADING_MESSAGES": {
+      return { ...state, isLoadingMessages: action.payload.isLoading } as any;
     }
     default:
       return state;

@@ -48,7 +48,7 @@ export function Actions({
 }: ActionsProps) {
   const { showActionSheetWithOptions } = useActionSheet();
   const { ajora } = useChatContext();
-  const { submitQuery, activeThreadId, setMode } = ajora;
+  const { submitQuery, setMode } = ajora;
 
   const onActionsPress = useCallback(() => {
     const options = ["Photo", "Camera", "File", "Audio", "Cancel"];
@@ -108,6 +108,9 @@ export function Actions({
           case 3:
             setMode("cancel");
             return;
+
+          default:
+            return;
         }
       }
     );
@@ -119,7 +122,7 @@ export function Actions({
         <MaterialIcons name="attach-file" size={24} color="black" />
       </View>
     );
-  }, []);
+  }, [options]);
 
   return (
     <View

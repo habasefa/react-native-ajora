@@ -29,16 +29,24 @@ export interface Turn {
 
 const MAX_TURNS = 50;
 
-export const agent = async function* (query: UserEvent, dbService: DbService) {
+export const agent = async function* (
+  query: UserEvent,
+  dbService: DbService,
+  mode: AgentMode = "agent"
+) {
   if (!query) {
     throw new Error("Query is required ");
   }
-  let is_thinking = true;
+
+  // Track current thinking indicator state to avoid redundant toggles
+  let isThinkingShown = false;
 
   yield {
     type: "is_thinking",
-    is_thinking: is_thinking,
+    is_thinking: true,
   };
+
+  isThinkingShown = true;
 
   const { type, message } = query;
 
@@ -110,6 +118,14 @@ export const agent = async function* (query: UserEvent, dbService: DbService) {
           const toolName = functionCall?.name;
 
           if (serverTools.includes(toolName || "")) {
+            // Hide thinking indicator while server tool executes (tools have their own UI)
+            if (isThinkingShown) {
+              yield {
+                type: "is_thinking",
+                is_thinking: false,
+              };
+              isThinkingShown = false;
+            }
             const { output, error } = await Promise.resolve(
               executeTool(functionCall, thread_id, todoListService)
             );
@@ -139,19 +155,18 @@ export const agent = async function* (query: UserEvent, dbService: DbService) {
             });
 
             yield {
-              type: "is_thinking",
-              is_thinking: true,
-            };
-
-            yield {
               type: "function_response",
               message: updatedMessage,
             };
           } else {
-            yield {
-              type: "is_thinking",
-              is_thinking: false,
-            };
+            // Non-server tool call (handled client-side) - hide thinking indicator
+            if (isThinkingShown) {
+              yield {
+                type: "is_thinking",
+                is_thinking: false,
+              };
+              isThinkingShown = false;
+            }
             yield {
               type: "function_call",
               message: {
@@ -166,17 +181,30 @@ export const agent = async function* (query: UserEvent, dbService: DbService) {
         }
       }
       // --- Streaming ---
+      // Show thinking indicator before starting model streaming if not already shown
+      if (!isThinkingShown) {
+        yield {
+          type: "is_thinking",
+          is_thinking: true,
+        };
+        isThinkingShown = true;
+      }
       const messageId = generateId();
       let pendingStreamParts: Part[] = [{ text: "" }];
 
-      const response = gemini(turn.messages);
+      const response = gemini(turn.messages, mode);
+      let hasStartedStreaming = false;
       for await (const chunk of response) {
-        if (is_thinking) {
-          is_thinking = false;
-          yield {
-            type: "is_thinking",
-            is_thinking: is_thinking,
-          };
+        // Hide thinking indicator when streaming starts
+        if (!hasStartedStreaming) {
+          if (isThinkingShown) {
+            yield {
+              type: "is_thinking",
+              is_thinking: false,
+            };
+            isThinkingShown = false;
+          }
+          hasStartedStreaming = true;
         }
         const text = chunk.candidates?.[0]?.content?.parts?.[0]?.text;
         const functionCall = chunk.candidates?.[0]?.content?.parts?.find(
@@ -216,33 +244,11 @@ export const agent = async function* (query: UserEvent, dbService: DbService) {
         parts: pendingStreamParts,
         created_at: new Date().toISOString(),
       };
+
       turn.messages.push(finalMessage);
       await dbService.addMessage(finalMessage);
 
-      // // Check for pending server tool calls first
-      // const pendingServerToolCall = getPendingToolCall(turn.messages);
-      // if (pendingServerToolCall) {
-      //   const toolName = pendingServerToolCall.functionCall?.name;
-      //   if (serverTools.includes(toolName || "")) {
-      //     console.log(
-      //       "[Ajora:Server][12.5]: Pending server tool call detected, continuing with model"
-      //     );
-      //     continue; // Continue the loop to process the pending tool call
-      //   }
-      // }
-      yield {
-        type: "is_thinking",
-        is_thinking: true,
-      };
-
       const nextSpeakerResponse = await nextSpeaker(turn.messages);
-      if (is_thinking) {
-        is_thinking = false;
-        yield {
-          type: "is_thinking",
-          is_thinking: is_thinking,
-        };
-      }
 
       if (nextSpeakerResponse?.next_speaker !== "model") {
         break;

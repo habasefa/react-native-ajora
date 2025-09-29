@@ -1,6 +1,6 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { nativeTools } from "./tools/toolsDeclaration";
-import { basePrompt } from "./system_prompt";
+import { agentPrompt, assistantPrompt } from "./system_prompt";
 import { Message } from "../db/dbService";
 
 // Initialize Google GenAI
@@ -15,7 +15,10 @@ const genAI = new GoogleGenAI({
   apiKey,
 });
 
-export const gemini = async function* (message: Message[]) {
+export const gemini = async function* (
+  message: Message[],
+  mode: "agent" | "assistant" = "agent"
+) {
   try {
     if (message.length === 0) {
       throw new Error("Message is empty");
@@ -24,6 +27,8 @@ export const gemini = async function* (message: Message[]) {
       role: message.role,
       parts: message.parts,
     }));
+
+    const systemInstruction = mode === "agent" ? agentPrompt : assistantPrompt;
     const response = await genAI.models.generateContentStream({
       model: "gemini-2.5-pro",
       contents: formattedMessage,
@@ -33,7 +38,7 @@ export const gemini = async function* (message: Message[]) {
             functionDeclarations: nativeTools,
           },
         ],
-        systemInstruction: basePrompt,
+        systemInstruction: systemInstruction,
       },
     });
 

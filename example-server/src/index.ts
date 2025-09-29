@@ -34,7 +34,7 @@ app.post("/api/stream", async (req, res) => {
   );
   try {
     const query = req.body;
-    const { type, message } = query;
+    const { type, message, mode } = query;
     if (!message) {
       return res
         .status(400)
@@ -50,7 +50,7 @@ app.post("/api/stream", async (req, res) => {
     res.setHeader("Access-Control-Allow-Origin", "*");
     res.setHeader("Access-Control-Allow-Headers", "Cache-Control");
 
-    const response = agent(query, dbService);
+    const response = agent(query, dbService, mode);
 
     for await (const chunk of response) {
       // Stream chunk to client

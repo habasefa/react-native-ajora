@@ -10,6 +10,7 @@ import {
   nativeTools,
   WebSearchTool,
 } from "../nativeTools";
+import { useChatContext } from "../AjoraContext";
 
 export function MessageToolCall<TMessage extends IMessage = IMessage>({
   currentMessage = {} as TMessage,
@@ -17,6 +18,8 @@ export function MessageToolCall<TMessage extends IMessage = IMessage>({
   containerStyle,
   tools,
 }: MessageToolCallProps<TMessage>) {
+  const { ajora } = useChatContext();
+  const submitQuery = ajora?.submitQuery;
   // Find tool call parts in the message
   const toolCallParts =
     currentMessage.parts?.filter((part) => part.functionCall) || [];
@@ -68,6 +71,7 @@ export function MessageToolCall<TMessage extends IMessage = IMessage>({
           return React.cloneElement(matchingTool as React.ReactElement<any>, {
             key: `tool-${index}`,
             request: toolRequest,
+            submitQuery,
             onResponse: () => {
               // Handle tool response if needed
             },
@@ -80,6 +84,7 @@ export function MessageToolCall<TMessage extends IMessage = IMessage>({
             <ToolComponent
               key={`tool-${index}`}
               request={toolRequest}
+              submitQuery={submitQuery}
               onResponse={() => {
                 // Handle tool response if needed
               }}
@@ -127,13 +132,17 @@ export function MessageToolCall<TMessage extends IMessage = IMessage>({
     };
     switch (toolName) {
       case "todo_list":
-        return <TodoListTool request={toolRequest} />;
+        return <TodoListTool request={toolRequest} submitQuery={submitQuery} />;
       case "confirm_action":
-        return <ConfirmTool request={toolRequest} />;
+        return <ConfirmTool request={toolRequest} submitQuery={submitQuery} />;
       case "search_web":
-        return <WebSearchTool request={toolRequest} />;
+        return (
+          <WebSearchTool request={toolRequest} submitQuery={submitQuery} />
+        );
       case "search_document":
-        return <DocSearchTool request={toolRequest} />;
+        return (
+          <DocSearchTool request={toolRequest} submitQuery={submitQuery} />
+        );
       default:
         return null;
     }

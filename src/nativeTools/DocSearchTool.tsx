@@ -8,15 +8,18 @@ import {
   ScrollView,
 } from "react-native";
 import { ToolRequest, ToolResponse } from "../Tool/types";
+import { UserEvent } from "../api";
 
 interface DocSearchToolProps {
   request: ToolRequest;
   onResponse?: (response: ToolResponse) => void;
+  submitQuery?: (query: UserEvent) => Promise<void>;
 }
 
 const DocSearchTool: React.FC<DocSearchToolProps> = ({
   request,
   onResponse,
+  submitQuery,
 }) => {
   const [searchResults, setSearchResults] = useState<any>(null);
   const [loading, setLoading] = useState(false);

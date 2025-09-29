@@ -28,10 +28,6 @@ async function initializeDatabase() {
 
 // Streaming endpoint
 app.post("/api/stream", async (req, res) => {
-  console.log(
-    "[Ajora:Server]: Recieved query",
-    JSON.stringify(req.body, null, 2)
-  );
   try {
     const query = req.body;
     const { type, message, mode } = query;
@@ -60,9 +56,11 @@ app.post("/api/stream", async (req, res) => {
     // After streaming completes, compute and send updated thread title
     try {
       const historyForTitle = await dbService.getMessages(message.thread_id);
-      const totalMessages = historyForTitle.length;
-      // Only update the title on the first turn (<= 2 messages) or every 10 messages
-      if (totalMessages <= 2 || totalMessages % 10 === 0) {
+      // Count only user messages for more robust title updates
+      const userMessages = historyForTitle.filter((msg) => msg.role === "user");
+      const userMessageCount = userMessages.length;
+      // Only update the title on the first user message or every 5 user messages
+      if (userMessageCount === 1 || userMessageCount % 5 === 0) {
         // Only use the last 10 messages for the title
         const lastTenMessages = historyForTitle.slice(-10);
         const title = await threadTitleUpdate(lastTenMessages);
@@ -103,7 +101,6 @@ app.get("/api/threads/:threadId/messages", async (req, res) => {
   try {
     const { threadId } = req.params;
     const messages = await dbService.getMessages(threadId);
-    console.log("[Ajora:Server]: messages:", JSON.stringify(messages, null, 2));
 
     console.log("messages", JSON.stringify(messages, null, 2));
     res.json(messages);
@@ -115,7 +112,6 @@ app.get("/api/threads/:threadId/messages", async (req, res) => {
 
 // Create new thread
 app.post("/api/threads", async (req, res) => {
-  console.log("[Ajora:Server]: createThread in API", req.body);
   try {
     const title =
       (req.body && (req.body as any).title) ??

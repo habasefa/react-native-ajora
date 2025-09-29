@@ -8,6 +8,7 @@ import {
   Dimensions,
 } from "react-native";
 import { ToolRequest, ToolResponse } from "../Tool/types";
+import { UserEvent } from "../api";
 import Color from "../Color";
 import MaterialIcons from "@expo/vector-icons/build/MaterialIcons";
 
@@ -21,6 +22,7 @@ const getCardWidth = () => {
 interface ConfirmToolProps {
   request: ToolRequest;
   onResponse?: (response: ToolResponse) => void;
+  submitQuery?: (query: UserEvent) => Promise<void>;
 }
 
 const ConfirmCard = ({
@@ -65,7 +67,11 @@ const ConfirmCard = ({
   );
 };
 
-const ConfirmTool: React.FC<ConfirmToolProps> = ({ request, onResponse }) => {
+const ConfirmTool: React.FC<ConfirmToolProps> = ({
+  request,
+  onResponse,
+  submitQuery,
+}) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmed, setConfirmed] = useState<boolean | null>(null);

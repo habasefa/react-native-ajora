@@ -15,6 +15,7 @@ import Animated, {
   interpolate,
 } from "react-native-reanimated";
 import { ToolRequest, ToolResponse } from "../Tool/types";
+import { UserEvent } from "../api";
 import MaterialIcons from "@expo/vector-icons/build/MaterialIcons";
 
 // Get responsive card width (80% of screen width, max 400px, min 280px)
@@ -27,11 +28,13 @@ const getCardWidth = () => {
 interface WebSearchToolProps {
   request: ToolRequest;
   onResponse?: (response: ToolResponse) => void;
+  submitQuery?: (query: UserEvent) => Promise<void>;
 }
 
 const WebSearchTool: React.FC<WebSearchToolProps> = ({
   request,
   onResponse,
+  submitQuery: _submitQuery,
 }) => {
   const [searchResults, setSearchResults] = useState<any>(null);
   const [loading, setLoading] = useState(false);

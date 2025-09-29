@@ -8,6 +8,7 @@ import {
   Dimensions,
 } from "react-native";
 import { ToolRequest, ToolResponse } from "../Tool/types";
+import { UserEvent } from "../api";
 import Color from "../Color";
 import MaterialIcons from "@expo/vector-icons/build/MaterialIcons";
 import LoadingAnimation from "../LoadingAnimation";
@@ -22,9 +23,13 @@ const getCardWidth = () => {
 interface TodoListToolProps {
   request: ToolRequest;
   onResponse?: (response: ToolResponse) => void;
+  submitQuery?: (query: UserEvent) => Promise<void>;
 }
 
-const TodoListTool: React.FC<TodoListToolProps> = ({ request }) => {
+const TodoListTool: React.FC<TodoListToolProps> = ({
+  request,
+  submitQuery: _submitQuery,
+}) => {
   const [todoData, setTodoData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);

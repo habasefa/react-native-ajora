@@ -64,7 +64,7 @@ const useAjora = ({
     activeThreadId: null,
     loadEarlier: false,
     isLoadingMessages: false,
-    mode: "auto",
+    mode: "assistant",
     baseUrl,
     apiService: null,
     isComplete: false,

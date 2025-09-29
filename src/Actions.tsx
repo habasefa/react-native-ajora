@@ -39,11 +39,11 @@ export function Actions({
     Audio: () => {},
     Cancel: () => {},
   },
-  optionTintColor = Color.optionTintColor,
-  icon,
-  wrapperStyle,
+  optionTintColor: _optionTintColor = Color.optionTintColor,
+  icon: _icon,
+  wrapperStyle: _wrapperStyle,
   iconTextStyle,
-  onPressActionButton,
+  onPressActionButton: _onPressActionButton,
   containerStyle,
 }: ActionsProps) {
   const { showActionSheetWithOptions } = useActionSheet();
@@ -111,27 +111,30 @@ export function Actions({
   const renderIcon = useCallback(() => {
     return (
       <View>
-        <MaterialIcons name="attach-file" size={24} color="black" />
+        <MaterialIcons
+          name="attach-file"
+          size={18}
+          color="#374151" // Match WebSearchTool text color
+        />
       </View>
     );
-  }, [options]);
+  }, []);
 
   return (
-    <View
-      style={{
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "space-between",
-      }}
-    >
-      <TouchableOpacity
-        style={[styles.container, containerStyle]}
+    <View style={styles.actionsContainer}>
+      {/* <TouchableOpacity
+        style={[styles.attachButton, containerStyle]}
         onPress={onActionsPress}
+        activeOpacity={0.7}
       >
         {renderIcon()}
-      </TouchableOpacity>
-      <TouchableOpacity style={{ width: 100 }} onPress={onModePress}>
-        <Text style={[styles.iconText, iconTextStyle]}>
+      </TouchableOpacity> */}
+      <TouchableOpacity
+        style={styles.modeButton}
+        onPress={onModePress}
+        activeOpacity={0.7}
+      >
+        <Text style={[styles.modeText, iconTextStyle]}>
           {ajora.mode.charAt(0).toUpperCase() + ajora.mode.slice(1)}
         </Text>
       </TouchableOpacity>
@@ -139,6 +142,44 @@ export function Actions({
   );
 }
 const styles = StyleSheet.create({
+  actionsContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 8,
+    paddingHorizontal: 4,
+    height: 44, // Match the Send button height
+  },
+  attachButton: {
+    width: 36,
+    height: 36,
+    backgroundColor: "#f8f9fa", // Match WebSearchTool background
+    borderRadius: 12, // Match WebSearchTool border radius
+    borderWidth: 1,
+    borderColor: "#e2e8f0", // Match WebSearchTool border color
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  modeButton: {
+    backgroundColor: "#f8f9fa", // Match WebSearchTool background
+    borderRadius: 12, // Match WebSearchTool border radius
+    borderWidth: 1,
+    borderColor: "#e2e8f0", // Match WebSearchTool border color
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    minWidth: 70,
+    height: 36,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  modeText: {
+    color: "#374151", // Match WebSearchTool text color
+    fontWeight: "600",
+    fontSize: 13,
+    lineHeight: 18,
+    textAlign: "center",
+  },
+  // Legacy styles for backward compatibility
   container: {
     width: 26,
     height: 26,

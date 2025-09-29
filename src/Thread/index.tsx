@@ -147,9 +147,16 @@ export function Thread({
   };
 
   const filteredThreads = React.useMemo(() => {
-    return threads.filter((thread) => {
-      return thread.title?.toLowerCase().includes(searchQuery.toLowerCase());
-    });
+    return threads
+      .filter((thread) => {
+        return thread.title?.toLowerCase().includes(searchQuery.toLowerCase());
+      })
+      .sort((a, b) => {
+        // Sort in descending order (most recent first)
+        const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
+        const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
+        return dateB - dateA;
+      });
   }, [threads, searchQuery]);
 
   return (

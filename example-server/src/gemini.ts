@@ -28,6 +28,8 @@ export const gemini = async function* (
       parts: message.parts,
     }));
 
+    console.log("Formatted Message", JSON.stringify(formattedMessage, null, 2));
+
     const systemInstruction = mode === "agent" ? agentPrompt : assistantPrompt;
     const response = await genAI.models.generateContentStream({
       model: "gemini-2.5-pro",
@@ -143,10 +145,6 @@ const nextSpeaker = async (
 ): Promise<NextSpeakerResponse | null> => {
   // Only take the last 10 messages
   const last10Messages = history.slice(-10);
-  console.log(
-    "[Ajora:Server][nextSpeaker][0.A]: Last Messages",
-    JSON.stringify(last10Messages[last10Messages.length - 1], null, 2)
-  );
   const singleHistory = JSON.stringify(last10Messages, null, 2);
 
   const response = await genAI.models.generateContent({

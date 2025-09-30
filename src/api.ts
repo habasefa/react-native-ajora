@@ -120,6 +120,7 @@ export class ApiService {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(query),
         pollingInterval: 0,
+        debug: true,
       });
 
       this.eventSource.addEventListener("open", () => {

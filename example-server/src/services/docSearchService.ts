@@ -118,14 +118,18 @@ class DocSearchService {
     return this.initPromise;
   }
 
-  async searchPdf(query: string): Promise<ToolResult> {
+  async searchPdf(query: string | string[] | unknown): Promise<ToolResult> {
     try {
-      if (query.trim() === "") {
+      // Coerce to string and validate
+      const queryString = Array.isArray(query)
+        ? query.filter(Boolean).join(" ")
+        : String(query ?? "");
+      if (queryString.trim() === "") {
         throw new Error("Query is required");
       }
       const store = this.vectorStore ?? (await this.init());
       console.info("Searching PDF...");
-      const results = await store.similaritySearch(query);
+      const results = await store.similaritySearch(queryString);
       console.info("PDF searched successfully " + results.length);
       return { output: results, error: null };
     } catch (error) {

@@ -28,8 +28,6 @@ export const gemini = async function* (
       parts: message.parts,
     }));
 
-    console.log("Formatted Message", JSON.stringify(formattedMessage, null, 2));
-
     const systemInstruction = mode === "agent" ? agentPrompt : assistantPrompt;
     const response = await genAI.models.generateContentStream({
       model: "gemini-2.5-pro",
@@ -63,31 +61,18 @@ Your decision must respect the following rules and updated behavioral expectatio
 1. **Model Continues (Incomplete or Next Action Pending):**  
    - If your last response explicitly indicates an *intended next step* that the model itself should take (e.g., "Next, I will…", "Now I'll call the tool…", "Proceeding to analyze…"),  
    - OR if it mentions a tool action but the tool was **not yet called**,  
-   - OR if the response ends mid-thought or clearly lacks a natural conclusion,  
    → Then the **'model'** should speak next.
 
-2. **Tool Articulation or Reflection Required:**  
-   - If your last response contains a plan to use a tool **but you have not yet articulated what you expect from that tool**, or you **have not reflected on the tool result after receiving it**,  
-   → Then the **'model'** should speak next.
-
-3. **Question to User:**  
+2. **Question to User:**  
    - If your last response ends with a **direct question specifically addressed to the user** (e.g., clarification, confirmation, or input request),  
    → Then the **'user'** should speak next.
 
-4. **Sequential Task Progression (Multi-step Objective):**  
+3. **Sequential Task Progression (Multi-step Objective):**  
    - If the user's overall request involves a **sequence of subtasks** (e.g., answering questions 1–5 one by one) and **the next subtask is still pending**,  
    - AND your last response completed the current subtask but did not explicitly request user input,  
    → Then the **'model'** should speak next (to proceed to the next step in the sequence).
 
-5. **Objective Check (Past 5 Turns):**  
-   - If the overall objective (e.g., all subtasks completed, or final reflection delivered) is **not yet fully achieved**,  
-   - AND none of the above conditions apply,  
-   → Then the **'model'** should speak next.
 
-6. **Waiting for User:**  
-   - If your last response completed a thought or task, no further subtasks are pending, no tool reflection or articulation is missing, and there is no pending action,  
-   - OR if it ends with a user-facing question,  
-   → Then the **'user'** should speak next.
 
 ---
 
@@ -103,10 +88,7 @@ Your decision must respect the following rules and updated behavioral expectatio
 - Reflective steps (before/after tool use) are considered part of the model’s responsibility — if they’re missing, the next speaker is the **model**.
 
 
-
 IF THE THERE IS A TOOL CALL, AND THE TOOL CALL IS SERVER TOOL, THEN THE NEXT SPEAKER **MUST BE** THE **MODEL**.
-
-Even if the models seems to have completed its task, if its last resposne has intention of next action like I'll mark the last step as complete, then the next speaker **MUST BE** THE **MODEL**.
 
 <example>
 Last response: "... I'll mark the last step as complete."

@@ -86,9 +86,6 @@ const ConfirmTool: React.FC<ConfirmToolProps> = ({
       setError(null);
 
       try {
-        // Simulate processing
-        await new Promise((resolve) => setTimeout(resolve, 500));
-
         const result = {
           confirmed: isConfirmed,
           message: isConfirmed ? "Action confirmed" : "Action cancelled",

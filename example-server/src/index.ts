@@ -16,6 +16,19 @@ const dbService = new DbService();
 app.use(cors());
 app.use(express.json());
 
+// Bearer token middleware - log the token passed to the server
+app.use((req, res, next) => {
+  const authHeader = req.headers.authorization;
+  if (authHeader && authHeader.startsWith("Bearer ")) {
+    const token = authHeader.substring(7); // Remove 'Bearer ' prefix
+    console.log(`[Ajora:Server]: Bearer token received: ${token}`);
+    (req as any).bearerToken = token;
+  } else {
+    console.log("[Ajora:Server]: No bearer token provided");
+  }
+  next();
+});
+
 // Initialize database on startup
 async function initializeDatabase() {
   try {
@@ -27,11 +40,11 @@ async function initializeDatabase() {
 }
 
 // Streaming endpoint
-app.post("/api/stream", async (req, res) => {
-  console.log("[Ajora:Server]: Streaming request received", req.body);
+app.get("/api/stream", async (req, res) => {
+  console.log("[Ajora:Server]: Streaming request received", req.query);
   try {
-    const query = req.body;
-    const { type, message, mode } = query;
+    const { type, message, mode } = req.query;
+
     if (!message) {
       return res
         .status(400)
@@ -39,6 +52,20 @@ app.post("/api/stream", async (req, res) => {
     } else if (!type) {
       return res.status(400).json({ error: "Type is required in user query" });
     }
+
+    // Parse the message from JSON string
+    let parsedMessage;
+    try {
+      parsedMessage = JSON.parse(message as string);
+    } catch (parseError) {
+      return res.status(400).json({ error: "Invalid message format" });
+    }
+
+    const query = {
+      type: type as "text" | "function_response",
+      message: parsedMessage,
+      mode: mode as string | undefined,
+    };
 
     // Set headers for Server-Sent Events
     res.setHeader("Content-Type", "text/event-stream");
@@ -67,7 +94,12 @@ app.post("/api/stream", async (req, res) => {
       } catch {}
     });
 
-    const response = agent(query, dbService, mode, signal);
+    const response = agent(
+      query,
+      dbService,
+      mode as "agent" | "assistant" | undefined,
+      signal
+    );
 
     // Inform client that a new stream has started (isComplete=false)
     res.write(
@@ -89,7 +121,9 @@ app.post("/api/stream", async (req, res) => {
 
     // After streaming completes, compute and send updated thread title
     try {
-      const historyForTitle = await dbService.getMessages(message.thread_id);
+      const historyForTitle = await dbService.getMessages(
+        parsedMessage.thread_id
+      );
       // Count only user messages for more robust title updates
       const userMessages = historyForTitle.filter((msg) => msg.role === "user");
       const userMessageCount = userMessages.length;
@@ -106,7 +140,7 @@ app.post("/api/stream", async (req, res) => {
         const title = await threadTitleUpdate(lastTenMessages);
 
         if (title) {
-          await dbService.updateThread(message.thread_id, { title });
+          await dbService.updateThread(parsedMessage.thread_id, { title });
           res.write(
             `data: ${JSON.stringify({ type: "thread_title", threadTitle: title })}\n\n`
           );
@@ -226,7 +260,7 @@ app.listen(port, async () => {
   await initializeDatabase();
   console.log(`[Ajora:Server]: AI Backend Server listening on port ${port}`);
   console.log(`Available endpoints:`);
-  console.log(`  POST /api/stream - Streaming AI responses`);
+  console.log(`  GET /api/stream - Streaming AI responses`);
   console.log(`  GET /api/threads - Get all conversation threads`);
   console.log(
     `  GET /api/threads/:threadId/messages - Get messages for a thread`

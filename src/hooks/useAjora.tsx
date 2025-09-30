@@ -52,10 +52,14 @@ const useAjora = ({
   initialMessages = {},
   initialThreads = [],
   baseUrl = "http://localhost:3000",
+  bearerToken,
+  debug = false,
 }: {
   initialMessages?: Record<string, IMessage[]>;
   initialThreads?: Thread[];
   baseUrl?: string;
+  bearerToken?: string;
+  debug?: boolean;
 }) => {
   const [ajora, dispatch] = useReducer(ajoraReducer, {
     stream: [],
@@ -78,12 +82,15 @@ const useAjora = ({
   // Initialize the API service
   useEffect(() => {
     if (!apiServiceRef.current) {
-      apiServiceRef.current = new ApiService({ baseUrl });
+      apiServiceRef.current = new ApiService({ baseUrl, bearerToken, debug });
+    } else {
+      // Update existing API service with new config
+      apiServiceRef.current.updateConfig({ bearerToken, debug });
     }
     return () => {
       if (cleanupRef.current) cleanupRef.current();
     };
-  }, [baseUrl]);
+  }, [baseUrl, bearerToken, debug]);
 
   // Get the threads from the API service
   useEffect(() => {

@@ -6,6 +6,8 @@ import { Thread } from "./Thread/types";
 
 export interface ApiConfig {
   baseUrl: string;
+  bearerToken?: string;
+  debug?: boolean;
 }
 
 // UserEvent types to the API
@@ -96,11 +98,15 @@ export interface StreamResponseOptions {
 }
 
 export class ApiService {
-  private config: Required<ApiConfig>;
+  private config: ApiConfig;
   private eventSource: EventSource | null = null;
 
   constructor(config: ApiConfig) {
-    this.config = { baseUrl: config.baseUrl };
+    this.config = {
+      baseUrl: config.baseUrl,
+      bearerToken: config.bearerToken,
+      debug: config.debug ?? false,
+    };
   }
 
   /**
@@ -127,13 +133,33 @@ export class ApiService {
         return () => {};
       }
 
-      this.eventSource = new EventSource(`${this.config.baseUrl}/api/stream`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(query),
-        pollingInterval: 0,
-        // debug: true,
-      });
+      // Convert query object to URL search parameters
+      const queryParams = new URLSearchParams();
+      queryParams.append("type", query.type);
+      queryParams.append("message", JSON.stringify(query.message));
+      if (query.mode) {
+        queryParams.append("mode", query.mode);
+      }
+
+      // Prepare headers for EventSource
+      const headers: Record<string, any> = {};
+      if (this.config.bearerToken) {
+        headers.Authorization = {
+          toString: function () {
+            return "Bearer " + this.token;
+          },
+          token: this.config.bearerToken,
+        };
+      }
+
+      this.eventSource = new EventSource(
+        `${this.config.baseUrl}/api/stream?${queryParams.toString()}`,
+        {
+          pollingInterval: 0,
+          debug: this.config.debug,
+          headers,
+        }
+      );
 
       // Hook abort signal to close the SSE connection
       let abortHandler: (() => void) | null = null;
@@ -151,6 +177,7 @@ export class ApiService {
       });
 
       this.eventSource.addEventListener("message", (event) => {
+        console.log("[Ajora]: SSE message received:", event);
         try {
           if (!event.data) throw new Error("Empty SSE event data");
 
@@ -233,18 +260,28 @@ export class ApiService {
 
   // Thread endpoints
   getThreads(): Promise<Thread[]> {
-    return fetch(`${this.config.baseUrl}/api/threads`).then((res) =>
-      res.json()
+    const headers: Record<string, string> = {};
+    if (this.config.bearerToken) {
+      headers.Authorization = `Bearer ${this.config.bearerToken}`;
+    }
+
+    return fetch(`${this.config.baseUrl}/api/threads`, { headers }).then(
+      (res) => res.json()
     );
   }
 
   createThread(title?: string): Promise<Thread> {
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    };
+    if (this.config.bearerToken) {
+      headers.Authorization = `Bearer ${this.config.bearerToken}`;
+    }
+
     return fetch(`${this.config.baseUrl}/api/threads`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Accept: "application/json",
-      },
+      headers,
       body: JSON.stringify({ title }),
     }).then((res) => res.json());
   }
@@ -260,9 +297,14 @@ export class ApiService {
 
   // Message endpoints
   getMessages(threadId: string): Promise<IMessage[]> {
-    return fetch(
-      `${this.config.baseUrl}/api/threads/${threadId}/messages`
-    ).then((res) => {
+    const headers: Record<string, string> = {};
+    if (this.config.bearerToken) {
+      headers.Authorization = `Bearer ${this.config.bearerToken}`;
+    }
+
+    return fetch(`${this.config.baseUrl}/api/threads/${threadId}/messages`, {
+      headers,
+    }).then((res) => {
       return res.json();
     });
   }
@@ -271,7 +313,7 @@ export class ApiService {
     this.config = { ...this.config, ...newConfig };
   }
 
-  getConfig(): Required<ApiConfig> {
+  getConfig(): ApiConfig {
     return { ...this.config };
   }
 }

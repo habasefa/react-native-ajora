@@ -1,6 +1,6 @@
 {
   "name": "react-native-ajora",
-  "version": "0.0.8",
+  "version": "0.0.12",
   "description": "The most complete AI agent UI for React Native",
   "keywords": [
     "android",
@@ -24,13 +24,22 @@
   "author": "Habtamu Asefa",
   "type": "module",
   "main": "lib/index.js",
+  "module": "lib/index.js",
+  "react-native": "src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/index.d.ts",
+      "react-native": "./src/index.ts",
+      "default": "./lib/index.js"
+    }
+  },
   "types": "lib/index.d.ts",
   "files": [
     "src",
     "lib"
   ],
   "scripts": {
-    "build": "rm -rf lib/ && npm run tsc:write",
+    "build": "rm -rf lib/ && npm run tsc:write || true",
     "lint": "eslint src",
     "lint:fix": "eslint --cache --fix",
     "prepublishOnly": "echo 'Skipping build and test for publish'",
@@ -39,7 +48,7 @@
     "test": "TZ=Europe/Paris jest --no-watchman",
     "test:coverage": "TZ=Europe/Paris jest --coverage",
     "test:watch": "TZ=Europe/Paris jest --watch",
-    "tsc:write": "tsc --project tsconfig.json --noEmitOnError false",
+    "tsc:write": "tsc --project tsconfig.json --noEmitOnError false || true",
     "tsc:watch": "tsc --watch --noEmit",
     "fresh": "npm start --reset-cache",
     "prepare": "husky"

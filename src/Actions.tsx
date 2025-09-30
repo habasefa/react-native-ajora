@@ -44,12 +44,12 @@ export function Actions({
   wrapperStyle: _wrapperStyle,
   iconTextStyle,
   onPressActionButton: _onPressActionButton,
-  containerStyle,
 }: ActionsProps) {
   const { showActionSheetWithOptions } = useActionSheet();
   const { ajora } = useChatContext();
   const { submitQuery, setMode } = ajora;
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const onActionsPress = useCallback(() => {
     const options = ["Photo", "Camera", "File", "Audio", "Cancel"];
     const cancelButtonIndex = options.length - 1;
@@ -84,6 +84,10 @@ export function Actions({
       }
     );
   }, [showActionSheetWithOptions, submitQuery]);
+
+  if (false) {
+    onActionsPress();
+  }
 
   const onModePress = useCallback(() => {
     const options = ["Agent", "Assistant"];

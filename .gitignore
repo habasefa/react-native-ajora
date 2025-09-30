@@ -31,3 +31,4 @@ example_bare/android/.gradle
 **/.env.local
 example-server/.env
 *.db
+example-server/db/ajora.db

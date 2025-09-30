@@ -24,15 +24,20 @@ export const gemini = async function* (
     if (message.length === 0) {
       throw new Error("Message is empty");
     }
-    const formattedMessage = message.map((message) => ({
-      role: message.role,
-      parts: message.parts,
-    }));
+    const formattedMessage = message
+      .map((message) => ({
+        role: message.role,
+        parts: message.parts,
+      }))
+      .reverse();
+
+    console.log("formattedMessage", JSON.stringify(formattedMessage, null, 2));
 
     const systemInstruction = mode === "agent" ? agentPrompt : assistantPrompt;
     if (signal?.aborted) return;
     const response = await genAI.models.generateContentStream({
       model: "gemini-2.5-pro",
+
       contents: formattedMessage,
       config: {
         tools: [

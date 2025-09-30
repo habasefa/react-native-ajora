@@ -205,7 +205,6 @@ export const agent = async function* (
       const response = gemini(turn.messages, mode, signal);
       let hasStartedStreaming = false;
       for await (const chunk of response) {
-        console.log("[Ajora:Server]: Agent chunk received", chunk);
         if (signal?.aborted) return;
         // Hide thinking indicator when streaming starts
         if (!hasStartedStreaming) {
@@ -256,8 +255,6 @@ export const agent = async function* (
         parts: pendingStreamParts,
         created_at: new Date().toISOString(),
       };
-
-      console.log("[Ajora:Server]: Final message received", finalMessage);
 
       turn.messages.push(finalMessage);
       if (signal?.aborted) return;

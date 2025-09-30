@@ -22,6 +22,7 @@
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "faiss-node": "^0.5.1",
+    "html-to-text": "^9.0.5",
     "pdf-parse": "^1.1.1",
     "sqlite3": "^5.1.7",
     "uuid": "^13.0.0"

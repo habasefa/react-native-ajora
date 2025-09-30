@@ -17,7 +17,8 @@ const genAI = new GoogleGenAI({
 
 export const gemini = async function* (
   message: Message[],
-  mode: "agent" | "assistant" = "agent"
+  mode: "agent" | "assistant" = "agent",
+  signal?: AbortSignal
 ) {
   try {
     if (message.length === 0) {
@@ -29,6 +30,7 @@ export const gemini = async function* (
     }));
 
     const systemInstruction = mode === "agent" ? agentPrompt : assistantPrompt;
+    if (signal?.aborted) return;
     const response = await genAI.models.generateContentStream({
       model: "gemini-2.5-pro",
       contents: formattedMessage,
@@ -43,6 +45,7 @@ export const gemini = async function* (
     });
 
     for await (const chunk of response) {
+      if (signal?.aborted) return;
       yield chunk;
     }
   } catch (error) {

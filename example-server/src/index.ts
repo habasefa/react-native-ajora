@@ -28,6 +28,7 @@ async function initializeDatabase() {
 
 // Streaming endpoint
 app.post("/api/stream", async (req, res) => {
+  console.log("[Ajora:Server]: Streaming request received", req.body);
   try {
     const query = req.body;
     const { type, message, mode } = query;
@@ -46,11 +47,44 @@ app.post("/api/stream", async (req, res) => {
     res.setHeader("Access-Control-Allow-Origin", "*");
     res.setHeader("Access-Control-Allow-Headers", "Cache-Control");
 
-    const response = agent(query, dbService, mode);
+    // Set up cooperative abort. When client disconnects, abort downstream work.
+    const abortController = new AbortController();
+    const { signal } = abortController;
+
+    // Flush headers to establish SSE before we begin streaming
+    try {
+      // @ts-ignore - not all types expose flushHeaders
+      if (typeof (res as any).flushHeaders === "function") {
+        (res as any).flushHeaders();
+      }
+    } catch {}
+
+    // Use response close to detect actual stream closure
+    res.on("close", () => {
+      if (!signal.aborted) abortController.abort();
+      try {
+        res.end();
+      } catch {}
+    });
+
+    const response = agent(query, dbService, mode, signal);
+
+    // Inform client that a new stream has started (isComplete=false)
+    res.write(
+      `data: ${JSON.stringify({ type: "complete", is_complete: false })}\n\n`
+    );
 
     for await (const chunk of response) {
+      if (signal.aborted) break;
       // Stream chunk to client
       res.write(`data: ${JSON.stringify(chunk)}\n\n`);
+    }
+
+    if (signal.aborted) {
+      try {
+        res.end();
+      } catch {}
+      return;
     }
 
     // After streaming completes, compute and send updated thread title
@@ -63,6 +97,12 @@ app.post("/api/stream", async (req, res) => {
       if (userMessageCount === 1 || userMessageCount % 5 === 0) {
         // Only use the last 10 messages for the title
         const lastTenMessages = historyForTitle.slice(-10);
+        if (signal.aborted) {
+          try {
+            res.end();
+          } catch {}
+          return;
+        }
         const title = await threadTitleUpdate(lastTenMessages);
 
         if (title) {
@@ -76,10 +116,18 @@ app.post("/api/stream", async (req, res) => {
       console.warn("[Ajora:Server]: Failed to update thread title:", e);
     }
 
+    // Inform client that the stream completed normally (isComplete=true)
+    res.write(
+      `data: ${JSON.stringify({ type: "complete", is_complete: true })}\n\n`
+    );
+
     res.end();
   } catch (error: any) {
     console.error("[Ajora:Server]: Error in streaming:", error);
     res.write(`data: ${JSON.stringify({ error: error.message })}\n\n`);
+    res.write(
+      `data: ${JSON.stringify({ type: "complete", is_complete: true })}\n\n`
+    );
     res.end();
   }
 });

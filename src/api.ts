@@ -58,6 +58,11 @@ export interface IsThinkingEvent {
   is_thinking: boolean;
 }
 
+export interface CompleteEvent {
+  type: "complete";
+  is_complete: boolean;
+}
+
 export interface ErrorEvent {
   type: "error";
   error: {
@@ -74,6 +79,7 @@ export type AgentEvent =
   | SourcesEvent
   | SuggestionsEvent
   | IsThinkingEvent
+  | CompleteEvent
   | ErrorEvent;
 
 export interface StreamResponseOptions {
@@ -86,6 +92,7 @@ export interface StreamResponseOptions {
   onComplete: (complete: AgentEvent) => void;
   onIsThinking: (isThinking: IsThinkingEvent) => void;
   onError: (error: ErrorEvent) => void;
+  abortSignal?: AbortSignal;
 }
 
 export class ApiService {
@@ -110,18 +117,33 @@ export class ApiService {
       onIsThinking,
       onError,
       onComplete,
+      abortSignal,
     } = options;
 
     try {
-      console.log("[Ajora]: Sending request to API with:", query);
+      // If already aborted before starting, no-op and let caller handle state
+      if (abortSignal?.aborted) {
+        console.info("[Ajora]: Abort signal already set before opening SSE");
+        return () => {};
+      }
 
       this.eventSource = new EventSource(`${this.config.baseUrl}/api/stream`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(query),
         pollingInterval: 0,
-        debug: true,
+        // debug: true,
       });
+
+      // Hook abort signal to close the SSE connection
+      let abortHandler: (() => void) | null = null;
+      if (abortSignal) {
+        abortHandler = () => {
+          console.info("[Ajora]: Abort received. Closing SSE connection.");
+          this.close();
+        };
+        abortSignal.addEventListener("abort", abortHandler);
+      }
 
       this.eventSource.addEventListener("open", () => {
         console.info("[Ajora]: SSE connection opened");
@@ -129,7 +151,6 @@ export class ApiService {
       });
 
       this.eventSource.addEventListener("message", (event) => {
-        console.log(event.data);
         try {
           if (!event.data) throw new Error("Empty SSE event data");
 
@@ -138,12 +159,15 @@ export class ApiService {
           switch (agentEvent.type) {
             case "thread_title":
               return onThreadTitle(agentEvent as ThreadTitleEvent);
+            case "complete":
+              console.log("[Ajora]: Complete event received:", agentEvent);
+              onComplete(agentEvent);
+              return;
             case "sources":
               return onSources(agentEvent as SourcesEvent);
             case "suggestions":
               return onSuggestions(agentEvent as SuggestionsEvent);
             case "function_response":
-              console.log("Function Response received:", agentEvent);
               return onFunctionResponse(agentEvent as FunctionResponseEvent);
             case "error":
               this.close();
@@ -185,6 +209,12 @@ export class ApiService {
       });
 
       return () => {
+        // Clean up abort listener first to avoid duplicate close calls
+        if (abortSignal && abortHandler) {
+          try {
+            abortSignal.removeEventListener("abort", abortHandler);
+          } catch {}
+        }
         this.close();
       };
     } catch (error) {

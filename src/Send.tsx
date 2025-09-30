@@ -55,9 +55,16 @@ export const Send = <TMessage extends IMessage = IMessage>({
   onSend,
 }: SendProps<TMessage>) => {
   const { ajora } = useChatContext();
-  const { submitQuery, activeThreadId } = ajora;
+  const { submitQuery, activeThreadId, stopStreaming, isComplete } = ajora;
+  console.log("[Ajora]: Send component isComplete", isComplete);
 
   const handleOnPress = useCallback(() => {
+    if (!isComplete) {
+      // Abort/stop current streaming
+      stopStreaming();
+      return;
+    }
+
     if (text) {
       const message = {
         _id: Math.round(Math.random() * 1000000).toString(),
@@ -78,12 +85,13 @@ export const Send = <TMessage extends IMessage = IMessage>({
         });
       }
     }
-  }, [text, submitQuery, activeThreadId, onSend]);
+  }, [text, submitQuery, activeThreadId, onSend, isComplete, stopStreaming]);
 
-  const showSend = useMemo(
-    () => alwaysShowSend || (text && text.trim().length > 0),
-    [alwaysShowSend, text]
-  );
+  const showSend = useMemo(() => {
+    // Show button when there is text to send, when alwaysShowSend, or when streaming (to show abort)
+    const hasText = !!(text && text.trim().length > 0);
+    return alwaysShowSend || hasText || !isComplete;
+  }, [alwaysShowSend, text, isComplete]);
 
   if (!showSend) return null;
 
@@ -99,7 +107,11 @@ export const Send = <TMessage extends IMessage = IMessage>({
       {...sendButtonProps}
     >
       <View style={{ justifyContent: "center", padding: 10 }}>
-        <MaterialIcons size={28} color={"#000000"} name={"arrow-upward"} />
+        <MaterialIcons
+          size={28}
+          color={"#000000"}
+          name={isComplete ? "arrow-upward" : "stop"}
+        />
       </View>
     </TouchableOpacity>
   );

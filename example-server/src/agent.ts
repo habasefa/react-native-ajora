@@ -32,7 +32,8 @@ const MAX_TURNS = 50;
 export const agent = async function* (
   query: UserEvent,
   dbService: DbService,
-  mode: AgentMode = "agent"
+  mode: AgentMode = "agent",
+  signal?: AbortSignal
 ) {
   if (!query) {
     throw new Error("Query is required ");
@@ -41,6 +42,7 @@ export const agent = async function* (
   // Track current thinking indicator state to avoid redundant toggles
   let isThinkingShown = false;
 
+  if (signal?.aborted) return;
   yield {
     type: "is_thinking",
     is_thinking: true,
@@ -57,6 +59,7 @@ export const agent = async function* (
   let remainingTurns = MAX_TURNS;
 
   // Add the query to the history
+  if (signal?.aborted) return;
   await dbService.addMessage(message);
 
   let history: Message[] = await dbService.getMessages(thread_id);
@@ -70,6 +73,7 @@ export const agent = async function* (
     // --- Handle incoming message ---
     const pendingFromHistory = getPendingToolCall(turn.messages);
 
+    if (signal?.aborted) return;
     if (type === "function_response" && pendingFromHistory) {
       const { functionCall, originalMessage } = pendingFromHistory;
       const functionResponse: FunctionResponse = {
@@ -82,6 +86,7 @@ export const agent = async function* (
       };
       const idx = turn.messages.findIndex((m) => m._id === originalMessage._id);
       if (idx !== -1) turn.messages[idx] = updatedMessage;
+      if (signal?.aborted) return;
       await dbService.updateMessage(originalMessage._id!, updatedMessage);
     } else if (type === "text" && pendingFromHistory) {
       const { functionCall, originalMessage } = pendingFromHistory;
@@ -99,6 +104,7 @@ export const agent = async function* (
       };
       const idx = turn.messages.findIndex((m) => m._id === originalMessage._id);
       if (idx !== -1) turn.messages[idx] = updatedMessage;
+      if (signal?.aborted) return;
       await dbService.updateMessage(originalMessage._id!, updatedMessage);
     }
 
@@ -106,6 +112,7 @@ export const agent = async function* (
 
     // --- Main loop ---
     while (remainingTurns-- > 0) {
+      if (signal?.aborted) return;
       // If the query is coming from the user, means it is already processed above
       if (isComingFromTheUser) {
         isComingFromTheUser = false;
@@ -114,6 +121,7 @@ export const agent = async function* (
         const pendingToolCall = getPendingToolCall(turn.messages);
 
         if (pendingToolCall) {
+          if (signal?.aborted) return;
           const { functionCall, originalMessage } = pendingToolCall;
           const toolName = functionCall?.name;
 
@@ -150,6 +158,7 @@ export const agent = async function* (
               (m) => m._id === originalMessage._id
             );
             if (idx !== -1) turn.messages[idx] = updatedMessage;
+            if (signal?.aborted) return;
             await dbService.updateMessage(originalMessage._id!, {
               parts: updatedMessage.parts,
             });
@@ -181,6 +190,7 @@ export const agent = async function* (
         }
       }
       // --- Streaming ---
+      if (signal?.aborted) return;
       // Show thinking indicator before starting model streaming if not already shown
       if (!isThinkingShown) {
         yield {
@@ -192,9 +202,11 @@ export const agent = async function* (
       const messageId = generateId();
       let pendingStreamParts: Part[] = [{ text: "" }];
 
-      const response = gemini(turn.messages, mode);
+      const response = gemini(turn.messages, mode, signal);
       let hasStartedStreaming = false;
       for await (const chunk of response) {
+        console.log("[Ajora:Server]: Agent chunk received", chunk);
+        if (signal?.aborted) return;
         // Hide thinking indicator when streaming starts
         if (!hasStartedStreaming) {
           if (isThinkingShown) {
@@ -245,7 +257,10 @@ export const agent = async function* (
         created_at: new Date().toISOString(),
       };
 
+      console.log("[Ajora:Server]: Final message received", finalMessage);
+
       turn.messages.push(finalMessage);
+      if (signal?.aborted) return;
       await dbService.addMessage(finalMessage);
 
       const nextSpeakerResponse = await nextSpeaker(turn.messages);
@@ -263,9 +278,11 @@ export const agent = async function* (
       error: error?.message || "Unknown agent error",
     };
   } finally {
-    yield {
-      type: "is_thinking",
-      is_thinking: false,
-    };
+    if (!signal?.aborted) {
+      yield {
+        type: "is_thinking",
+        is_thinking: false,
+      };
+    }
   }
 };

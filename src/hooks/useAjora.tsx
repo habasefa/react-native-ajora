@@ -36,6 +36,7 @@ export type AjoraState = {
 export type Ajora = AjoraState & {
   messagesByThread: IMessage[];
   submitQuery: (query: UserEvent) => Promise<void>;
+  stopStreaming: () => void;
   addNewThread: () => void;
   switchThread: (threadId: string) => void;
   getThreads: () => void;
@@ -67,11 +68,12 @@ const useAjora = ({
     mode: "assistant",
     baseUrl,
     apiService: null,
-    isComplete: false,
+    isComplete: true,
   });
 
   const apiServiceRef = useRef<ApiService | null>(null);
   const cleanupRef = useRef<(() => void) | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   // Initialize the API service
   useEffect(() => {
@@ -180,12 +182,21 @@ const useAjora = ({
       type: "ADD_MESSAGES",
       payload: { messages: [query.message] },
     });
+    // Do not set isComplete locally; rely on server 'complete' events
     dispatch({ type: "SET_THINKING", payload: { isThinking: true } });
 
     try {
       if (!apiServiceRef.current) {
         throw new Error("[Ajora]: API service not initialized.");
       }
+
+      // Abort any existing stream before starting a new one
+      if (abortControllerRef.current) {
+        try {
+          abortControllerRef.current.abort();
+        } catch {}
+      }
+      abortControllerRef.current = new AbortController();
 
       const cleanup = apiServiceRef.current.streamResponse(queryWithMode, {
         onIsThinking: (isThinking: IsThinkingEvent) => {
@@ -238,13 +249,19 @@ const useAjora = ({
         onSuggestions: (suggestions: SuggestionsEvent) => {
           console.log("[Ajora]: Suggestions received:", suggestions);
         },
-        onComplete: () => {
-          if (cleanupRef.current) {
-            cleanupRef.current();
-            cleanupRef.current = null;
+        onComplete: (evt) => {
+          const complete = (evt as any)?.is_complete === true;
+          if (complete) {
+            if (cleanupRef.current) {
+              cleanupRef.current();
+              cleanupRef.current = null;
+            }
+            // Clear abort controller on normal completion
+            abortControllerRef.current = null;
+            console.log("[Ajora]: Streaming complete!");
           }
-          console.log("[Ajora]: Streaming complete!");
-          dispatch({ type: "SET_COMPLETE", payload: { isComplete: true } });
+          // Update completion state based on server signal
+          dispatch({ type: "SET_COMPLETE", payload: { isComplete: complete } });
         },
         onError: (err: ErrorEvent) => {
           console.error("[Ajora]: Error in streaming:", err);
@@ -268,9 +285,11 @@ const useAjora = ({
             cleanupRef.current();
             cleanupRef.current = null;
           }
+          // Clear abort controller on error; server controls isComplete signal
+          abortControllerRef.current = null;
           dispatch({ type: "SET_THINKING", payload: { isThinking: false } });
-          dispatch({ type: "SET_COMPLETE", payload: { isComplete: false } });
         },
+        abortSignal: abortControllerRef.current.signal,
       });
       cleanupRef.current = cleanup ?? null;
     } catch (error) {
@@ -288,6 +307,25 @@ const useAjora = ({
         payload: { messages: [errorMessage] },
       });
     }
+  };
+
+  const stopStreaming = () => {
+    // Signal abortion to the SSE connection
+    if (abortControllerRef.current) {
+      try {
+        abortControllerRef.current.abort();
+      } catch {}
+      abortControllerRef.current = null;
+    }
+    // Additionally run local cleanup to close EventSource and handlers
+    if (cleanupRef.current) {
+      cleanupRef.current();
+      cleanupRef.current = null;
+    }
+    dispatch({ type: "SET_THINKING", payload: { isThinking: false } });
+    // On client-initiated abort, server cannot send a final event after the stream is closed.
+    // To exit streaming state, mark complete=true locally.
+    dispatch({ type: "SET_COMPLETE", payload: { isComplete: true } });
   };
 
   const regenerateMessage = (message: IMessage) => {
@@ -331,6 +369,7 @@ const useAjora = ({
     ...ajora,
     messagesByThread,
     submitQuery,
+    stopStreaming,
     addNewThread: () => dispatch({ type: "ADD_NEW_THREAD" }),
     switchThread: (threadId: string) =>
       dispatch({ type: "SWITCH_THREAD", payload: { threadId } }),

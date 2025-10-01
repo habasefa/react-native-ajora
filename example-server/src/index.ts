@@ -178,14 +178,39 @@ app.get("/api/threads", async (req, res) => {
   }
 });
 
-// Get messages for a specific thread
+// Get messages for a specific thread with pagination support
 app.get("/api/threads/:threadId/messages", async (req, res) => {
   try {
     const { threadId } = req.params;
-    const messages = await dbService.getMessages(threadId);
+    const { limit, offset } = req.query;
 
-    console.log("messages", JSON.stringify(messages, null, 2));
-    res.json(messages);
+    // Parse pagination parameters
+    const limitNum = limit ? parseInt(limit as string, 10) : undefined;
+    const offsetNum = offset ? parseInt(offset as string, 10) : undefined;
+
+    // Get messages with pagination
+    const messages = await dbService.getMessages(threadId, limitNum, offsetNum);
+
+    // Get total count for pagination metadata
+    const totalCount = await dbService.getMessagesCount(threadId);
+
+    const response = {
+      messages,
+      pagination: {
+        total: totalCount,
+        limit: limitNum,
+        offset: offsetNum || 0,
+        hasMore:
+          offsetNum !== undefined && limitNum !== undefined
+            ? offsetNum + limitNum < totalCount
+            : messages.length > 0,
+      },
+    };
+
+    console.log(
+      `[Ajora:Server]: Retrieved ${messages.length} messages for thread ${threadId} (${offsetNum || 0}-${(offsetNum || 0) + messages.length}/${totalCount})`
+    );
+    res.json(response);
   } catch (error: any) {
     console.error("[Ajora:Server]: Error getting messages:", error);
     res.status(500).json({ error: error.message });

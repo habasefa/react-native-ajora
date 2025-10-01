@@ -203,7 +203,11 @@ function MessageContainer<TMessage extends IMessage = IMessage>(
         <View
           style={[
             styles.emptyChatContainer,
-            { transform: [{ scaleY: -1 }, { scaleX: -1 }] },
+            {
+              ...(Platform.OS === "android"
+                ? { transform: [{ scaleY: -1 }, { scaleX: -1 }] }
+                : {}),
+            },
           ]}
         >
           <View style={styles.emptyChatContent}>
@@ -270,7 +274,11 @@ function MessageContainer<TMessage extends IMessage = IMessage>(
         <View
           style={[
             styles.emptyChatContainer,
-            { transform: [{ scaleY: -1 }, { scaleX: -1 }] },
+            {
+              ...(Platform.OS === "android"
+                ? { transform: [{ scaleY: -1 }, { scaleX: -1 }] }
+                : {}),
+            },
           ]}
         >
           <View>{renderChatEmptyProp()}</View>
@@ -281,7 +289,11 @@ function MessageContainer<TMessage extends IMessage = IMessage>(
       <View
         style={[
           styles.emptyChatContainer,
-          { transform: [{ scaleY: -1 }, { scaleX: -1 }] },
+          {
+            ...(Platform.OS === "android"
+              ? { transform: [{ scaleY: -1 }, { scaleX: -1 }] }
+              : {}),
+          },
         ]}
       >
         <View style={styles.emptyChatContent}>
@@ -413,7 +425,9 @@ function MessageContainer<TMessage extends IMessage = IMessage>(
         const newValue = {
           y,
           height,
-          created_at: new Date((props.item as IMessage).created_at).getTime(),
+          created_at: new Date(
+            (props.item as IMessage).created_at || new Date()
+          ).getTime(),
         };
 
         daysPositions.modify((value) => {

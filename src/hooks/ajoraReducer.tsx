@@ -8,7 +8,15 @@ export type Action =
       payload: { messages: IMessage[] };
     }
   | {
+      type: "ADD_EARLIER_MESSAGES";
+      payload: { messages: IMessage[]; threadId: string; pagination: any };
+    }
+  | {
       type: "SET_LOADING_MESSAGES";
+      payload: { isLoading: boolean };
+    }
+  | {
+      type: "SET_LOADING_EARLIER";
       payload: { isLoading: boolean };
     }
   | {
@@ -43,7 +51,7 @@ export type Action =
     }
   | {
       type: "SET_MESSAGES";
-      payload: { messages: IMessage[]; threadId: string };
+      payload: { messages: IMessage[]; threadId: string; pagination?: any };
     }
   | {
       type: "SET_COMPLETE";
@@ -240,10 +248,34 @@ export const ajoraReducer = (state: AjoraState, action: Action): AjoraState => {
           ...state.messages,
           [action.payload.threadId]: action.payload.messages,
         },
+        pagination: action.payload.pagination
+          ? {
+              ...state.pagination,
+              [action.payload.threadId]: action.payload.pagination,
+            }
+          : state.pagination,
+      };
+    }
+    case "ADD_EARLIER_MESSAGES": {
+      const { messages, threadId, pagination } = action.payload;
+      const existingMessages = state.messages[threadId] || [];
+      return {
+        ...state,
+        messages: {
+          ...state.messages,
+          [threadId]: [...existingMessages, ...messages],
+        },
+        pagination: {
+          ...state.pagination,
+          [threadId]: pagination,
+        },
       };
     }
     case "SET_LOADING_MESSAGES": {
       return { ...state, isLoadingMessages: action.payload.isLoading } as any;
+    }
+    case "SET_LOADING_EARLIER": {
+      return { ...state, isLoadingEarlier: action.payload.isLoading } as any;
     }
     case "SET_COMPLETE": {
       return { ...state, isComplete: action.payload.isComplete };

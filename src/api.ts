@@ -296,13 +296,32 @@ export class ApiService {
   }
 
   // Message endpoints
-  getMessages(threadId: string): Promise<IMessage[]> {
+  getMessages(
+    threadId: string,
+    limit?: number,
+    offset?: number
+  ): Promise<{
+    messages: IMessage[];
+    pagination: {
+      total: number;
+      limit?: number;
+      offset: number;
+      hasMore: boolean;
+    };
+  }> {
     const headers: Record<string, string> = {};
     if (this.config.bearerToken) {
       headers.Authorization = `Bearer ${this.config.bearerToken}`;
     }
 
-    return fetch(`${this.config.baseUrl}/api/threads/${threadId}/messages`, {
+    // Build query parameters
+    const params = new URLSearchParams();
+    if (limit !== undefined) params.append("limit", limit.toString());
+    if (offset !== undefined) params.append("offset", offset.toString());
+
+    const url = `${this.config.baseUrl}/api/threads/${threadId}/messages${params.toString() ? `?${params.toString()}` : ""}`;
+
+    return fetch(url, {
       headers,
     }).then((res) => {
       return res.json();

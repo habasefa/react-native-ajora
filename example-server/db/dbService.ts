@@ -308,7 +308,11 @@ class DbService {
     }
   }
 
-  async getMessages(thread_id: string): Promise<Message[]> {
+  async getMessages(
+    thread_id: string,
+    limit?: number,
+    offset?: number
+  ): Promise<Message[]> {
     if (!this.db) throw new Error("Database not initialized");
 
     const all = promisify(this.db.all.bind(this.db)) as (
@@ -317,10 +321,20 @@ class DbService {
     ) => Promise<any[]>;
 
     try {
-      const messages = await all(
-        `SELECT * FROM messages WHERE thread_id = ? ORDER BY created_at DESC`,
-        [thread_id]
-      );
+      let sql = `SELECT * FROM messages WHERE thread_id = ? ORDER BY created_at DESC`;
+      const params: any[] = [thread_id];
+
+      if (limit !== undefined) {
+        sql += ` LIMIT ?`;
+        params.push(limit);
+
+        if (offset !== undefined) {
+          sql += ` OFFSET ?`;
+          params.push(offset);
+        }
+      }
+
+      const messages = await all(sql, params);
 
       return messages.map((msg: any) => ({
         ...msg,
@@ -328,6 +342,27 @@ class DbService {
       })) as Message[];
     } catch (error) {
       console.error("Error getting messages:", error);
+      throw error;
+    }
+  }
+
+  async getMessagesCount(thread_id: string): Promise<number> {
+    if (!this.db) throw new Error("Database not initialized");
+
+    const get = promisify(this.db.get.bind(this.db)) as (
+      sql: string,
+      params?: any[]
+    ) => Promise<any>;
+
+    try {
+      const result = await get(
+        `SELECT COUNT(*) as count FROM messages WHERE thread_id = ?`,
+        [thread_id]
+      );
+
+      return result?.count || 0;
+    } catch (error) {
+      console.error("Error getting messages count:", error);
       throw error;
     }
   }

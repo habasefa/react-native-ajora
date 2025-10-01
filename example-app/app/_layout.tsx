@@ -8,13 +8,11 @@ import useAjora from "../../src/hooks/useAjora";
 import "react-native-get-random-values";
 
 export default function RootLayout() {
-  // Example bearer token - in a real app, this would come from your auth system
-  // You might get this from AsyncStorage, a context, or your auth provider
   const bearerToken = "your-bearer-token-here";
 
   const ajora = useAjora({
     baseUrl: "http://localhost:3000",
-    bearerToken, // Pass the bearer token to the Ajora hook
+    bearerToken,
     debug: true, // Enable debug mode for EventSource logging
   });
 

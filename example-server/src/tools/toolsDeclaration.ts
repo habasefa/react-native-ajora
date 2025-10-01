@@ -43,7 +43,7 @@ const searchDocumentFunctionDeclaration = {
 const todoListFunctionDeclaration = {
   name: "todo_list",
   description:
-    "Create, get, add todos, and update todo status in the todo list. Supports creating new todo lists, adding todos, retrieving todo lists, and marking todos as queue, executing, completed, or error.",
+    "Create, get, add todos, and update todo status in the todo list. Supports creating new todo lists, adding todos, retrieving todo lists, and marking todos as queue, completed, or error.",
   parameters: {
     type: Type.OBJECT,
     properties: {
@@ -54,7 +54,6 @@ const todoListFunctionDeclaration = {
           "add",
           "get",
           "mark_as_queue",
-          "mark_as_executing",
           "mark_as_completed",
           "mark_as_error",
         ],
@@ -72,7 +71,7 @@ const todoListFunctionDeclaration = {
       todo_list_id: {
         type: Type.STRING,
         description:
-          "ID of the todo list (required for add, mark_as_queue, mark_as_executing, mark_as_completed, mark_as_error actions).",
+          "ID of the todo list (required for add, mark_as_queue, mark_as_completed, mark_as_error actions).",
       },
       todos: {
         type: Type.ARRAY,
@@ -87,7 +86,7 @@ const todoListFunctionDeclaration = {
             },
             status: {
               type: Type.STRING,
-              enum: ["queue", "executing", "completed", "error"],
+              enum: ["queue", "completed", "error"],
               description: "Status of the todo item. Defaults to 'queue'.",
             },
           },
@@ -97,7 +96,7 @@ const todoListFunctionDeclaration = {
       todo: {
         type: Type.OBJECT,
         description:
-          "Todo object (required for add, mark_as_queue, mark_as_executing, mark_as_completed, mark_as_error actions).",
+          "Todo object (required for add, mark_as_queue, mark_as_completed, mark_as_error actions).",
         properties: {
           id: {
             type: Type.STRING,
@@ -111,7 +110,7 @@ const todoListFunctionDeclaration = {
           },
           status: {
             type: Type.STRING,
-            enum: ["queue", "executing", "completed", "error"],
+            enum: ["queue", "completed", "error"],
             description:
               "Status of the todo item. Defaults to 'queue' for new todos.",
           },

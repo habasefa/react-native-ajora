@@ -31,8 +31,6 @@ export const gemini = async function* (
       }))
       .reverse();
 
-    console.log("formattedMessage", JSON.stringify(formattedMessage, null, 2));
-
     const systemInstruction = mode === "agent" ? agentPrompt : assistantPrompt;
     if (signal?.aborted) return;
     const response = await genAI.models.generateContentStream({

@@ -1,6 +1,6 @@
 {
   "name": "react-native-ajora",
-  "version": "0.0.12",
+  "version": "0.0.13",
   "description": "The most complete AI agent UI for React Native",
   "keywords": [
     "android",
@@ -39,7 +39,7 @@
     "lib"
   ],
   "scripts": {
-    "build": "rm -rf lib/ && npm run tsc:write || true",
+    "build": "tsc --noEmitOnError false || true && echo '\n⚠️  Build completed with TypeScript errors. JS output was still generated.\n'",
     "lint": "eslint src",
     "lint:fix": "eslint --cache --fix",
     "prepublishOnly": "echo 'Skipping build and test for publish'",

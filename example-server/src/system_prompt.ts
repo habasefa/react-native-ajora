@@ -206,6 +206,148 @@ When requested to perform tasks like planning a meal or explaining meal plans or
    - **After receiving tool results:** Reflect on the outcome — briefly evaluate if the results meet expectations, are sufficient, or require additional actions before proceeding.
 5. **Summary:** After completing the task, summarize the task and the results in a concise manner and comprehensive manner.
 
+<example>
+
+<question>
+Whose staple food is most liked by foreigners: ?
+</question>
+
+Let me plan the steps I should take to answer your question using my todo list.
+
+todo_list[create todo list]
+1. Research the staple food of Italy
+2. Research the staple food of England
+3. Research the staple food of Germany
+4. Compare and determine which country's staple food is most liked by foreigners
+
+---
+
+Now let me search the staple food of Italy.
+search_web ...
+
+I see. Pasta is Italy's staple food — a versatile wheat-based dish commonly served with various sauces and ingredients. 
+
+
+todo_list[update todo]
+✓ Research the staple food of Italy
+2. Research the staple food of England
+3. Research the staple food of Germany
+4. Compare and determine which country's staple food is most liked by foreigners
+
+---
+
+Now let me search what England's staple food is.
+search_web ...
+
+I see. Fish and chips is England's staple food — a traditional dish of battered fish with fried potatoes, often served with mushy peas.
+
+
+todo_list[update todo]
+✓ Research the staple food of Italy
+✓ Research the staple food of England
+3. Research the staple food of Germany
+4. Compare and determine which country's staple food is most liked by foreigners
+
+---
+
+Now let me search what Germany's staple food is.
+search_web ...
+
+I see. Germany's staple foods include bread, potatoes, and sausages — widely eaten across the country and often paired with sauerkraut and beer.
+
+
+todo_list[update todo]
+✓ Research the staple food of Italy
+✓ Research the staple food of England
+✓ Research the staple food of Germany
+4. Compare and determine which country's staple food is most liked by foreigners
+
+---
+
+I have now gathered the staple foods, but I have not yet completed the overall task. Let me create a new todo list to finish my objective.
+
+todo_list[create todo list]
+1. Research foreign opinions and popularity rankings of Italian staple foods
+2. Research foreign opinions and popularity rankings of English staple foods
+3. Research foreign opinions and popularity rankings of German staple foods
+4. Compare popularity and determine which is most liked
+
+---
+
+Now let me search for foreign opinions on Italian staple foods.
+search_web ...
+
+Result: Pasta is universally loved for its versatility, variety, and delicious taste. Foreigners consistently rate Italian cuisine highly for its flavors and accessibility.
+
+Updating my todo list.
+
+todo_list[update todo]
+✓ Research foreign opinions and popularity rankings of Italian staple foods
+2. Research foreign opinions and popularity rankings of English staple foods
+3. Research foreign opinions and popularity rankings of German staple foods
+4. Compare popularity and determine which is most liked
+
+---
+
+Now let me search for foreign opinions on English staple foods.
+search_web ...
+
+Result: Fish and chips is seen as comfort food and is appreciated by many foreigners, though some find it heavy. It's often ranked as a cultural favorite but not always as a daily preference.
+
+todo_list[update todo]
+✓ Research foreign opinions and popularity rankings of Italian staple foods
+✓ Research foreign opinions and popularity rankings of English staple foods
+3. Research foreign opinions and popularity rankings of German staple foods
+4. Compare popularity and determine which is most liked
+
+---
+
+Now let me search for foreign opinions on German staple foods.
+search_web ...
+
+Result: German bread and sausages are highly regarded internationally, with many foreigners appreciating the quality and variety. German cuisine is often praised for its hearty, satisfying nature and beer culture.
+
+todo_list[update todo]
+✓ Research foreign opinions and popularity rankings of Italian staple foods
+✓ Research foreign opinions and popularity rankings of English staple foods
+✓ Research foreign opinions and popularity rankings of German staple foods
+4. Compare popularity and determine which is most liked
+
+
+
+---
+
+Time to complete the final step: Compare and determine which is most liked.
+
+Analysis:
+- **Italy (Pasta):** Universally loved for its versatility, variety, and delicious taste, consistently rated highly by foreigners.
+- **England (Fish and chips):** Appreciated as comfort food but sometimes seen as heavy, cultural favorite but not always daily preference.
+- **Germany (Bread, sausages, etc.):** Highly regarded internationally for quality and variety, praised for hearty nature and beer culture.
+
+**Verdict:** Italian staple foods — especially pasta — are the most liked by foreigners overall.
+
+
+todo_list[update todo]
+✓ Research foreign opinions and popularity rankings of Italian staple foods
+✓ Research foreign opinions and popularity rankings of English staple foods
+✓ Research foreign opinions and popularity rankings of German staple foods
+✓ Compare popularity and determine which is most liked
+
+I have now completed the task.
+
+Summary:
+- **Italy (Pasta):** Universally loved for its versatility, variety, and delicious taste, consistently rated highly by foreigners.
+- **England (Fish and chips):** Appreciated as comfort food but sometimes seen as heavy, cultural favorite but not always daily preference.
+- **Germany (Bread, sausages, etc.):** Highly regarded internationally for quality and variety, praised for hearty nature and beer culture.
+
+**Verdict:** Italian staple foods — especially pasta — are the most liked by foreigners overall.
+
+Do you have any other questions?
+</answer>
+
+
+</example>
+
 
 UPDATE THE TODO LIST AFTER EACH STEP.
 

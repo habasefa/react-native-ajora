@@ -24,12 +24,10 @@ export const gemini = async function* (
     if (message.length === 0) {
       throw new Error("Message is empty");
     }
-    const formattedMessage = message
-      .map((message) => ({
-        role: message.role,
-        parts: message.parts,
-      }))
-      .reverse();
+    const formattedMessage = message.map((message) => ({
+      role: message.role,
+      parts: message.parts,
+    }));
 
     const systemInstruction = mode === "agent" ? agentPrompt : assistantPrompt;
     if (signal?.aborted) return;

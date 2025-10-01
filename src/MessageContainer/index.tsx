@@ -230,7 +230,7 @@ function MessageContainer<TMessage extends IMessage = IMessage>(
       {
         title: "Culture",
         question:
-          "Whose staple food is most liked by foreigners: Ethiopia, Kenya, or Nigeria?",
+          "Whose staple food is most liked by foreigners: Italy, England, or Germany?",
         icon: "public",
       },
       {

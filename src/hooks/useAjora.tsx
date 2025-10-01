@@ -107,6 +107,25 @@ const useAjora = ({
         return;
       }
       const threads = await apiServiceRef.current.getThreads();
+      // Debug logs right after fetching threads
+      try {
+        const isArray = Array.isArray(threads);
+        const length = isArray ? (threads as Thread[]).length : 0;
+        const sample = isArray ? (threads as Thread[])[0] : threads;
+        console.log(
+          "[Ajora]: getThreads() fetched:",
+          JSON.stringify({
+            isArray,
+            length,
+            activeThreadId: ajora.activeThreadId,
+            sample,
+          }),
+          null,
+          2
+        );
+      } catch (logErr) {
+        console.warn("[Ajora]: Failed to log threads debug info", logErr);
+      }
       dispatch({ type: "SET_THREADS", payload: { threads: threads ?? [] } });
     } catch (error) {
       console.error("[Ajora]: Error fetching threads:", error);
@@ -122,11 +141,19 @@ const useAjora = ({
         return;
       }
       dispatch({ type: "SET_LOADING_MESSAGES", payload: { isLoading: true } });
-      const messages = await apiServiceRef.current.getMessages(threadId);
-      if (messages) {
+      const resp = await apiServiceRef.current.getMessages(threadId);
+      console.info("[Ajora]: getMessages response", {
+        threadId,
+        total: resp?.pagination?.total,
+        limit: resp?.pagination?.limit,
+        offset: resp?.pagination?.offset,
+        count: Array.isArray(resp?.messages) ? resp.messages.length : 0,
+      });
+      const messages = resp?.messages;
+      if (Array.isArray(messages)) {
         dispatch({
           type: "SET_MESSAGES",
-          payload: { messages: messages ?? [], threadId },
+          payload: { messages: messages ?? ([] as IMessage[]), threadId },
         });
       }
     } catch (error) {
@@ -161,6 +188,7 @@ const useAjora = ({
       }
 
       const newThread = await apiServiceRef.current.createThread();
+
       if (!newThread?.id) {
         throw new Error("[Ajora]: Failed to create a new thread.");
       }
@@ -207,7 +235,6 @@ const useAjora = ({
 
       const cleanup = apiServiceRef.current.streamResponse(queryWithMode, {
         onIsThinking: (isThinking: IsThinkingEvent) => {
-          console.log("[Ajora]: Is thinking received:", isThinking);
           dispatch({
             type: "SET_THINKING",
             payload: { isThinking: isThinking.is_thinking },
@@ -265,7 +292,6 @@ const useAjora = ({
             }
             // Clear abort controller on normal completion
             abortControllerRef.current = null;
-            console.log("[Ajora]: Streaming complete!");
           }
           // Update completion state based on server signal
           dispatch({ type: "SET_COMPLETE", payload: { isComplete: complete } });

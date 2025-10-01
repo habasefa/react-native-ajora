@@ -56,7 +56,6 @@ export const Send = <TMessage extends IMessage = IMessage>({
 }: SendProps<TMessage>) => {
   const { ajora } = useChatContext();
   const { submitQuery, activeThreadId, stopStreaming, isComplete } = ajora;
-  console.log("[Ajora]: Send component isComplete", isComplete);
 
   const handleOnPress = useCallback(() => {
     if (!isComplete) {

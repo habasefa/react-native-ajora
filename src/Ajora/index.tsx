@@ -94,8 +94,13 @@ function Ajora<TMessage extends IMessage = IMessage>(
   } = props;
 
   const { ajora } = useChatContext();
-  const { activeThreadId, threads, addNewThread, switchThread, submitQuery } =
-    ajora;
+  const {
+    activeThreadId,
+    threads = [],
+    addNewThread,
+    switchThread,
+    submitQuery,
+  } = ajora;
 
   const currentThread = threads.find((thread) => thread.id === activeThreadId);
 

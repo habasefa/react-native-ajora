@@ -109,6 +109,21 @@ export class ApiService {
     };
   }
 
+  private get apiBase(): string {
+    const trimmed = this.config.baseUrl.replace(/\/$/, "");
+    // If the base already contains an /api segment anywhere (e.g., /api, /api/v3, /api/v3/agent),
+    // do NOT append another /api
+    if (/\/api(\/|$)/.test(trimmed)) {
+      return trimmed;
+    }
+    return `${trimmed}/api`;
+  }
+
+  // Stream should use the same API base namespace (e.g., /api/v3/agent)
+  private get streamBase(): string {
+    return this.apiBase;
+  }
+
   /**
    * Stream a response from the API using Server-Sent Events
    */
@@ -152,14 +167,12 @@ export class ApiService {
         };
       }
 
-      this.eventSource = new EventSource(
-        `${this.config.baseUrl}/api/stream?${queryParams.toString()}`,
-        {
-          pollingInterval: 0,
-          debug: this.config.debug,
-          headers,
-        }
-      );
+      const url = `${this.streamBase}/stream?${queryParams.toString()}`;
+      this.eventSource = new EventSource(url, {
+        pollingInterval: 0,
+        debug: this.config.debug,
+        headers,
+      });
 
       // Hook abort signal to close the SSE connection
       let abortHandler: (() => void) | null = null;
@@ -177,7 +190,6 @@ export class ApiService {
       });
 
       this.eventSource.addEventListener("message", (event) => {
-        console.log("[Ajora]: SSE message received:", event);
         try {
           if (!event.data) throw new Error("Empty SSE event data");
 
@@ -260,30 +272,86 @@ export class ApiService {
 
   // Thread endpoints
   getThreads(): Promise<Thread[]> {
-    const headers: Record<string, string> = {};
+    const headers: Record<string, string> = { "Cache-Control": "no-cache" };
     if (this.config.bearerToken) {
       headers.Authorization = `Bearer ${this.config.bearerToken}`;
     }
 
-    return fetch(`${this.config.baseUrl}/api/threads`, { headers }).then(
-      (res) => res.json()
-    );
+    // Cache-bust to avoid 304/empty bodies on some platforms (okhttp)
+    const url = `${this.apiBase}/threads?_=${Date.now()}`;
+    console.info("[Ajora]: getThreads request", { url });
+    return fetch(url, { headers })
+      .then(async (res) => {
+        if (!res.ok) {
+          console.warn("[Ajora]: getThreads non-OK status", res.status);
+          return [] as Thread[];
+        }
+        return res.json();
+      })
+      .then((json) => {
+        try {
+          // Debug the raw payload to help diagnose shape mismatches
+          console.log("[Ajora]: getThreads raw payload:", json);
+
+          // If the server already returns an array of threads, pass through
+          if (Array.isArray(json)) {
+            return (json as any[]).map((t) => ({
+              id: t.id ?? t._id,
+              title: t.title ?? "New Conversation",
+            })) as Thread[];
+          }
+
+          // If the server wraps the array under a `data` key
+          if (json && Array.isArray(json.data)) {
+            return (json.data as any[]).map((t) => ({
+              id: t.id ?? t._id,
+              title: t.title ?? "New Conversation",
+            })) as Thread[];
+          }
+
+          // Unknown shape; return empty list to avoid runtime errors
+          console.warn("[Ajora]: Unexpected threads response shape");
+          return [] as Thread[];
+        } catch (e) {
+          console.warn("[Ajora]: Failed to normalize threads response", e);
+          return [] as Thread[];
+        }
+      });
   }
 
   createThread(title?: string): Promise<Thread> {
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
       Accept: "application/json",
+      "Cache-Control": "no-cache",
     };
     if (this.config.bearerToken) {
       headers.Authorization = `Bearer ${this.config.bearerToken}`;
     }
 
-    return fetch(`${this.config.baseUrl}/api/threads`, {
+    const url = `${this.apiBase}/threads`;
+    return fetch(url, {
       method: "POST",
       headers,
       body: JSON.stringify({ title }),
-    }).then((res) => res.json());
+    })
+      .then((res) => res.json())
+      .then((json) => {
+        try {
+          const t = json && json.data ? json.data : json;
+          if (!t) {
+            throw new Error("Empty thread response");
+          }
+          const normalized: Thread = {
+            id: (t as any).id ?? (t as any)._id,
+            title: (t as any).title ?? "New Conversation",
+          } as Thread;
+          return normalized;
+        } catch (e) {
+          console.warn("[Ajora]: Failed to normalize createThread response", e);
+          return { id: "", title: "New Conversation" } as Thread;
+        }
+      });
   }
 
   private close(): void {
@@ -318,12 +386,25 @@ export class ApiService {
     const params = new URLSearchParams();
     if (limit !== undefined) params.append("limit", limit.toString());
     if (offset !== undefined) params.append("offset", offset.toString());
+    // Cache-bust parameter
+    params.append("_", Date.now().toString());
 
-    const url = `${this.config.baseUrl}/api/threads/${threadId}/messages${params.toString() ? `?${params.toString()}` : ""}`;
+    const url = `${this.apiBase}/threads/${threadId}/messages${params.toString() ? `?${params.toString()}` : ""}`;
+    console.info("[Ajora]: getMessages request", {
+      url,
+      threadId,
+      limit,
+      offset,
+    });
 
-    return fetch(url, {
-      headers,
-    }).then((res) => {
+    return fetch(url, { headers }).then(async (res) => {
+      if (!res.ok) {
+        console.warn("[Ajora]: getMessages non-OK status", res.status, url);
+        return {
+          messages: [],
+          pagination: { total: 0, offset: offset || 0, hasMore: false },
+        };
+      }
       return res.json();
     });
   }
@@ -338,7 +419,7 @@ export class ApiService {
 }
 
 const DEFAULT_CONFIG: ApiConfig = {
-  baseUrl: "http://localhost:3000",
+  baseUrl: "http://localhost:4000",
 };
 
 export const defaultApiService = new ApiService(DEFAULT_CONFIG);

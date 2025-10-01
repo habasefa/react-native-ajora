@@ -11,7 +11,8 @@ export default function RootLayout() {
   const bearerToken = "your-bearer-token-here";
 
   const ajora = useAjora({
-    baseUrl: "http://localhost:3000",
+    baseUrl: "http://localhost:4000/api/v3/agent",
+
     bearerToken,
     debug: true, // Enable debug mode for EventSource logging
   });

@@ -213,7 +213,7 @@ export interface AjoraProps<TMessage extends IMessage>
   /* Callback when new thread is created */
   onNewThread?(): void;
   /* Callback when header menu is pressed */
-  onHeaderMenuPress?(): void;
+  onHeaderLeftPress?(): void;
   /* Callback when header plus is pressed */
-  onHeaderPlusPress?(): void;
+  onHeaderRightPress?(): void;
 }

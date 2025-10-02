@@ -11,6 +11,7 @@ import {
   ScrollView,
   ActivityIndicator,
 } from "react-native";
+import Color from "../Color";
 import Animated, {
   runOnJS,
   useAnimatedScrollHandler,
@@ -204,14 +205,16 @@ function MessageContainer<TMessage extends IMessage = IMessage>(
           style={[
             styles.emptyChatContainer,
             {
-              ...(Platform.OS === "android"
-                ? { transform: [{ scaleY: -1 }, { scaleX: -1 }] }
-                : {}),
+              ...(Platform.OS === "ios"
+                ? { transform: [{ scaleY: -1 }] }
+                : {
+                    transform: [{ scaleY: -1 }, { scaleX: -1 }],
+                  }),
             },
           ]}
         >
           <View style={styles.emptyChatContent}>
-            <ActivityIndicator size="small" color="#6B7280" />
+            <ActivityIndicator size="small" color={Color.gray500} />
             <Text style={[styles.emptyChatSubtitle, { marginTop: 8 }]}>
               Loading messages…
             </Text>
@@ -275,9 +278,11 @@ function MessageContainer<TMessage extends IMessage = IMessage>(
           style={[
             styles.emptyChatContainer,
             {
-              ...(Platform.OS === "android"
-                ? { transform: [{ scaleY: -1 }, { scaleX: -1 }] }
-                : {}),
+              ...(Platform.OS === "ios"
+                ? { transform: [{ scaleY: -1 }] }
+                : {
+                    transform: [{ scaleY: -1 }, { scaleX: -1 }],
+                  }),
             },
           ]}
         >
@@ -290,9 +295,11 @@ function MessageContainer<TMessage extends IMessage = IMessage>(
         style={[
           styles.emptyChatContainer,
           {
-            ...(Platform.OS === "android"
-              ? { transform: [{ scaleY: -1 }, { scaleX: -1 }] }
-              : {}),
+            ...(Platform.OS === "ios"
+              ? { transform: [{ scaleY: -1 }] }
+              : {
+                  transform: [{ scaleY: -1 }, { scaleX: -1 }],
+                }),
           },
         ]}
       >
@@ -300,7 +307,7 @@ function MessageContainer<TMessage extends IMessage = IMessage>(
           <MaterialIcons
             name="chat-bubble-outline"
             size={70}
-            color="#9CA3AF"
+            color={Color.gray500}
             style={styles.emptyChatIcon}
           />
           <Text style={styles.emptyChatTitle}>Welcome to Ajora!</Text>
@@ -321,7 +328,7 @@ function MessageContainer<TMessage extends IMessage = IMessage>(
                 <MaterialIcons
                   name={questionItem.icon as any}
                   size={24}
-                  color="#475569"
+                  color={Color.gray500}
                   style={{ marginBottom: 6 }}
                 />
               ) : null}

@@ -279,8 +279,8 @@ const TodoListTool: React.FC<TodoListToolProps> = ({
                     size={20}
                     color={
                       lastCompletedTodo.status === "error"
-                        ? "#dc2626"
-                        : "#000000"
+                        ? Color.destructive
+                        : Color.cardForeground
                     }
                     style={styles.statusIcon}
                   />
@@ -306,7 +306,9 @@ const TodoListTool: React.FC<TodoListToolProps> = ({
                     name={getStatusIcon(nextPendingTodo.status)}
                     size={20}
                     color={
-                      nextPendingTodo.status === "error" ? "#dc2626" : "#000000"
+                      nextPendingTodo.status === "error"
+                        ? Color.destructive
+                        : Color.cardForeground
                     }
                     style={styles.statusIcon}
                   />
@@ -365,7 +367,11 @@ const TodoListTool: React.FC<TodoListToolProps> = ({
                   <MaterialIcons
                     name={getStatusIcon(todo.status)}
                     size={20}
-                    color={todo.status === "error" ? "#dc2626" : "#000000"}
+                    color={
+                      todo.status === "error"
+                        ? Color.destructive
+                        : Color.cardForeground
+                    }
                     style={styles.statusIcon}
                   />
                   <Text
@@ -536,14 +542,14 @@ const createStyles = () => {
       width: cardWidth,
       gap: 10,
       padding: 16,
-      backgroundColor: "#f8f9fa",
+      backgroundColor: Color.muted,
       borderRadius: 12,
       borderWidth: 1,
-      borderColor: "#e2e8f0",
+      borderColor: Color.border,
     },
     loadingText: {
       fontSize: 14,
-      color: "#6b7280",
+      color: Color.mutedForeground,
     },
     loadingAnimation: {
       marginTop: 8,

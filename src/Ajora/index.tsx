@@ -88,8 +88,8 @@ function Ajora<TMessage extends IMessage = IMessage>(
     threadProps = {},
     onThreadSelect,
     onNewThread,
-    onHeaderMenuPress,
-    onHeaderPlusPress,
+    onHeaderLeftPress,
+    onHeaderRightPress,
     onPressActionButton,
   } = props;
 
@@ -213,18 +213,18 @@ function Ajora<TMessage extends IMessage = IMessage>(
     if (showThreads) {
       setIsThreadDrawerOpen(true);
     }
-    if (onHeaderMenuPress) {
-      onHeaderMenuPress();
+    if (onHeaderLeftPress) {
+      onHeaderLeftPress();
     }
-  }, [showThreads, onHeaderMenuPress]);
+  }, [showThreads, onHeaderLeftPress]);
 
   const handleHeaderPlusPress = useCallback(() => {
-    if (onHeaderPlusPress) {
-      onHeaderPlusPress();
+    if (onHeaderRightPress) {
+      onHeaderRightPress();
     } else {
       addNewThread();
     }
-  }, [onHeaderPlusPress, addNewThread]);
+  }, [onHeaderRightPress, addNewThread]);
 
   const handleThreadSelect = useCallback(
     (thread: ThreadType) => {
@@ -328,8 +328,8 @@ function Ajora<TMessage extends IMessage = IMessage>(
       <View style={[stylesCommon.fill, messagesContainerStyle]}>
         {showHeader && (
           <Header
-            onMenuPress={handleHeaderMenuPress}
-            onPlusPress={handleHeaderPlusPress}
+            onLeftPress={handleHeaderMenuPress}
+            onRightPress={handleHeaderPlusPress}
             {...headerProps}
           />
         )}

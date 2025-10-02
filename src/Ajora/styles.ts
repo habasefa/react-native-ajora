@@ -1,42 +1,35 @@
 import { StyleSheet } from "react-native";
-import Color from "../Color";
+import { colors, borderRadius, shadows } from "../Theme";
 
 export default StyleSheet.create({
   contentContainer: {
     flex: 1,
     overflow: "hidden",
-    backgroundColor: Color.background,
+    backgroundColor: colors.background,
   },
   // Modern shadcn-inspired container styles
   container: {
-    backgroundColor: Color.card,
-    borderRadius: 8,
+    backgroundColor: colors.white,
+    borderRadius: borderRadius.sm,
     borderWidth: 1,
-    borderColor: Color.border,
-    shadowColor: Color.shadow,
-    shadowOffset: {
-      width: 0,
-      height: 1,
-    },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
+    borderColor: colors.border,
+    ...shadows.sm,
   },
   surface: {
-    backgroundColor: Color.muted,
-    borderRadius: 6,
+    backgroundColor: colors.appSecondary,
+    borderRadius: borderRadius.sm,
   },
   border: {
     borderWidth: 1,
-    borderColor: Color.border,
+    borderColor: colors.border,
   },
   rounded: {
-    borderRadius: 6,
+    borderRadius: borderRadius.sm,
   },
   roundedLg: {
-    borderRadius: 8,
+    borderRadius: borderRadius.sm,
   },
   roundedXl: {
-    borderRadius: 12,
+    borderRadius: borderRadius.base,
   },
 });

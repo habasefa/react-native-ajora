@@ -405,7 +405,12 @@ export class ApiService {
           pagination: { total: 0, offset: offset || 0, hasMore: false },
         };
       }
-      return res.json();
+      const data = await res.json();
+      console.log(
+        "[Ajora]: Retrieved messages:",
+        JSON.stringify(data, null, 2)
+      );
+      return data;
     });
   }
 

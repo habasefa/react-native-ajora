@@ -11,6 +11,7 @@ import styles, { DRAWER_WIDTH } from "./styles";
 import { ThreadItem, ThreadProps } from "./types";
 import { MaterialIcons } from "@expo/vector-icons";
 import { useChatContext } from "../AjoraContext";
+import { colors } from "../Theme";
 
 const formatTimestamp = (timestamp: string | Date | undefined): string => {
   if (!timestamp) return "";
@@ -135,7 +136,7 @@ export function Thread({
         <MaterialIcons
           name="chat-bubble-outline"
           size={48}
-          color="#9CA3AF"
+          color={colors.secondaryText}
           style={styles.threadEmptyIcon}
         />
         <Text style={styles.threadEmptyTitle}>No chats yet</Text>
@@ -180,6 +181,11 @@ export function Thread({
           containerStyle,
         ]}
       >
+        {/* Chats Header */}
+        <View style={styles.chatsHeader}>
+          <Text style={styles.chatsHeaderText}>Chats</Text>
+        </View>
+
         {/* Header */}
         <View style={styles.drawerHeader}>
           {/* Search Bar */}
@@ -188,7 +194,7 @@ export function Thread({
             <TextInput
               style={styles.searchInput}
               placeholder="Search..."
-              placeholderTextColor="#9CA3AF"
+              placeholderTextColor={colors.secondaryText}
               value={searchQuery}
               onChangeText={setSearchQuery}
             />
@@ -199,13 +205,8 @@ export function Thread({
             onPress={onNewThread}
             activeOpacity={0.7}
           >
-            <MaterialIcons name="add" size={24} color="#6B7280" />
+            <MaterialIcons name="add" size={24} color={colors.text} />
           </TouchableOpacity>
-        </View>
-
-        {/* Chats Header */}
-        <View style={styles.chatsHeader}>
-          <Text style={styles.chatsHeaderText}>Chats</Text>
         </View>
 
         {/* Thread List */}

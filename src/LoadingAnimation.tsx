@@ -7,6 +7,7 @@ import Animated, {
   withSequence,
   interpolate,
 } from "react-native-reanimated";
+import Color from "./Color";
 
 interface LoadingAnimationProps {
   containerStyle?: any;
@@ -17,7 +18,7 @@ interface LoadingAnimationProps {
 
 const LoadingAnimation: React.FC<LoadingAnimationProps> = ({
   containerStyle,
-  dotColor = "#000000",
+  dotColor = Color.primary,
   dotSize = 6,
   gap = 4,
 }) => {

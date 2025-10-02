@@ -21,7 +21,7 @@ const styles = StyleSheet.create({
     justifyContent: "flex-end",
   },
   text: {
-    color: Color.defaultBlue,
+    color: Color.primary,
     fontWeight: "600",
     fontSize: 17,
     backgroundColor: Color.backgroundTransparent,
@@ -108,7 +108,7 @@ export const Send = <TMessage extends IMessage = IMessage>({
       <View style={{ justifyContent: "center", padding: 10 }}>
         <MaterialIcons
           size={28}
-          color={"#000000"}
+          color={Color.primary}
           name={isComplete ? "arrow-upward" : "stop"}
         />
       </View>

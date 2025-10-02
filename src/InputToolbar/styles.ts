@@ -16,7 +16,7 @@ export default StyleSheet.create({
   },
   composer: {
     borderWidth: 1,
-    borderColor: "grey",
+    borderColor: Color.border,
     minHeight: 100,
     margin: 4,
     borderRadius: 15,

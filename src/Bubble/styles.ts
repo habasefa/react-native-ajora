@@ -1,5 +1,5 @@
 import { StyleSheet } from "react-native";
-import Color from "../Color";
+import { colors, borderRadius, shadows, spacing } from "../Theme";
 
 const styles = {
   left: StyleSheet.create({
@@ -7,27 +7,19 @@ const styles = {
       alignItems: "flex-start",
     },
     wrapper: {
-      borderRadius: 18,
-      backgroundColor: Color.leftBubble,
+      borderRadius: borderRadius.lg,
+      backgroundColor: "transparent",
       marginRight: 0,
       minHeight: 20,
       justifyContent: "flex-end",
-      paddingHorizontal: 16,
-      paddingVertical: 6,
-      shadowColor: Color.shadow,
-      shadowOffset: {
-        width: 0,
-        height: 1,
-      },
-      shadowOpacity: 0.03,
-      shadowRadius: 2,
-      elevation: 1,
+      paddingHorizontal: spacing.base,
+      paddingVertical: spacing.sm,
     },
     containerToNext: {
-      borderBottomLeftRadius: 4,
+      borderBottomLeftRadius: borderRadius.sm,
     },
     containerToPrevious: {
-      borderTopLeftRadius: 4,
+      borderTopLeftRadius: borderRadius.sm,
     },
     bottom: {
       flexDirection: "row",
@@ -39,29 +31,22 @@ const styles = {
       alignItems: "flex-end",
     },
     wrapper: {
-      borderRadius: 18,
-      backgroundColor: Color.rightBubble,
+      borderRadius: borderRadius.lg,
+      backgroundColor: colors.appPrimary,
       borderWidth: 1,
-      borderColor: Color.rightBubble,
+      borderColor: colors.appPrimary,
       marginLeft: 60,
       minHeight: 20,
       justifyContent: "flex-end",
-      paddingHorizontal: 16,
-      paddingVertical: 12,
-      shadowColor: Color.shadowMd,
-      shadowOffset: {
-        width: 0,
-        height: 2,
-      },
-      shadowOpacity: 0.1,
-      shadowRadius: 4,
-      elevation: 2,
+      paddingHorizontal: spacing.base,
+      paddingVertical: spacing.md,
+      ...shadows.base,
     },
     containerToNext: {
-      borderBottomRightRadius: 4,
+      borderBottomRightRadius: borderRadius.sm,
     },
     containerToPrevious: {
-      borderTopRightRadius: 4,
+      borderTopRightRadius: borderRadius.sm,
     },
     bottom: {
       flexDirection: "row",
@@ -71,13 +56,13 @@ const styles = {
   content: StyleSheet.create({
     tick: {
       fontSize: 10,
-      backgroundColor: Color.backgroundTransparent,
-      color: Color.rightBubbleText,
+      backgroundColor: "transparent",
+      color: colors.white,
       fontWeight: "500",
     },
     tickView: {
       flexDirection: "row",
-      marginRight: 10,
+      marginRight: spacing.base,
       alignItems: "center",
     },
   }),

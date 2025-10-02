@@ -1,5 +1,5 @@
 import { StyleSheet } from "react-native";
-import Color from "./Color";
+import { colors, borderRadius, shadows } from "./Theme";
 
 export default StyleSheet.create({
   fill: {
@@ -11,54 +11,33 @@ export default StyleSheet.create({
   },
   // Modern shadcn-inspired utility styles
   card: {
-    backgroundColor: Color.card,
-    borderRadius: 8,
+    backgroundColor: colors.white,
+    borderRadius: borderRadius.sm,
     borderWidth: 1,
-    borderColor: Color.border,
-    shadowColor: Color.shadow,
-    shadowOffset: {
-      width: 0,
-      height: 1,
-    },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
+    borderColor: colors.border,
+    ...shadows.sm,
   },
   surface: {
-    backgroundColor: Color.muted,
-    borderRadius: 6,
+    backgroundColor: colors.appSecondary,
+    borderRadius: borderRadius.sm,
   },
   border: {
     borderWidth: 1,
-    borderColor: Color.border,
+    borderColor: colors.border,
   },
   rounded: {
-    borderRadius: 6,
+    borderRadius: borderRadius.sm,
   },
   roundedLg: {
-    borderRadius: 8,
+    borderRadius: borderRadius.sm,
   },
   roundedXl: {
-    borderRadius: 12,
+    borderRadius: borderRadius.base,
   },
   shadow: {
-    shadowColor: Color.shadow,
-    shadowOffset: {
-      width: 0,
-      height: 1,
-    },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
+    ...shadows.sm,
   },
   shadowMd: {
-    shadowColor: Color.shadowMd,
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 6,
-    elevation: 3,
+    ...shadows.base,
   },
 });

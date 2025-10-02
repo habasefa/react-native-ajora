@@ -4,6 +4,7 @@ import { IMessage } from "./types";
 import * as Clipboard from "expo-clipboard";
 import { MaterialIcons } from "@expo/vector-icons";
 import { useChatContext } from "./AjoraContext";
+import Color from "./Color";
 
 export interface MessageActionsProps {
   message: IMessage;
@@ -59,7 +60,7 @@ const MessageActions: React.FC<MessageActionsProps> = ({
         hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         style={{ paddingHorizontal: 4, paddingVertical: 2 }}
       >
-        <MaterialIcons name="content-copy" size={20} color="#334155" />
+        <MaterialIcons name="content-copy" size={20} color={Color.gray700} />
       </TouchableOpacity>
       <TouchableOpacity
         onPress={() => regenerateMessage(message)}
@@ -67,7 +68,7 @@ const MessageActions: React.FC<MessageActionsProps> = ({
         hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         style={{ paddingHorizontal: 4, paddingVertical: 2 }}
       >
-        <MaterialIcons name="autorenew" size={20} color="#334155" />
+        <MaterialIcons name="autorenew" size={20} color={Color.gray700} />
       </TouchableOpacity>
 
       {/* Share */}
@@ -77,7 +78,7 @@ const MessageActions: React.FC<MessageActionsProps> = ({
         hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         style={{ paddingHorizontal: 4, paddingVertical: 2 }}
       >
-        <MaterialIcons name="share" size={20} color="#334155" />
+        <MaterialIcons name="share" size={20} color={Color.gray700} />
       </TouchableOpacity>
     </View>
   );

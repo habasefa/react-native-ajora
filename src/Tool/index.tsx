@@ -20,6 +20,12 @@ export function MessageToolCall<TMessage extends IMessage = IMessage>({
 }: MessageToolCallProps<TMessage>) {
   const { ajora } = useChatContext();
   const submitQuery = ajora?.submitQuery;
+
+  console.log("[Ajora]: MessageToolCall - Processing message:", {
+    messageId: currentMessage._id,
+    hasParts: !!currentMessage.parts,
+    partsCount: currentMessage.parts?.length || 0,
+  });
   // Find tool call parts in the message
   const toolCallParts =
     currentMessage.parts?.filter((part) => part.functionCall) || [];

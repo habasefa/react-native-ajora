@@ -5,6 +5,7 @@ export { default as DocSearchTool } from "./DocSearchTool";
 export const nativeTools = [
   "todo_list",
   "confirm_action",
+  "user_confirm_action",
   "search_web",
   "search_document",
 ];

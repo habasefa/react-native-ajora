@@ -115,11 +115,7 @@ export function Actions({
   const renderIcon = useCallback(() => {
     return (
       <View>
-        <MaterialIcons
-          name="attach-file"
-          size={18}
-          color="#374151" // Match WebSearchTool text color
-        />
+        <MaterialIcons name="attach-file" size={18} color={Color.gray700} />
       </View>
     );
   }, []);
@@ -157,18 +153,18 @@ const styles = StyleSheet.create({
   attachButton: {
     width: 36,
     height: 36,
-    backgroundColor: "#f8f9fa", // Match WebSearchTool background
-    borderRadius: 12, // Match WebSearchTool border radius
+    backgroundColor: Color.muted,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: "#e2e8f0", // Match WebSearchTool border color
+    borderColor: Color.border,
     alignItems: "center",
     justifyContent: "center",
   },
   modeButton: {
-    backgroundColor: "#f8f9fa", // Match WebSearchTool background
-    borderRadius: 12, // Match WebSearchTool border radius
+    backgroundColor: Color.muted,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: "#e2e8f0", // Match WebSearchTool border color
+    borderColor: Color.border,
     paddingHorizontal: 12,
     paddingVertical: 6,
     minWidth: 70,
@@ -177,7 +173,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   modeText: {
-    color: "#374151", // Match WebSearchTool text color
+    color: Color.gray700,
     fontWeight: "600",
     fontSize: 13,
     lineHeight: 18,
@@ -192,14 +188,14 @@ const styles = StyleSheet.create({
   },
   wrapper: {
     borderRadius: 13,
-    borderColor: "#b2b2b2",
+    borderColor: Color.defaultColor,
     borderWidth: 2,
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
   },
   iconText: {
-    color: "#b2b2b2",
+    color: Color.defaultColor,
     fontWeight: "bold",
     fontSize: 16,
     lineHeight: 16,

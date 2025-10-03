@@ -190,6 +190,141 @@ _Customizable interface and theming_
 
 ## 🔧 Configuration
 
+### API Endpoint Configuration
+
+React Native Ajora uses a flexible API service system that allows you to configure custom endpoints for your AI agent backend.
+
+#### Basic API Configuration
+
+```tsx
+import { ApiService } from "react-native-ajora";
+
+// Configure your custom API service
+const apiService = new ApiService({
+  baseUrl: "https://your-api-domain.com",
+  bearerToken: "your-auth-token", // optional
+  debug: true, // optional, enables logging
+});
+
+<Ajora
+  apiService={apiService}
+  onSend={(messages) => {
+    console.log("New messages:", messages);
+  }}
+/>
+```
+
+#### Environment-Based Configuration
+
+```tsx
+import { ApiService } from "react-native-ajora";
+
+const getApiConfig = () => {
+  const isDev = __DEV__;
+  
+  return {
+    baseUrl: isDev 
+      ? "http://localhost:3000" 
+      : "https://your-production-api.com",
+    bearerToken: process.env.API_TOKEN,
+    debug: isDev,
+  };
+};
+
+const apiService = new ApiService(getApiConfig());
+
+<Ajora apiService={apiService} />
+```
+
+#### Dynamic Configuration Updates
+
+```tsx
+import { defaultApiService } from "react-native-ajora";
+
+// Update configuration at runtime
+defaultApiService.updateConfig({
+  baseUrl: "https://new-endpoint.com",
+  bearerToken: "new-token",
+});
+
+// Get current configuration
+const currentConfig = defaultApiService.getConfig();
+console.log("Current API config:", currentConfig);
+```
+
+#### Custom Headers and Authentication
+
+```tsx
+const apiService = new ApiService({
+  baseUrl: "https://your-api.com",
+  bearerToken: "your-jwt-token",
+  debug: false,
+});
+
+// The API service automatically handles:
+// - Bearer token authentication
+// - JSON content types
+// - Error handling
+// - SSE connection management
+
+<Ajora
+  apiService={apiService}
+  onSend={handleSend}
+/>
+```
+
+#### API Endpoints Overview
+
+Your backend should implement these endpoints:
+
+| Endpoint | Method | Description |
+|----------|---------|-------------|
+| `/api/stream` | GET | Server-Sent Events stream for real-time AI responses |
+| `/api/threads` | GET | Retrieve all conversation threads |
+| `/api/threads` | POST | Create a new conversation thread |
+| `/api/threads/:id/messages` | GET | Get messages for a specific thread |
+
+#### SSE Stream Events
+
+The streaming endpoint supports these event types:
+
+```typescript
+// Events sent to your API
+type UserEvent = 
+  | { type: "text", message: IMessage, mode?: string }
+  | { type: "function_response", message: IMessage, mode?: string }
+  | { type: "regenerate", message: IMessage, mode?: string };
+
+// Events received from your API
+type AgentEvent = 
+  | { type: "message", message: IMessage }
+  | { type: "function_response", message: IMessage }
+  | { type: "thread_title", threadTitle: string | Thread }
+  | { type: "sources", sources: SourceProps[] }
+  | { type: "suggestions", suggestions: SuggestionProps[] }
+  | { type: "is_thinking", is_thinking: boolean }
+  | { type: "complete", is_complete: boolean }
+  | { type: "error", error: { thread_id: string, message_id: string, error: string } };
+```
+
+#### Error Handling
+
+```tsx
+const apiService = new ApiService({
+  baseUrl: "https://your-api.com",
+  bearerToken: "your-token",
+});
+
+<Ajora
+  apiService={apiService}
+  onError={(error) => {
+    console.error("API Error:", error);
+    // Handle connection errors, auth failures, etc.
+  }}
+  onSend={handleSend}
+/>
+```
+
 ### Keyboard Handling
 
 ```tsx

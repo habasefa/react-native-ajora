@@ -26,7 +26,8 @@ export type UserEvent =
       type: "regenerate";
       message: IMessage;
       mode?: string;
-    };
+    }
+  | { type: "tool_confirmation"; message: IMessage };
 
 // AgentEvent types from the API
 export interface MessageEvent {
@@ -152,7 +153,7 @@ export class ApiService {
       const queryParams = new URLSearchParams();
       queryParams.append("type", query.type);
       queryParams.append("message", JSON.stringify(query.message));
-      if (query.mode) {
+      if ("mode" in query && query.mode) {
         queryParams.append("mode", query.mode);
       }
 
@@ -298,6 +299,8 @@ export class ApiService {
             return (json as any[]).map((t) => ({
               id: t.id ?? t._id,
               title: t.title ?? "New Conversation",
+              createdAt: t.createdAt || t.created_at,
+              updatedAt: t.updatedAt || t.updated_at,
             })) as Thread[];
           }
 
@@ -306,6 +309,8 @@ export class ApiService {
             return (json.data as any[]).map((t) => ({
               id: t.id ?? t._id,
               title: t.title ?? "New Conversation",
+              createdAt: t.createdAt || t.created_at,
+              updatedAt: t.updatedAt || t.updated_at,
             })) as Thread[];
           }
 
@@ -345,6 +350,8 @@ export class ApiService {
           const normalized: Thread = {
             id: (t as any).id ?? (t as any)._id,
             title: (t as any).title ?? "New Conversation",
+            createdAt: (t as any).createdAt || (t as any).created_at,
+            updatedAt: (t as any).updatedAt || (t as any).updated_at,
           } as Thread;
           return normalized;
         } catch (e) {
@@ -410,6 +417,17 @@ export class ApiService {
         "[Ajora]: Retrieved messages:",
         JSON.stringify(data, null, 2)
       );
+
+      // Normalize message format to handle both old and new field names
+      if (data.messages && Array.isArray(data.messages)) {
+        data.messages = data.messages.map((message: any) => ({
+          ...message,
+          // Normalize createdAt/updatedAt fields
+          createdAt: message.createdAt || message.created_at,
+          updatedAt: message.updatedAt || message.updated_at,
+        }));
+      }
+
       return data;
     });
   }

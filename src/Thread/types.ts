@@ -1,6 +1,9 @@
 export interface Thread {
   id: string;
   title: string;
+  createdAt?: string;
+  updatedAt?: string;
+  // Legacy support for old field names
   created_at?: string;
   updated_at?: string;
 }

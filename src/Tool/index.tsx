@@ -4,7 +4,6 @@ import { IMessage } from "../types";
 import { MessageToolCallProps } from "./types";
 import styles from "./styles";
 import {
-  ConfirmTool,
   TodoListTool,
   DocSearchTool,
   nativeTools,
@@ -21,11 +20,6 @@ export function MessageToolCall<TMessage extends IMessage = IMessage>({
   const { ajora } = useChatContext();
   const submitQuery = ajora?.submitQuery;
 
-  console.log("[Ajora]: MessageToolCall - Processing message:", {
-    messageId: currentMessage._id,
-    hasParts: !!currentMessage.parts,
-    partsCount: currentMessage.parts?.length || 0,
-  });
   // Find tool call parts in the message
   const toolCallParts =
     currentMessage.parts?.filter((part) => part.functionCall) || [];
@@ -36,37 +30,87 @@ export function MessageToolCall<TMessage extends IMessage = IMessage>({
     return null;
   }
 
-  // Check if we have custom tool UI components available
-  if (tools && toolCallParts.length > 0) {
-    const customTools = tools();
-    return toolCallParts.map((part, index) => {
-      const toolCall = part.functionCall;
-      if (!toolCall) return null;
+  // Process each tool call part
+  return toolCallParts.map((part, index) => {
+    const toolCall = part.functionCall;
+    if (!toolCall) return null;
 
-      // Create a tool request object for custom tool UI
-      const toolRequest = {
-        callId: toolCall.id || `call_${index}`,
-        tool: {
-          name: toolCall.name || "unknown",
-          description: `Tool: ${toolCall.name || "unknown"}`,
-          args: toolCall.args || {},
-          response: toolCall.response, // Include response data if available
-        },
-      };
+    const toolName = toolCall.name || "";
+
+    // Create a tool request object
+    const toolRequest = {
+      callId: toolCall.id || `call_${index}`,
+      tool: {
+        name: toolName,
+        description: `Tool: ${toolName}`,
+        args: toolCall.args || {},
+        response: toolCall.response,
+      },
+    };
+
+    // Check if it's a native tool first
+    if (nativeTools.includes(toolName)) {
+      // Look for function response in the current message parts
+      const functionResponsePart = currentMessage.parts?.find(
+        (part) => part.functionResponse
+      );
+      const functionResponse = functionResponsePart?.functionResponse;
+
+      // Update tool request with response data
+      toolRequest.tool.response =
+        functionResponse?.response || toolCall.response;
+
+      switch (toolName) {
+        case "todo_list":
+          return (
+            <TodoListTool
+              key={`tool-${index}`}
+              message={currentMessage}
+              request={toolRequest}
+              submitQuery={submitQuery}
+            />
+          );
+
+        case "search_web":
+          return (
+            <WebSearchTool
+              key={`tool-${index}`}
+              message={currentMessage}
+              request={toolRequest}
+              submitQuery={submitQuery}
+            />
+          );
+        case "search_document":
+          return (
+            <DocSearchTool
+              key={`tool-${index}`}
+              message={currentMessage}
+              request={toolRequest}
+              submitQuery={submitQuery}
+            />
+          );
+        default:
+          return null;
+      }
+    }
+
+    // Check if we have custom tool UI components available
+    if (tools) {
+      const customTools = tools();
 
       // Try to find a matching custom tool component
       const matchingTool = customTools?.find((toolComponent: any) => {
         // Check if the tool component matches the tool name
         if (React.isValidElement(toolComponent)) {
           return (
-            toolComponent?.key === toolCall.name ||
-            (toolComponent?.props as any)?.toolName === toolCall.name
+            toolComponent?.key === toolName ||
+            (toolComponent?.props as any)?.toolName === toolName
           );
         } else {
           // Handle component classes
           return (
-            (toolComponent as any)?.name === toolCall.name ||
-            (toolComponent as any)?.displayName === toolCall.name
+            (toolComponent as any)?.name === toolName ||
+            (toolComponent as any)?.displayName === toolName
           );
         }
       });
@@ -76,6 +120,7 @@ export function MessageToolCall<TMessage extends IMessage = IMessage>({
           // Clone the element with the tool request props
           return React.cloneElement(matchingTool as React.ReactElement<any>, {
             key: `tool-${index}`,
+            message: currentMessage,
             request: toolRequest,
             submitQuery,
             onResponse: () => {
@@ -89,6 +134,7 @@ export function MessageToolCall<TMessage extends IMessage = IMessage>({
           return (
             <ToolComponent
               key={`tool-${index}`}
+              message={currentMessage}
               request={toolRequest}
               submitQuery={submitQuery}
               onResponse={() => {
@@ -98,106 +144,9 @@ export function MessageToolCall<TMessage extends IMessage = IMessage>({
           );
         }
       }
-
-      // Fallback to default tool call rendering
-      return (
-        <View key={`tool-${index}`} style={styles.container}>
-          <View style={styles.argsContainer}>
-            <Text style={styles.argsText}>
-              🔧 {toolCall.name || "Unknown Tool"}
-            </Text>
-            {toolCall.args && Object.keys(toolCall.args).length > 0 && (
-              <Text style={styles.argsSubText}>
-                {JSON.stringify(toolCall.args, null, 2)}
-              </Text>
-            )}
-          </View>
-        </View>
-      );
-    });
-  }
-
-  // Check if the tools are native tools
-  if (nativeTools.includes(toolCallParts[0].functionCall?.name || "")) {
-    const toolName = toolCallParts[0].functionCall?.name || "";
-    // Look for function response in the current message parts
-    const functionResponsePart = currentMessage.parts?.find(
-      (part) => part.functionResponse
-    );
-    const functionResponse = functionResponsePart?.functionResponse;
-
-    const toolRequest = {
-      callId: toolCallParts[0].functionCall?.id || `call_${0}`,
-      tool: {
-        name: toolName,
-        description: `Tool: ${toolName}`,
-        args: toolCallParts[0].functionCall?.args || {},
-        response:
-          functionResponse?.response || toolCallParts[0].functionCall?.response,
-      },
-    };
-    switch (toolName) {
-      case "todo_list":
-        return <TodoListTool request={toolRequest} submitQuery={submitQuery} />;
-      case "confirm_action":
-        return <ConfirmTool request={toolRequest} submitQuery={submitQuery} />;
-      case "search_web":
-        return (
-          <WebSearchTool request={toolRequest} submitQuery={submitQuery} />
-        );
-      case "search_document":
-        return (
-          <DocSearchTool request={toolRequest} submitQuery={submitQuery} />
-        );
-      default:
-        return null;
     }
-  }
 
-  return (
-    <View
-      style={[
-        styles.container,
-        position === "left" ? styles.leftContainer : styles.rightContainer,
-        containerStyle?.[position],
-      ]}
-    >
-      {toolCallParts.map((part, index) => {
-        const toolCall = part.functionCall;
-        if (!toolCall) return null;
-        return (
-          <View
-            key={index}
-            style={{ marginBottom: toolResponseParts.length > 0 ? 8 : 0 }}
-          >
-            <View style={styles.argsContainer}>
-              <Text style={styles.argsText}>
-                🔧 {toolCall.name || "Unknown Tool"}
-              </Text>
-              {toolCall.args && Object.keys(toolCall.args).length > 0 && (
-                <Text style={styles.argsSubText}>
-                  {JSON.stringify(toolCall.args, null, 2)}
-                </Text>
-              )}
-            </View>
-          </View>
-        );
-      })}
-
-      {toolResponseParts.map((part, index) => {
-        const toolResponse = part.functionResponse;
-        if (!toolResponse) return null;
-
-        return (
-          <View key={`response-${index}`} style={styles.responseContainer}>
-            <Text style={styles.responseText}>
-              {toolResponse.response
-                ? JSON.stringify(toolResponse.response, null, 2)
-                : "No response"}
-            </Text>
-          </View>
-        );
-      })}
-    </View>
-  );
+    // If no custom tool found and not a native tool, return null
+    return null;
+  });
 }

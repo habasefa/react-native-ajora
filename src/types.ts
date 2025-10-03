@@ -31,8 +31,8 @@ export interface IMessage {
   thread_id: string;
   role: "user" | "model";
   parts: Part[];
-  created_at?: string;
-  updated_at?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 /** A function call. */

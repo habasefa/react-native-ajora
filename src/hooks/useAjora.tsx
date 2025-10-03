@@ -10,7 +10,7 @@ import ApiService, {
   ThreadTitleEvent,
   UserEvent,
 } from "../api";
-import { v4 as uuidv4 } from "uuid";
+import uuid from "react-native-uuid";
 import { mergeFunctionCallsAndResponses } from "../utils/index";
 import { Thread } from "../Thread/types";
 import { ajoraReducer } from "./ajoraReducer";
@@ -213,10 +213,13 @@ const useAjora = ({
     // Add the current mode to the query
     const queryWithMode = { ...query, mode: ajora.mode };
 
-    dispatch({
-      type: "ADD_MESSAGES",
-      payload: { messages: [query.message] },
-    });
+    // If the query is a tool confirmation, do not add the message to the messages array as it already exists in the messages array
+    if (query.type !== "tool_confirmation") {
+      dispatch({
+        type: "ADD_MESSAGES",
+        payload: { messages: [query.message] },
+      });
+    }
     // Do not set isComplete locally; rely on server 'complete' events
     dispatch({ type: "SET_THINKING", payload: { isThinking: true } });
 
@@ -299,7 +302,7 @@ const useAjora = ({
         onError: (err: ErrorEvent) => {
           console.error("[Ajora]: Error in streaming:", err);
           const errorMessage: IMessage = {
-            _id: uuidv4(),
+            _id: uuid.v4(),
             thread_id: threadId,
             role: "model",
             parts: [
@@ -307,7 +310,7 @@ const useAjora = ({
                 text: "An error occurred. Please try again.",
               },
             ],
-            created_at: new Date().toISOString(),
+            createdAt: new Date().toISOString(),
           };
           console.error("[Ajora]:", errorMessage);
           dispatch({
@@ -329,11 +332,11 @@ const useAjora = ({
       console.error("[Ajora]:", error);
       dispatch({ type: "SET_THINKING", payload: { isThinking: false } });
       const errorMessage: IMessage = {
-        _id: uuidv4(),
+        _id: uuid.v4(),
         role: "model",
         thread_id: threadId,
         parts: [{ text: "Failed to send message. Please try again." }],
-        created_at: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
       };
       dispatch({
         type: "ADD_MESSAGES",

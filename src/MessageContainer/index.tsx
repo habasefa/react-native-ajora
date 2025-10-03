@@ -258,7 +258,7 @@ function MessageContainer<TMessage extends IMessage = IMessage>(
         role: "user",
         thread_id: activeThreadId || "",
         parts: [{ text: questionItem.question }],
-        created_at: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
       };
 
       // Use onSend if available, otherwise fallback to submitQuery
@@ -432,8 +432,10 @@ function MessageContainer<TMessage extends IMessage = IMessage>(
         const newValue = {
           y,
           height,
-          created_at: new Date(
-            (props.item as IMessage).created_at || new Date()
+          createdAt: new Date(
+            (props.item as IMessage).createdAt ||
+              (props.item as IMessage).created_at ||
+              new Date()
           ).getTime(),
         };
 
@@ -453,7 +455,7 @@ function MessageContainer<TMessage extends IMessage = IMessage>(
 
           for (const [key, item] of Object.entries(value))
             if (
-              isSameDay(newValue.created_at, item.createdAt) &&
+              isSameDay(newValue.createdAt, item.createdAt) &&
               item.y <= newValue.y
             ) {
               delete value[key];
@@ -520,13 +522,13 @@ function MessageContainer<TMessage extends IMessage = IMessage>(
       <AnimatedFlatList
         extraData={extraData}
         ref={forwardRef as React.Ref<FlatList<unknown>>}
-        keyExtractor={keyExtractor as (item: unknown, index: number) => string}
+        keyExtractor={keyExtractor as any}
         data={messagesByThread}
         renderItem={renderItem as any}
         inverted={true}
         automaticallyAdjustContentInsets={false}
         style={stylesCommon.fill}
-        {...invertibleScrollViewProps}
+        {...(invertibleScrollViewProps as any)}
         ListEmptyComponent={renderChatEmpty}
         ListFooterComponent={ListHeaderComponent}
         ListHeaderComponent={ListFooterComponent}

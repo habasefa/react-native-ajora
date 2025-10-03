@@ -119,7 +119,7 @@ export const ajoraReducer = (state: AjoraState, action: Action): AjoraState => {
           ...message,
           // Ensure stable _id and createdAt from existing when streaming
           _id: existingMessage._id,
-          created_at: existingMessage.created_at,
+          createdAt: existingMessage.createdAt || existingMessage.created_at,
           parts: mergedParts,
         };
       } else {
@@ -180,7 +180,7 @@ export const ajoraReducer = (state: AjoraState, action: Action): AjoraState => {
           ...message,
           // Ensure stable _id and createdAt from existing when streaming
           _id: existingMessage._id,
-          created_at: existingMessage.created_at,
+          createdAt: existingMessage.createdAt || existingMessage.created_at,
           parts: mergedParts,
         };
       } else {

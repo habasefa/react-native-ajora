@@ -1,6 +1,6 @@
 {
   "name": "react-native-ajora",
-  "version": "0.0.17",
+  "version": "0.0.24",
   "description": "The most complete AI agent UI for React Native",
   "keywords": [
     "android",
@@ -76,7 +76,8 @@
     "react-native-markdown-display": "^7.0.2",
     "react-native-mathjax-svg": "^0.9.9",
     "react-native-parsed-text": "^0.0.22",
-    "react-native-sse": "^1.2.1"
+    "react-native-sse": "^1.2.1",
+    "react-native-uuid": "^2.0.3"
   },
   "devDependencies": {
     "@babel/core": "^7.26.10",
@@ -89,7 +90,6 @@
     "@types/react": "^19.0.10",
     "@types/react-dom": "^19.0.4",
     "@types/react-native": "^0.72.8",
-    "@types/uuid": "^10.0.0",
     "@typescript-eslint/eslint-plugin": "^8.28.0",
     "@typescript-eslint/parser": "^8.28.0",
     "babel-jest": "^29.7.0",

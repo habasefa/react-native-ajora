@@ -8,14 +8,17 @@ import {
 } from "react-native";
 import { ToolRequest, ToolResponse } from "../Tool/types";
 import { UserEvent } from "../api";
+import { IMessage } from "../types";
 
 interface DocSearchToolProps {
+  message: IMessage;
   request: ToolRequest;
   onResponse?: (response: ToolResponse) => void;
   submitQuery?: (query: UserEvent) => Promise<void>;
 }
 
 const DocSearchTool: React.FC<DocSearchToolProps> = ({
+  message,
   request,
   onResponse,
   submitQuery: _submitQuery,

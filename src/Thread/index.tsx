@@ -8,7 +8,7 @@ import {
   TextInput,
 } from "react-native";
 import styles, { DRAWER_WIDTH } from "./styles";
-import { ThreadItem, ThreadProps } from "./types";
+import { Thread as ThreadType, ThreadProps } from "./types";
 import { MaterialIcons } from "@expo/vector-icons";
 import { useChatContext } from "../AjoraContext";
 import { colors } from "../Theme";
@@ -78,7 +78,7 @@ export function Thread({
     onClose();
   };
 
-  type ThreadListItem = Thread & {
+  type ThreadListItem = ThreadType & {
     lastMessage?: { parts?: { text?: string }[] };
   };
 
@@ -112,14 +112,14 @@ export function Thread({
             {item.lastMessage.parts?.[0]?.text}
           </Text>
         )}
-        {item.created_at && (
+        {(item.createdAt || item.created_at) && (
           <Text
             style={[
               styles.threadTimestamp,
               item.id === activeThreadId && styles.activeThreadTimestamp,
             ]}
           >
-            {formatTimestamp(item.created_at)}
+            {formatTimestamp(item.createdAt || item.created_at)}
           </Text>
         )}
       </View>
@@ -154,8 +154,14 @@ export function Thread({
       })
       .sort((a, b) => {
         // Sort in descending order (most recent first)
-        const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
-        const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
+        const dateA =
+          a.createdAt || a.created_at
+            ? new Date(a.createdAt || a.created_at!).getTime()
+            : 0;
+        const dateB =
+          b.createdAt || b.created_at
+            ? new Date(b.createdAt || b.created_at!).getTime()
+            : 0;
         return dateB - dateA;
       });
   }, [threads, searchQuery]);

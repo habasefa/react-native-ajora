@@ -17,6 +17,7 @@ import Animated, {
 import { ToolRequest, ToolResponse } from "../Tool/types";
 import { UserEvent } from "../api";
 import MaterialIcons from "@expo/vector-icons/build/MaterialIcons";
+import { IMessage } from "../types";
 
 // Get responsive card width (80% of screen width, max 400px, min 280px)
 const getCardWidth = () => {
@@ -26,12 +27,14 @@ const getCardWidth = () => {
 };
 
 interface WebSearchToolProps {
+  message: IMessage;
   request: ToolRequest;
   onResponse?: (response: ToolResponse) => void;
   submitQuery?: (query: UserEvent) => Promise<void>;
 }
 
 const WebSearchTool: React.FC<WebSearchToolProps> = ({
+  message,
   request,
   onResponse,
   submitQuery: _submitQuery,

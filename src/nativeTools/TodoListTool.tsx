@@ -12,6 +12,7 @@ import { UserEvent } from "../api";
 import Color from "../Color";
 import MaterialIcons from "@expo/vector-icons/build/MaterialIcons";
 import LoadingAnimation from "../LoadingAnimation";
+import { IMessage } from "../types";
 
 // Get responsive card width (90% of screen width, max 400px, min 280px)
 const getCardWidth = () => {
@@ -21,12 +22,14 @@ const getCardWidth = () => {
 };
 
 interface TodoListToolProps {
+  message: IMessage;
   request: ToolRequest;
   onResponse?: (response: ToolResponse) => void;
   submitQuery?: (query: UserEvent) => Promise<void>;
 }
 
 const TodoListTool: React.FC<TodoListToolProps> = ({
+  message,
   request,
   submitQuery: _submitQuery,
 }) => {

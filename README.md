@@ -158,6 +158,98 @@ const TimeTool = {
 <Ajora renderTools={() => [TimeTool]} />;
 ```
 
+### API Service
+
+The `ApiService` class provides a comprehensive interface for communicating with AI agent servers via REST endpoints and Server-Sent Events (SSE) for real-time streaming.
+
+#### Configuration
+
+```tsx
+import { ApiService } from "react-native-ajora";
+
+const apiService = new ApiService({
+  baseUrl: "https://your-api-server.com",
+  bearerToken: "your-auth-token", // Optional
+  debug: true, // Optional, enables detailed logging
+});
+```
+
+#### Base URL Handling
+
+The `baseUrl` you provide is intelligently processed:
+
+- **Automatic `/api` appending**: If your URL doesn't contain `/api` anywhere, it will be automatically appended
+  - `"https://myserver.com"` → `"https://myserver.com/api"`
+  - `"https://myserver.com/v1"` → `"https://myserver.com/v1/api"`
+  
+- **Preserves existing API paths**: If your URL already contains `/api`, it remains unchanged
+  - `"https://myserver.com/api"` → `"https://myserver.com/api"`
+  - `"https://myserver.com/api/v3/agent"` → `"https://myserver.com/api/v3/agent"`
+
+- **Trailing slash normalization**: Trailing slashes are automatically removed for consistency
+
+#### Streaming Responses
+
+```tsx
+const cleanup = apiService.streamResponse(
+  {
+    type: "text",
+    message: {
+      _id: "1",
+      role: "user",
+      parts: [{ text: "Hello, AI!" }],
+      createdAt: new Date(),
+    },
+  },
+  {
+    onChunk: (event) => {
+      console.log("New message chunk:", event.message);
+    },
+    onFunctionResponse: (event) => {
+      console.log("Tool response:", event.message);
+    },
+    onComplete: (event) => {
+      console.log("Stream completed");
+    },
+    onError: (error) => {
+      console.error("Stream error:", error);
+    },
+  }
+);
+
+// Clean up when done
+cleanup();
+```
+
+#### Thread Management
+
+```tsx
+// Get all threads
+const threads = await apiService.getThreads();
+
+// Create a new thread
+const newThread = await apiService.createThread("My New Conversation");
+
+// Get messages from a thread
+const { messages, pagination } = await apiService.getMessages("thread-id", 20, 0);
+```
+
+#### Current Feature Support
+
+**✅ Currently Supported:**
+- **Text Messages**: Full support for text-based conversations
+- **Tool/Function Calls**: Complete integration with AI tools and function calling
+- **Server-Sent Events**: Real-time streaming responses
+- **Thread Management**: Multi-conversation support
+- **Authentication**: Bearer token support
+
+**🚧 Planned Support (Coming Soon):**
+- **Image Messages**: Upload and display images in conversations
+- **Audio Messages**: Voice message recording and playback
+- **File Attachments**: Support for document and file sharing
+
+The UI components are already built to handle these media types, but the API integration is still being developed. You can see placeholder methods in the codebase that will be activated once server-side support is ready.
+
 #### Custom Styling
 
 ```tsx

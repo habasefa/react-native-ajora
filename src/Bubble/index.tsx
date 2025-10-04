@@ -1,5 +1,5 @@
 import React, { JSX, useCallback } from "react";
-import { Share, TouchableWithoutFeedback, View, Text } from "react-native";
+import { Share, TouchableWithoutFeedback, View } from "react-native";
 
 import { useChatContext } from "../AjoraContext";
 import { MessageText } from "../MessageText";
@@ -221,18 +221,18 @@ const Bubble = <TMessage extends IMessage = IMessage>(
   const renderBubbleContent = useCallback(() => {
     return (
       <View>
-        {renderMessageImage()}
-        {renderMessageAudio()}
+        {/* {renderMessageImage()} */}
+        {/*TODO: {renderMessageAudio()} */}
         {renderMessageText()}
         {renderMessageToolCall()}
-        {renderMessageFile()}
+        {/*TODO {renderMessageFile()} */}
       </View>
     );
   }, [
-    renderMessageImage,
-    renderMessageAudio,
+    // renderMessageImage,
+    // renderMessageAudio,
     renderMessageText,
-    renderMessageFile,
+    // renderMessageFile,
     renderMessageToolCall,
   ]);
 

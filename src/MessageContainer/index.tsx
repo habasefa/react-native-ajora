@@ -28,7 +28,7 @@ import ThinkingIndicator from "../ThinkingIndicator";
 import { MessageContainerProps, DaysPositions } from "./types";
 import { ItemProps } from "./components/Item/types";
 
-import { warning } from "../logging";
+import { error, warning } from "../logging";
 import stylesCommon from "../styles";
 import styles from "./styles";
 import { isSameDay } from "../utils";
@@ -43,7 +43,6 @@ function MessageContainer<TMessage extends IMessage = IMessage>(
   props: MessageContainerProps<TMessage>
 ) {
   const {
-    role = "model",
     renderChatEmpty: renderChatEmptyProp,
     onLoadEarlier,
     loadEarlier = false,
@@ -67,10 +66,17 @@ function MessageContainer<TMessage extends IMessage = IMessage>(
     onSend,
   } = props;
 
+  // Ajora context
   const { ajora } = useChatContext();
+  const {
+    activeThreadId,
+    messagesByThread,
+    submitQuery,
+    isLoadingMessages,
+    isThinking,
+  } = ajora;
 
-  const { activeThreadId, messagesByThread, submitQuery, isLoadingMessages } =
-    ajora;
+  // Role
   const scrollToBottomOpacity = useSharedValue(0);
   const [isScrollToBottomVisible, setIsScrollToBottomVisible] = useState(false);
   const scrollToBottomStyleAnim = useAnimatedStyle(
@@ -87,13 +93,13 @@ function MessageContainer<TMessage extends IMessage = IMessage>(
   const renderThinkingIndicator = useCallback(() => {
     if (renderThinkingIndicatorProp) return renderThinkingIndicatorProp();
 
-    return <ThinkingIndicator isThinking={ajora.isThinking} />;
-  }, [ajora.isThinking, renderThinkingIndicatorProp]);
+    return <ThinkingIndicator isThinking={isThinking} />;
+  }, [isThinking, renderThinkingIndicatorProp]);
 
   const ListFooterComponent = useMemo(() => {
-    if (renderFooterProp) return <>{renderFooterProp(props)}</>;
+    if (renderFooterProp) return renderFooterProp(props);
 
-    return <>{renderThinkingIndicator()}</>;
+    return renderThinkingIndicator();
   }, [renderFooterProp, renderThinkingIndicator, props]);
 
   const renderLoadEarlier = useCallback(() => {
@@ -107,19 +113,24 @@ function MessageContainer<TMessage extends IMessage = IMessage>(
   }, [loadEarlier, renderLoadEarlierProp, props]);
 
   const scrollTo = useCallback(
-    (options: { animated?: boolean; offset: number }) => {
+    (
+      options: { animated?: boolean; offset: number } = {
+        animated: true,
+        offset: 0,
+      }
+    ) => {
       if (forwardRef?.current && options)
         forwardRef.current.scrollToOffset(options);
     },
     [forwardRef]
   );
 
-  const doScrollToBottom = useCallback(
-    (animated: boolean = true) => {
-      scrollTo({ offset: 0, animated });
-    },
-    [scrollTo]
-  );
+  // const doScrollToBottom = useCallback(
+  //   (animated: boolean = true) => {
+  //     scrollTo({ offset: 0, animated });
+  //   },
+  //   [scrollTo]
+  // );
 
   const handleOnScroll = useCallback(
     (event: ReanimatedScrollEvent) => {
@@ -161,21 +172,19 @@ function MessageContainer<TMessage extends IMessage = IMessage>(
     }: ListRenderItemInfo<unknown>): React.ReactElement | null => {
       const messageItem = item as TMessage;
 
-      if (!messageItem._id && messageItem._id !== "0")
-        warning("Ajora: `_id` is missing for message", JSON.stringify(item));
+      if (!messageItem._id)
+        error("Ajora: `_id` is missing for message", JSON.stringify(item));
 
-      if (!role) {
-        warning(
+      if (!messageItem.role) {
+        error(
           "Ajora: `role` is missing for message",
           JSON.stringify(messageItem)
         );
-
-        messageItem.role = "model";
       }
 
       const { ...restProps } = props;
 
-      if (messagesByThread && role) {
+      if (messagesByThread) {
         const previousMessage = messagesByThread[index + 1] || {};
         const nextMessage = messagesByThread[index - 1] || {};
 
@@ -193,25 +202,30 @@ function MessageContainer<TMessage extends IMessage = IMessage>(
         return <Item<TMessage> {...messageProps} />;
       }
 
-      return null;
+      return (
+        <View style={styles.emptyChatContainer}>
+          <View style={styles.emptyChatContainerInverted}>
+            <MaterialIcons
+              name="chat-bubble-outline"
+              size={70}
+              color={Color.gray500}
+              style={styles.emptyChatIcon}
+            />
+            <Text style={styles.emptyChatTitle}>
+              No messages found in this thread
+            </Text>
+          </View>
+        </View>
+      );
     },
-    [props, scrolledY, daysPositions, listHeight, role]
+    [props, scrolledY, daysPositions, listHeight]
   );
 
   const renderChatEmpty = useCallback(() => {
     if (isLoadingMessages) {
       return (
         <View
-          style={[
-            styles.emptyChatContainer,
-            {
-              ...(Platform.OS === "ios"
-                ? { transform: [{ scaleY: -1 }] }
-                : {
-                    transform: [{ scaleY: -1 }, { scaleX: -1 }],
-                  }),
-            },
-          ]}
+          style={[styles.emptyChatContainer, styles.emptyChatContainerInverted]}
         >
           <View style={styles.emptyChatContent}>
             <ActivityIndicator size="small" color={Color.gray500} />
@@ -224,27 +238,30 @@ function MessageContainer<TMessage extends IMessage = IMessage>(
     }
     if (renderSuggestedQuestions) return renderSuggestedQuestions();
 
-    const suggestedQuestions = [
+    const suggestedQuestions: {
+      title: string;
+      question: string;
+      icon?: keyof typeof MaterialIcons.glyphMap;
+    }[] = [
       {
-        title: "Nutrition",
-        question: "What does a nutritionist do?",
-        icon: "restaurant",
-      },
-      {
-        title: "Culture",
-        question:
-          "Whose staple food is most liked by foreigners: Italy, England, or Germany?",
-        icon: "public",
-      },
-      {
-        title: "History",
-        question: "Who created burger?",
-        icon: "history",
+        title: "Get started",
+        question: "Where is Ajora Falls located?",
+        icon: "water",
       },
       {
         title: "Philosophy",
         question: "What is the chief end of life?",
-        icon: "lightbulb",
+        icon: "public",
+      },
+      {
+        title: "Democracy",
+        question: "Famous quote from the Declaration of Independence",
+        icon: "history",
+      },
+      {
+        title: "Science",
+        question: "How is the speed of light measured?",
+        icon: "science",
       },
     ];
 
@@ -261,47 +278,25 @@ function MessageContainer<TMessage extends IMessage = IMessage>(
         createdAt: new Date().toISOString(),
       };
 
-      // Use onSend if available, otherwise fallback to submitQuery
       if (onSend) {
         onSend(newMessage, true);
       } else {
-        submitQuery({
-          type: "text",
-          message: newMessage,
-        });
+        warning("[MessageContainer]: `onSend` is not provided");
       }
     };
 
     if (renderChatEmptyProp)
       return (
         <View
-          style={[
-            styles.emptyChatContainer,
-            {
-              ...(Platform.OS === "ios"
-                ? { transform: [{ scaleY: -1 }] }
-                : {
-                    transform: [{ scaleY: -1 }, { scaleX: -1 }],
-                  }),
-            },
-          ]}
+          style={[styles.emptyChatContainer, styles.emptyChatContainerInverted]}
         >
-          <View>{renderChatEmptyProp()}</View>
+          {renderChatEmptyProp()}
         </View>
       );
 
     return (
       <View
-        style={[
-          styles.emptyChatContainer,
-          {
-            ...(Platform.OS === "ios"
-              ? { transform: [{ scaleY: -1 }] }
-              : {
-                  transform: [{ scaleY: -1 }, { scaleX: -1 }],
-                }),
-          },
-        ]}
+        style={[styles.emptyChatContainer, styles.emptyChatContainerInverted]}
       >
         <View style={styles.emptyChatContent}>
           <MaterialIcons
@@ -363,14 +358,21 @@ function MessageContainer<TMessage extends IMessage = IMessage>(
   const renderScrollBottomComponent = useCallback(() => {
     if (scrollToBottomComponentProp) return scrollToBottomComponentProp();
 
-    return <Text style={styles.scrollToBottomIcon}>↓</Text>;
+    return (
+      <MaterialIcons
+        name="arrow-downward"
+        size={24}
+        style={styles.scrollToBottomIcon}
+        color={Color.gray500}
+      />
+    );
   }, [scrollToBottomComponentProp]);
 
   const renderScrollToBottomWrapper = useCallback(() => {
     if (!isScrollToBottomVisible) return null;
 
     return (
-      <TouchableOpacity onPress={() => doScrollToBottom()}>
+      <TouchableOpacity onPress={() => scrollTo()}>
         <Animated.View
           style={[
             stylesCommon.centerItems,
@@ -386,7 +388,7 @@ function MessageContainer<TMessage extends IMessage = IMessage>(
   }, [
     scrollToBottomStyle,
     renderScrollBottomComponent,
-    doScrollToBottom,
+    scrollTo,
     scrollToBottomStyleAnim,
     isScrollToBottomVisible,
   ]);
@@ -396,14 +398,14 @@ function MessageContainer<TMessage extends IMessage = IMessage>(
       listHeight.value = event.nativeEvent.layout.height;
 
       // Always scroll to bottom when messages are loaded
-      if (messagesByThread?.length)
+      if (activeThreadId)
         setTimeout(() => {
-          doScrollToBottom(false);
+          scrollTo({ animated: false, offset: 0 });
         }, 500);
 
       listViewProps?.onLayout?.(event);
     },
-    [messagesByThread, doScrollToBottom, listHeight, listViewProps]
+    [activeThreadId, scrollTo, listHeight, listViewProps]
   );
 
   const onEndReached = useCallback(() => {
@@ -418,12 +420,12 @@ function MessageContainer<TMessage extends IMessage = IMessage>(
   }, [infiniteScroll, loadEarlier, onLoadEarlier, isLoadingEarlier]);
 
   const keyExtractor = useCallback(
-    (item: unknown, _index: number) => (item as TMessage)._id.toString(),
+    (item: IMessage, _index: number) => item._id.toString(),
     []
   );
 
   const renderCell = useCallback(
-    (props: CellRendererProps<unknown>) => {
+    (props: CellRendererProps<IMessage>) => {
       const handleOnLayout = (event: LayoutChangeEvent) => {
         props.onLayout?.(event);
 
@@ -432,11 +434,7 @@ function MessageContainer<TMessage extends IMessage = IMessage>(
         const newValue = {
           y,
           height,
-          createdAt: new Date(
-            (props.item as IMessage).createdAt ||
-              (props.item as IMessage).created_at ||
-              new Date()
-          ).getTime(),
+          createdAt: new Date(props.item.createdAt || new Date()).getTime(),
         };
 
         daysPositions.modify((value) => {
@@ -522,9 +520,9 @@ function MessageContainer<TMessage extends IMessage = IMessage>(
       <AnimatedFlatList
         extraData={extraData}
         ref={forwardRef as React.Ref<FlatList<unknown>>}
-        keyExtractor={keyExtractor as any}
+        keyExtractor={keyExtractor}
         data={messagesByThread}
-        renderItem={renderItem as any}
+        renderItem={renderItem}
         inverted={true}
         automaticallyAdjustContentInsets={false}
         style={stylesCommon.fill}

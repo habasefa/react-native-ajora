@@ -1,4 +1,4 @@
-import React, { forwardRef, useCallback, useMemo } from "react";
+import React, { useCallback, useMemo } from "react";
 import { LayoutChangeEvent, View } from "react-native";
 import { IMessage } from "../../../types";
 import Message, { MessageProps } from "../../../Message";
@@ -10,7 +10,6 @@ import Animated, {
 } from "react-native-reanimated";
 import { DaysPositions } from "../../types";
 import { ItemProps } from "./types";
-
 export * from "./types";
 
 // y-position of current scroll position relative to the bottom of the day container. (since we have inverted list it is bottom)
@@ -106,8 +105,8 @@ const Item = <TMessage extends IMessage>(props: ItemProps<TMessage>) => {
   const dayBottomMargin = useMemo(() => 10, []);
 
   const createdAt = useMemo(
-    () => new Date(props.currentMessage.createdAt).getTime(),
-    [props.currentMessage.createdAt]
+    () => new Date(props?.currentMessage?.createdAt || new Date()).getTime(),
+    [props?.currentMessage?.createdAt]
   );
 
   const relativeScrolledPositionToBottomOfDay =

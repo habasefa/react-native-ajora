@@ -1,4 +1,4 @@
-import { Dimensions, StyleSheet } from "react-native";
+import { Dimensions, Platform, StyleSheet } from "react-native";
 import Color from "../Color";
 
 export default StyleSheet.create({
@@ -11,6 +11,13 @@ export default StyleSheet.create({
     justifyContent: "flex-start",
     paddingHorizontal: 0,
     paddingVertical: 4,
+  },
+  emptyChatContainerInverted: {
+    ...(Platform.OS === "ios"
+      ? { transform: [{ scaleY: -1 }] }
+      : {
+          transform: [{ scaleY: -1 }, { scaleX: -1 }],
+        }),
   },
   // emptyChatContainer: {
   //   flex: 1,

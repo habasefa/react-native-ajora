@@ -54,13 +54,6 @@ function Ajora<TMessage extends IMessage = IMessage>(
 ) {
   const {
     initialText = "",
-
-    // "random" function from here: https://stackoverflow.com/a/8084248/3452513
-    // we do not use uuid since it would add extra native dependency (https://www.npmjs.com/package/react-native-get-random-values)
-    // lib's user can decide which algorithm to use and pass it as a prop
-    messageIdGenerator = () => (Math.random() + 1).toString(36).substring(7),
-
-    role = "user",
     onSend,
     locale = "en",
     renderLoading,
@@ -103,7 +96,6 @@ function Ajora<TMessage extends IMessage = IMessage>(
   } = ajora;
 
   const currentThread = threads.find((thread) => thread.id === activeThreadId);
-
   const actionSheetRef = useRef<ActionSheetProviderRef>(null);
 
   const messageContainerRef = useMemo(
@@ -209,7 +201,7 @@ function Ajora<TMessage extends IMessage = IMessage>(
   );
 
   // Header and Thread handlers
-  const handleHeaderMenuPress = useCallback(() => {
+  const handleHeaderLeftPress = useCallback(() => {
     if (showThreads) {
       setIsThreadDrawerOpen(true);
     }
@@ -218,7 +210,7 @@ function Ajora<TMessage extends IMessage = IMessage>(
     }
   }, [showThreads, onHeaderLeftPress]);
 
-  const handleHeaderPlusPress = useCallback(() => {
+  const handleHeaderRightPress = useCallback(() => {
     if (onHeaderRightPress) {
       onHeaderRightPress();
     } else {
@@ -269,54 +261,32 @@ function Ajora<TMessage extends IMessage = IMessage>(
   ]);
 
   const _onSend = useCallback(
-    (messages: TMessage[] = [], shouldResetInputToolbar = false) => {
-      if (!Array.isArray(messages)) messages = [messages];
-
-      const newMessages: TMessage[] = messages.map((message) => {
-        return {
-          ...message,
-          role: "user",
-          createdAt: new Date(),
-          _id: messageIdGenerator?.(),
-        };
-      });
-
+    (messages: TMessage[] = [], shouldResetInputToolbar: boolean = false) => {
       if (shouldResetInputToolbar === true) {
         disableThinking();
-
         resetInputToolbar();
       }
 
       // Send the message to the server
-      if (newMessages.length > 0) {
+      if (messages.length > 0) {
         submitQuery({
           type: "text",
-          message: newMessages[0],
+          message: messages[0],
         });
       }
 
-      onSend?.(newMessages);
+      onSend?.(messages);
 
       setTimeout(() => scrollToBottom(), 10);
     },
     [
-      messageIdGenerator,
       onSend,
-      role,
       resetInputToolbar,
       disableThinking,
       scrollToBottom,
       submitQuery,
       activeThreadId,
     ]
-  );
-
-  const handleMessageContainerSend = useCallback(
-    (messages: IMessage | IMessage[], shouldResetInputToolbar?: boolean) => {
-      const messageArray = Array.isArray(messages) ? messages : [messages];
-      _onSend(messageArray as TMessage[], shouldResetInputToolbar);
-    },
-    [_onSend]
   );
 
   const renderMessages = useMemo(() => {
@@ -326,20 +296,13 @@ function Ajora<TMessage extends IMessage = IMessage>(
 
     return (
       <View style={[stylesCommon.fill, messagesContainerStyle]}>
-        {showHeader && (
-          <Header
-            onLeftPress={handleHeaderMenuPress}
-            onRightPress={handleHeaderPlusPress}
-            {...headerProps}
-          />
-        )}
         <MessageContainer<TMessage>
           {...messagesContainerProps}
           invertibleScrollViewProps={{
             keyboardShouldPersistTaps,
           }}
           forwardRef={messageContainerRef}
-          onSend={handleMessageContainerSend}
+          onSend={_onSend}
         />
         {renderChatFooter?.()}
       </View>
@@ -353,10 +316,10 @@ function Ajora<TMessage extends IMessage = IMessage>(
     renderChatFooter,
     showHeader,
     currentThread,
-    handleHeaderMenuPress,
-    handleHeaderPlusPress,
+    handleHeaderLeftPress,
+    handleHeaderRightPress,
     headerProps,
-    handleMessageContainerSend,
+    _onSend,
   ]);
 
   const onInputSizeChanged = useCallback(
@@ -507,6 +470,13 @@ function Ajora<TMessage extends IMessage = IMessage>(
     <AjoraContext.Provider value={contextValues}>
       <ActionSheetProvider ref={actionSheetRef}>
         <View style={stylesCommon.fill}>
+          {showHeader && (
+            <Header
+              onLeftPress={handleHeaderLeftPress}
+              onRightPress={handleHeaderRightPress}
+              {...headerProps}
+            />
+          )}
           <View
             testID={TEST_ID.WRAPPER}
             style={[stylesCommon.fill, styles.contentContainer]}

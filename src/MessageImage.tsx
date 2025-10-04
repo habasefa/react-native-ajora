@@ -86,7 +86,6 @@ export interface MessageImageProps<TMessage extends IMessage> {
   imageStyle?: StyleProp<ImageStyle>;
   imageProps?: Partial<ImageProps>;
   lightboxProps?: LightboxProps;
-  onPress?: () => void;
 }
 
 export function MessageImage<TMessage extends IMessage = IMessage>({
@@ -96,18 +95,11 @@ export function MessageImage<TMessage extends IMessage = IMessage>({
   imageSourceProps,
   imageStyle,
   currentMessage,
-  onPress,
 }: MessageImageProps<TMessage>) {
   if (currentMessage == null) return null;
 
   const imagePart = currentMessage.parts?.find((part) => part.image);
   const imageUri = imagePart?.image;
-
-  const handlePress = () => {
-    if (onPress) {
-      onPress();
-    }
-  };
 
   return (
     <View style={[styles.container, containerStyle]}>

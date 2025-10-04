@@ -1,5 +1,4 @@
 import { ViewStyle, LayoutChangeEvent } from "react-native";
-import { DayProps } from "../Day";
 import { IMessage, LeftRightStyle } from "../types";
 import { BubbleProps } from "../Bubble";
 import { MessageActionsProps } from "../MessageActions";
@@ -13,8 +12,6 @@ export interface MessageProps<TMessage extends IMessage> {
   containerStyle?: LeftRightStyle<ViewStyle>;
   renderBubble?(props: BubbleProps<TMessage>): React.ReactNode;
   renderMessageActions?(props: MessageActionsProps): React.ReactNode;
-  renderDay?(props: DayProps): React.ReactNode;
-  tools?(): any[];
   shouldUpdateMessage?(
     props: MessageProps<IMessage>,
     nextProps: MessageProps<IMessage>

@@ -23,7 +23,6 @@ let Message: React.FC<MessageProps<IMessage>> = (
     position,
     containerStyle,
     renderMessageActions,
-    tools,
   } = props;
 
   const renderBubbleComponent = useCallback(() => {

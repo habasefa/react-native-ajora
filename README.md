@@ -241,7 +241,6 @@ The `baseUrl` you provide is intelligently processed:
 - **Automatic `/api` appending**: If your URL doesn't contain `/api` anywhere, it will be automatically appended
   - `"https://myserver.com"` → `"https://myserver.com/api"`
   - `"https://myserver.com/v1"` → `"https://myserver.com/v1/api"`
-  
 - **Preserves existing API paths**: If your URL already contains `/api`, it remains unchanged
   - `"https://myserver.com/api"` → `"https://myserver.com/api"`
   - `"https://myserver.com/api/v3/agent"` → `"https://myserver.com/api/v3/agent"`
@@ -291,12 +290,17 @@ const threads = await apiService.getThreads();
 const newThread = await apiService.createThread("My New Conversation");
 
 // Get messages from a thread
-const { messages, pagination } = await apiService.getMessages("thread-id", 20, 0);
+const { messages, pagination } = await apiService.getMessages(
+  "thread-id",
+  20,
+  0
+);
 ```
 
 #### Current Feature Support
 
 **✅ Currently Supported:**
+
 - **Text Messages**: Full support for text-based conversations
 - **Tool/Function Calls**: Complete integration with AI tools and function calling
 - **Server-Sent Events**: Real-time streaming responses
@@ -304,6 +308,7 @@ const { messages, pagination } = await apiService.getMessages("thread-id", 20, 0
 - **Authentication**: Bearer token support
 
 **🚧 Planned Support (Coming Soon):**
+
 - **Image Messages**: Upload and display images in conversations
 - **Audio Messages**: Voice message recording and playback
 - **File Attachments**: Support for document and file sharing

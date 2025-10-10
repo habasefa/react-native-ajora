@@ -1,6 +1,6 @@
 import { Thread } from "../Thread/types";
 import { IMessage } from "../types";
-import { AjoraState } from "./useAjora";
+import { AjoraState, Attachement } from "./useAjora";
 
 export type Action =
   | {
@@ -56,8 +56,17 @@ export type Action =
   | {
       type: "SET_COMPLETE";
       payload: { isComplete: boolean };
-    };
-
+    }
+  | {
+      type: "SET_ATTACHEMENT";
+      payload: { attachement: Attachement };
+    }
+  | {
+      type: "UPDATE_ATTACHEMENT";
+      payload: { attachement: Attachement };
+    }
+  | { type: "SET_IS_RECORDING"; payload: { isRecording: boolean } }
+  | { type: "CLEAR_ATTACHEMENT" };
 export const ajoraReducer = (state: AjoraState, action: Action): AjoraState => {
   switch (action.type) {
     case "ADD_MESSAGES": {
@@ -279,6 +288,24 @@ export const ajoraReducer = (state: AjoraState, action: Action): AjoraState => {
     }
     case "SET_COMPLETE": {
       return { ...state, isComplete: action.payload.isComplete };
+    }
+    case "SET_ATTACHEMENT": {
+      return { ...state, attachement: action.payload.attachement };
+    }
+    case "UPDATE_ATTACHEMENT": {
+      const id = action.payload.attachement.id;
+      const existingAttachement = state.attachement;
+      if (existingAttachement && existingAttachement.id === id) {
+        return { ...state, attachement: action.payload.attachement };
+      } else {
+        return state;
+      }
+    }
+    case "CLEAR_ATTACHEMENT": {
+      return { ...state, attachement: undefined };
+    }
+    case "SET_IS_RECORDING": {
+      return { ...state, isRecording: action.payload.isRecording };
     }
     default:
       return state;

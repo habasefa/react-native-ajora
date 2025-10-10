@@ -9,10 +9,7 @@ import "react-native-get-random-values";
 
 export default function RootLayout() {
   const ajora = useAjora({
-    baseUrl: "http://localhost:4000/api/v3/agent",
-
-    bearerToken:
-      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI2OGRjMzFhODA1ODgxYTg1ZjM2N2Q4OGIiLCJlbWFpbCI6ImFuaUBnbWFpbC5jb20iLCJmaXJzdE5hbWUiOiJhbmkiLCJsYXN0TmFtZSI6ImQiLCJpYXQiOjE3NTkyNjExMjUsImV4cCI6MTc5MDc5NzEyNSwiYXVkIjoiZHltbmQtdXNlcnMiLCJpc3MiOiJkeW1uZCJ9.OdLVDScBCczGFh7Q7GPVMWS8cSAsI1AvAhJAEw06Yfk",
+    baseUrl: "http://localhost:3000",
     debug: true, // Enable debug mode for EventSource logging
   });
 

@@ -98,8 +98,23 @@ export function MessageImage<TMessage extends IMessage = IMessage>({
 }: MessageImageProps<TMessage>) {
   if (currentMessage == null) return null;
 
-  const imagePart = currentMessage.parts?.find((part) => part.image);
-  const imageUri = imagePart?.image;
+  // Supported image mime types
+  //   PNG - image/png
+  // JPEG - image/jpeg
+  // WEBP - image/webp
+  // HEIC - image/heic
+  // HEIF - image/heif
+
+  const imagePart = currentMessage.parts?.find(
+    (part) =>
+      part.fileData?.mimeType === "image/jpeg" ||
+      part.fileData?.mimeType === "image/png" ||
+      part.fileData?.mimeType === "image/jpg" ||
+      part.fileData?.mimeType === "image/webp" ||
+      part.fileData?.mimeType === "image/heic" ||
+      part.fileData?.mimeType === "image/heif"
+  );
+  const imageUri = imagePart?.fileData?.fileUri;
 
   return (
     <View style={[styles.container, containerStyle]}>

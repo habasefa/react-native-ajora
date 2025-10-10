@@ -141,7 +141,18 @@ const Bubble = <TMessage extends IMessage = IMessage>(
 
   const renderMessageImage = useCallback(() => {
     // Check if there are any image parts in the message
-    const hasImageParts = currentMessage?.parts?.some((part) => part.image);
+    const hasImageParts = currentMessage?.parts?.some((part) => {
+      const mimeType = part.fileData?.mimeType;
+      return (
+        mimeType &&
+        (mimeType === "image/jpeg" ||
+          mimeType === "image/png" ||
+          mimeType === "image/jpg" ||
+          mimeType === "image/webp" ||
+          mimeType === "image/heic" ||
+          mimeType === "image/heif")
+      );
+    });
 
     if (hasImageParts) {
       const {
@@ -162,7 +173,10 @@ const Bubble = <TMessage extends IMessage = IMessage>(
 
   const renderMessageAudio = useCallback(() => {
     // Check if there are any audio parts in the message
-    const hasAudioParts = currentMessage?.parts?.some((part) => part.audio);
+    const hasAudioParts = currentMessage?.parts?.some((part) => {
+      const mimeType = part.fileData?.mimeType;
+      return mimeType && mimeType.startsWith("audio/");
+    });
 
     if (!hasAudioParts) return null;
 
@@ -182,7 +196,10 @@ const Bubble = <TMessage extends IMessage = IMessage>(
 
   const renderMessageFile = useCallback(() => {
     // Check if there are any file parts in the message
-    const hasFileParts = currentMessage?.parts?.some((part) => part.file);
+    const hasFileParts = currentMessage?.parts?.some((part) => {
+      const mimeType = part.fileData?.mimeType;
+      return mimeType && mimeType === "application/pdf";
+    });
     if (!hasFileParts) return null;
 
     const {
@@ -221,18 +238,18 @@ const Bubble = <TMessage extends IMessage = IMessage>(
   const renderBubbleContent = useCallback(() => {
     return (
       <View>
-        {/* {renderMessageImage()} */}
-        {/*TODO: {renderMessageAudio()} */}
+        {renderMessageImage()}
+        {renderMessageAudio()}
         {renderMessageText()}
         {renderMessageToolCall()}
-        {/*TODO {renderMessageFile()} */}
+        {renderMessageFile()}
       </View>
     );
   }, [
-    // renderMessageImage,
-    // renderMessageAudio,
+    renderMessageImage,
+    renderMessageAudio,
     renderMessageText,
-    // renderMessageFile,
+    renderMessageFile,
     renderMessageToolCall,
   ]);
 

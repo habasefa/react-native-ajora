@@ -279,7 +279,7 @@ function MessageContainer<TMessage extends IMessage = IMessage>(
       };
 
       if (onSend) {
-        onSend(newMessage, true);
+        onSend([newMessage], true);
       } else {
         warning("[MessageContainer]: `onSend` is not provided");
       }

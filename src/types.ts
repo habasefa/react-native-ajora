@@ -1,3 +1,4 @@
+import { Part } from "@google/genai";
 import { StyleProp, ViewStyle } from "react-native";
 import { LightboxProps } from "react-native-lightbox-v2";
 
@@ -48,27 +49,6 @@ export interface FunctionResponse {
   id?: string;
   name?: string;
   response?: Record<string, unknown>;
-}
-export interface Part {
-  thought?: boolean;
-  functionCall?: FunctionCall;
-  functionResponse?: FunctionResponse;
-  text?: string;
-
-  // Additional properties
-  audio?: {
-    uri: string;
-    name: string;
-    size?: number;
-    mimeType?: string;
-  };
-  image?: string;
-  file?: {
-    uri: string;
-    name: string;
-    size?: number;
-    mimeType?: string;
-  };
 }
 
 export type IChatMessage = IMessage;

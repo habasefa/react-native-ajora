@@ -4,7 +4,10 @@ import { View, StyleProp, ViewStyle } from "react-native";
 import { Composer, ComposerProps } from "../Composer";
 import { Send, SendProps } from "../Send";
 import { Actions, ActionsProps } from "../Actions";
+import { AttachmentPreview } from "./AttachmentPreview";
+import { RecordingView } from "../Recording";
 import { IMessage } from "../types";
+import { useChatContext } from "../AjoraContext";
 import styles from "./styles";
 
 export interface InputToolbarProps<TMessage extends IMessage> {
@@ -20,6 +23,8 @@ export interface InputToolbarProps<TMessage extends IMessage> {
   onPressActionButton?(): void;
   icon?: () => React.ReactNode;
   wrapperStyle?: StyleProp<ViewStyle>;
+  renderAttachment?: () => React.ReactNode;
+  onUpload?(uri: string): void;
 }
 
 export function InputToolbar<TMessage extends IMessage = IMessage>(
@@ -35,7 +40,12 @@ export function InputToolbar<TMessage extends IMessage = IMessage>(
     icon,
     wrapperStyle,
     containerStyle,
+    renderAttachment,
+    onUpload,
   } = props;
+
+  const { ajora } = useChatContext();
+  const { attachement, isRecording } = ajora;
 
   const actionsFragment = useMemo(() => {
     const props = {
@@ -45,6 +55,7 @@ export function InputToolbar<TMessage extends IMessage = IMessage>(
       icon,
       wrapperStyle,
       containerStyle,
+      onUpload,
     };
 
     return (
@@ -59,6 +70,7 @@ export function InputToolbar<TMessage extends IMessage = IMessage>(
     icon,
     wrapperStyle,
     containerStyle,
+    onUpload,
   ]);
 
   const composerFragment = useMemo(() => {
@@ -69,8 +81,21 @@ export function InputToolbar<TMessage extends IMessage = IMessage>(
     );
   }, [renderComposer, props]);
 
+  if (isRecording) {
+    return (
+      <View style={[styles.composer, { minHeight: attachement ? 200 : 100 }]}>
+        <RecordingView />
+        <View style={[styles.actionsContainer, { justifyContent: "flex-end" }]}>
+          {renderSend?.(props) || <Send {...props} />}
+        </View>
+      </View>
+    );
+  }
+
   return (
-    <View style={styles.composer}>
+    <View style={[styles.composer, { minHeight: attachement ? 200 : 100 }]}>
+      <AttachmentPreview renderAttachment={renderAttachment} />
+
       {composerFragment}
       <View style={styles.actionsContainer}>
         {actionsFragment}

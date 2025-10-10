@@ -173,6 +173,8 @@ export interface AjoraProps<TMessage extends IMessage>
   /* Custom message actions */
   renderMessageActions?(props: MessageActionsProps): React.ReactNode;
 
+  renderAttachment?(): React.ReactNode;
+
   /* Custom second line of actions below the message composer */
   renderAccessory?(props: InputToolbarProps<TMessage>): React.ReactNode;
 
@@ -216,4 +218,6 @@ export interface AjoraProps<TMessage extends IMessage>
   onHeaderLeftPress?(): void;
   /* Callback when header plus is pressed */
   onHeaderRightPress?(): void;
+  /* Callback when attachment is uploaded */
+  onUpload?(uri: string): void;
 }

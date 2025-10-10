@@ -19,6 +19,7 @@
     "@react-navigation/native": "^7.1.6",
     "@vscode/markdown-it-katex": "^1.1.2",
     "expo": "~53.0.22",
+    "expo-audio": "~0.4.9",
     "expo-blur": "~14.1.5",
     "expo-clipboard": "~7.1.5",
     "expo-constants": "~17.1.7",

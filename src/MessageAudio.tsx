@@ -7,59 +7,73 @@ import {
   ViewStyle,
   StyleProp,
 } from "react-native";
+import { MaterialIcons } from "@expo/vector-icons";
 import { IMessage } from "./types";
+import stylesCommon from "./styles";
+import Color from "./Color";
+
+// Optional expo-audio import for audio playback functionality
+let useAudioPlayer: any = null;
+try {
+  const expoAudio = require("expo-audio");
+  useAudioPlayer = expoAudio.useAudioPlayer;
+} catch (error) {
+  // expo-audio not available, audio playback will be disabled
+  console.warn("expo-audio not available, audio playback disabled");
+}
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: "#f8f9fa", // Whitish background
+    backgroundColor: Color.card,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "#e9ecef", // Light grey border
-    shadowColor: "#000000",
+    borderColor: Color.border,
+    shadowColor: Color.shadow,
     shadowOffset: {
       width: 0,
       height: 2,
     },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.08,
     shadowRadius: 4,
     elevation: 2,
-    maxWidth: 400, // Double the width
-    minWidth: 300, // Double the min width
-    minHeight: 80, // Increased height
+    maxWidth: 280,
+    minWidth: 200,
+    minHeight: 80,
+    overflow: "hidden",
   },
   audioCard: {
     flexDirection: "row",
     alignItems: "center",
-    padding: 16, // Increased padding
+    padding: 16,
     minHeight: 80,
   },
   audioInfo: {
     flex: 1,
   },
   audioTitle: {
-    fontSize: 16, // Larger text
+    fontSize: 16,
     fontWeight: "600",
-    color: "#212529", // Dark text for whitish background
+    color: Color.foreground,
     marginBottom: 4,
   },
   audioSubtitle: {
-    fontSize: 14, // Larger text
-    color: "#6c757d", // Medium grey text
+    fontSize: 14,
+    color: Color.mutedForeground,
   },
   audioDuration: {
     fontSize: 12,
-    color: "#999999", // Medium grey
+    color: Color.mutedForeground,
     marginTop: 2,
   },
   playButton: {
-    width: 48, // Larger button
-    height: 48, // Larger button
+    width: 48,
+    height: 48,
     borderRadius: 24,
-    backgroundColor: "#212529", // Dark background for whitish theme
+    backgroundColor: Color.primary,
     justifyContent: "center",
     alignItems: "center",
     marginLeft: 12,
-    shadowColor: "#000000",
+    shadowColor: Color.shadow,
     shadowOffset: {
       width: 0,
       height: 2,
@@ -69,8 +83,7 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   playIcon: {
-    fontSize: 20, // Larger icon
-    color: "#ffffff", // White icon
+    color: Color.primaryForeground,
   },
 });
 
@@ -86,23 +99,45 @@ export function MessageAudio<TMessage extends IMessage = IMessage>({
   onPress,
 }: MessageAudioProps<TMessage>) {
   if (currentMessage == null) return null;
+  const supportedAudioMimeTypes = [
+    "audio/wav",
+    "audio/mp3",
+    "audio/aiff",
+    "audio/aac",
+    "audio/ogg",
+    "audio/flac",
+  ];
 
-  const audioPart = currentMessage.parts?.find((part) => part.audio);
-  const audioData = audioPart?.audio;
+  const audioPart = currentMessage.parts?.find(
+    (part) =>
+      part.fileData?.mimeType &&
+      supportedAudioMimeTypes.includes(part.fileData.mimeType)
+  );
+  const audioData = audioPart?.fileData;
+
+  // Initialize audio player with the audio URI (if expo-audio is available)
+  const player = useAudioPlayer ? useAudioPlayer(audioData?.fileUri) : null;
 
   const handlePress = () => {
     if (onPress) {
       onPress();
+    } else if (player) {
+      // Toggle play/pause
+      if (player.playing) {
+        player.pause();
+      } else {
+        player.play();
+      }
     }
   };
 
   // Get audio file name from the structured data or fallback to URI parsing
   const getAudioFileName = (): string => {
-    if (audioData?.name) {
-      return audioData.name;
+    if (audioData?.displayName) {
+      return audioData.displayName;
     }
-    if (audioData?.uri) {
-      const pathParts = audioData.uri.split("/");
+    if (audioData?.fileUri) {
+      const pathParts = audioData.fileUri.split("/");
       const fileName = pathParts[pathParts.length - 1];
       const cleanFileName = fileName.split("?")[0];
       return cleanFileName || "Audio";
@@ -135,7 +170,12 @@ export function MessageAudio<TMessage extends IMessage = IMessage>({
 
   const audioFileName = getAudioFileName();
   const audioFileType = getAudioFileType();
-  const audioFileSize = formatFileSize(audioData?.size);
+
+  // Get the appropriate icon based on playing state
+  const getPlayIcon = (): string => {
+    if (!player) return "play-arrow";
+    return player.playing ? "pause" : "play-arrow";
+  };
 
   // If no audio data is found, show a fallback message
   if (!audioData) {
@@ -151,7 +191,11 @@ export function MessageAudio<TMessage extends IMessage = IMessage>({
             <Text style={styles.audioSubtitle}>No audio data available</Text>
           </View>
           <View style={styles.playButton}>
-            <Text style={styles.playIcon}>▶</Text>
+            <MaterialIcons
+              name={getPlayIcon() as any}
+              size={20}
+              style={styles.playIcon}
+            />
           </View>
         </View>
       </TouchableOpacity>
@@ -169,14 +213,14 @@ export function MessageAudio<TMessage extends IMessage = IMessage>({
           <Text style={styles.audioTitle} numberOfLines={1}>
             {audioFileName}
           </Text>
-          <Text style={styles.audioSubtitle}>
-            {audioFileType}
-            {audioFileSize ? ` • ${audioFileSize}` : ""}
-          </Text>
         </View>
 
         <View style={styles.playButton}>
-          <Text style={styles.playIcon}>▶</Text>
+          <MaterialIcons
+            name={getPlayIcon() as any}
+            size={20}
+            style={styles.playIcon}
+          />
         </View>
       </View>
     </TouchableOpacity>

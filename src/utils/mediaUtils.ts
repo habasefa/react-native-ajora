@@ -5,6 +5,7 @@ import * as DocumentPicker from "expo-document-picker";
 import { IMessage } from "../../src/Ajora";
 
 import { Alert } from "react-native";
+import { Attachement } from "../hooks/useAjora";
 
 export default async function getPermissionAsync(
   permission: "camera" | "mediaLibrary" | "location"
@@ -43,78 +44,64 @@ export default async function getPermissionAsync(
   return true;
 }
 
-export async function pickImageAsync(onSend: (messages: IMessage) => void) {
+export async function pickImageAsync(
+  onAttachement: (attachement: Attachement) => void
+) {
   const response = await ImagePicker.requestMediaLibraryPermissionsAsync();
   if (!response.granted) return;
 
   const result = await ImagePicker.launchImageLibraryAsync({
-    allowsEditing: true,
+    allowsEditing: false,
     aspect: [4, 3],
   });
 
   if (result.canceled) return;
 
-  const images = result.assets.map(({ uri: image }) => ({ image }));
-  onSend({
-    _id: "1",
-    role: "user",
-    parts: [
-      {
-        image: images[0].image,
-      },
-    ],
-    createdAt: new Date(),
+  onAttachement({
+    displayName: result?.assets[0].fileName || "",
+    mimeType: result?.assets[0].mimeType || "",
+    fileUri: result?.assets[0].uri || "",
   });
 }
 
-export async function takePictureAsync(onSend: (images: IMessage) => void) {
+export async function takePictureAsync(
+  onAttachement: (attachement: Attachement) => void
+) {
   const response = await ImagePicker.requestCameraPermissionsAsync();
   if (!response.granted) return;
 
   const result = await ImagePicker.launchCameraAsync({
-    allowsEditing: true,
+    allowsEditing: false,
     aspect: [4, 3],
   });
 
   if (result.canceled) return;
 
-  const images = result.assets.map(({ uri: image }) => ({ image }));
-  onSend({
-    _id: "1",
-    role: "user",
-    parts: [
-      {
-        image: images[0].image,
-      },
-    ],
-    createdAt: new Date(),
+  onAttachement({
+    displayName: result?.assets[0].fileName || "",
+    mimeType: result?.assets[0].mimeType || "",
+    fileUri: result?.assets[0].uri || "",
   });
 }
 
-export async function filePickerAsync(onSend: (files: IMessage) => void) {
+export async function filePickerAsync(
+  onAttachement: (attachement: Attachement) => void
+) {
   const result = await DocumentPicker.getDocumentAsync({
     type: "application/pdf",
   });
   if (result.canceled) return;
   const file = result.assets[0];
-  onSend({
-    _id: "1",
-    role: "user",
-    parts: [
-      {
-        file: {
-          uri: file.uri,
-          name: file.name,
-          size: file.size,
-          mimeType: file.mimeType,
-        },
-      },
-    ],
-    createdAt: new Date(),
+  onAttachement({
+    displayName: file.name,
+    mimeType: file.mimeType,
+    fileUri: file.uri,
   });
 }
 
-export async function audioPickerAsync(onSend: (audios: IMessage) => void) {
+export async function audioPickerAsync(
+  onAttachement: (audios: Attachement) => void
+) {
   const result = await DocumentPicker.getDocumentAsync({
     type: ["audio/*"],
     copyToCacheDirectory: true,
@@ -123,20 +110,9 @@ export async function audioPickerAsync(onSend: (audios: IMessage) => void) {
   if (result.canceled) return;
 
   const audioFile = result.assets[0];
-
-  onSend({
-    _id: "1",
-    role: "user",
-    parts: [
-      {
-        audio: {
-          uri: audioFile.uri,
-          name: audioFile.name,
-          size: audioFile.size,
-          mimeType: audioFile.mimeType,
-        },
-      },
-    ],
-    createdAt: new Date(),
+  onAttachement({
+    displayName: audioFile.name,
+    mimeType: audioFile.mimeType,
+    fileUri: audioFile.uri,
   });
 }

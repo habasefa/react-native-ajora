@@ -93,6 +93,7 @@ function Ajora<TMessage extends IMessage = IMessage>(
     addNewThread,
     switchThread,
     submitQuery,
+    clearAttachement,
   } = ajora;
 
   const currentThread = threads.find((thread) => thread.id === activeThreadId);
@@ -249,6 +250,8 @@ function Ajora<TMessage extends IMessage = IMessage>(
 
     notifyInputTextReset();
 
+    clearAttachement();
+
     setComposerHeight(minComposerHeight!);
     setText(getTextFromProp(""));
     enableThinking();
@@ -258,6 +261,7 @@ function Ajora<TMessage extends IMessage = IMessage>(
     textInputRef,
     notifyInputTextReset,
     enableThinking,
+    clearAttachement,
   ]);
 
   const _onSend = useCallback(
@@ -266,6 +270,8 @@ function Ajora<TMessage extends IMessage = IMessage>(
         disableThinking();
         resetInputToolbar();
       }
+
+      console.log("messages in _onSend", JSON.stringify(messages));
 
       // Send the message to the server
       if (messages.length > 0) {

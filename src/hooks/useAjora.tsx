@@ -14,9 +14,15 @@ import uuid from "react-native-uuid";
 import { mergeFunctionCallsAndResponses } from "../utils/index";
 import { Thread } from "../Thread/types";
 import { ajoraReducer } from "./ajoraReducer";
+import { FileData } from "@google/genai";
 
 interface Messages {
   [key: string]: IMessage[];
+}
+
+export interface Attachement extends FileData {
+  progress?: number;
+  isUploaded?: boolean;
 }
 
 export type AjoraState = {
@@ -31,6 +37,8 @@ export type AjoraState = {
   baseUrl: string;
   apiService: ApiService | null;
   isComplete: boolean;
+  attachement: Attachement | undefined;
+  isRecording: boolean;
 };
 
 export type Ajora = AjoraState & {
@@ -46,6 +54,10 @@ export type Ajora = AjoraState & {
   setMode: (mode: string) => void;
   regenerateMessage: (message: IMessage) => void;
   setIsComplete: (isComplete: boolean) => void;
+  setAttachement: (attachement: Attachement) => void;
+  updateAttachement: (attachement: Attachement) => void;
+  clearAttachement: () => void;
+  setIsRecording: (isRecording: boolean) => void;
 };
 
 const useAjora = ({
@@ -73,6 +85,8 @@ const useAjora = ({
     baseUrl,
     apiService: null,
     isComplete: true,
+    attachement: undefined,
+    isRecording: false,
   });
 
   const apiServiceRef = useRef<ApiService | null>(null);
@@ -420,6 +434,13 @@ const useAjora = ({
     regenerateMessage,
     setIsComplete: (isComplete: boolean) =>
       dispatch({ type: "SET_COMPLETE", payload: { isComplete } }),
+    setAttachement: (attachement: Attachement) =>
+      dispatch({ type: "SET_ATTACHEMENT", payload: { attachement } }),
+    updateAttachement: (attachement: Attachement) =>
+      dispatch({ type: "UPDATE_ATTACHEMENT", payload: { attachement } }),
+    clearAttachement: () => dispatch({ type: "CLEAR_ATTACHEMENT" }),
+    setIsRecording: (isRecording: boolean) =>
+      dispatch({ type: "SET_IS_RECORDING", payload: { isRecording } }),
   };
 };
 

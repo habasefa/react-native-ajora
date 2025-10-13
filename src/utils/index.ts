@@ -1,6 +1,6 @@
-import { Messages } from "../hooks/useAjora";
-import { ThreadItem } from "../Thread/types";
+import { Thread } from "../Thread/types";
 import { IMessage } from "../types";
+import { Part } from "@google/genai";
 
 /**
  * Search for a thread in messages and return the index of the thread
@@ -9,7 +9,7 @@ import { IMessage } from "../types";
  * @returns The index of the thread or undefined if not found
  */
 export const findThreadInMessages = (
-  messages: Messages,
+  messages: IMessage,
   threadId: string
 ): string | undefined => {
   const keys = Object.keys(messages);
@@ -20,11 +20,9 @@ export const findThreadInMessages = (
  * Create a default thread
  * @returns The default thread
  */
-export const createDefaultThread = (): ThreadItem => ({
+export const createDefaultThread = (): Thread => ({
   id: `thread_${Date.now()}`,
   title: "New Thread ",
-  lastMessage: undefined,
-  timestamp: new Date(),
 });
 
 /**
@@ -33,15 +31,15 @@ export const createDefaultThread = (): ThreadItem => ({
  * @returns The merged messages
  */
 export const mergeFunctionCallsAndResponses = (
-  messages: Messages
-): Messages => {
+  messages: Record<string, IMessage[]> | IMessage[]
+): Record<string, IMessage[]> | IMessage[] => {
   if (Array.isArray(messages)) {
     const mergedMessages = [...messages];
 
     // Find all functionResponse parts and merge them with matching functionCall parts
     messages.forEach((message, messageIndex) => {
       const functionResponseParts =
-        message.parts?.filter((part) => part.functionResponse) || [];
+        message.parts?.filter((part: Part) => part.functionResponse) || [];
 
       functionResponseParts.forEach((responsePart) => {
         const responseId = responsePart.functionResponse?.id;
@@ -56,7 +54,10 @@ export const mergeFunctionCallsAndResponses = (
               (callPart) => callPart.functionCall?.id === responseId
             );
 
-            if (matchingCallPart && !matchingCallPart.functionCall?.response) {
+            if (
+              matchingCallPart &&
+              !(matchingCallPart.functionCall as any)?.response
+            ) {
               // Merge the functionResponse into the existing message
               mergedMessages[i] = {
                 ...existingMessage,
@@ -82,10 +83,12 @@ export const mergeFunctionCallsAndResponses = (
     });
 
     return mergedMessages;
-  } else if (typeof messages === "object") {
+  } else if (typeof messages === "object" && !Array.isArray(messages)) {
     const result: Record<string, IMessage[]> = {};
     Object.entries(messages).forEach(([key, message]) => {
-      result[key] = mergeFunctionCallsAndResponses(message) as IMessage[];
+      result[key] = mergeFunctionCallsAndResponses(
+        message as IMessage[]
+      ) as IMessage[];
     });
     return result;
   }

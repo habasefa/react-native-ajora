@@ -68,7 +68,7 @@ export function LoadEarlier({
   hasMore = true,
   messageCount = 0,
   totalCount = 0,
-}: LoadEarlierProps): React.ReactElement {
+}: LoadEarlierProps): React.ReactElement | null {
   // Don't render if no more messages to load
   if (!hasMore && !isLoadingEarlier) {
     return null;

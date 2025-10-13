@@ -4,20 +4,12 @@ import { TextInput, StyleProp, TextStyle, ViewStyle } from "react-native";
 import { LightboxProps } from "react-native-lightbox-v2";
 import { ActionsProps } from "../Actions";
 import { ComposerProps } from "../Composer";
-import { DayProps } from "../Day";
 import { InputToolbarProps } from "../InputToolbar";
 import { LoadEarlierProps } from "../LoadEarlier";
 import { MessageProps } from "../Message";
 import { MessageImageProps } from "../MessageImage";
 import { MessageTextProps } from "../MessageText";
-import {
-  HeaderProps,
-  IMessage,
-  LeftRightStyle,
-  MessageAudioProps,
-  ThreadItem,
-  ThreadProps,
-} from "../types";
+import { HeaderProps, IMessage, LeftRightStyle } from "../types";
 import { SendProps } from "../Send";
 import {
   AnimatedList,
@@ -26,6 +18,7 @@ import {
 } from "../MessageContainer";
 import { BubbleProps } from "../Bubble";
 import { MessageActionsProps } from "../MessageActions";
+import { Thread } from "../Thread/types";
 
 export interface AjoraProps<TMessage extends IMessage>
   extends Partial<MessageContainerProps<TMessage>> {
@@ -144,17 +137,13 @@ export interface AjoraProps<TMessage extends IMessage>
   /* Custom message image */
   renderMessageImage?(props: MessageImageProps<TMessage>): React.ReactNode;
 
-  /* Custom message video */
-  renderMessageAudio?(props: MessageAudioProps<TMessage>): React.ReactNode;
   /* Custom view inside the bubble */
   renderCustomView?(props: BubbleProps<TMessage>): React.ReactNode;
-  /* Custom day above a message */
-  renderDay?(props: DayProps): React.ReactNode;
 
   /* Custom header component */
   renderHeader?(props: HeaderProps): React.ReactNode;
   /* Custom thread component */
-  renderThread?(props: ThreadProps): React.ReactNode;
+  renderThread?(props: Thread): React.ReactNode;
   /* Custom footer component on the ListView, e.g. 'User is typing...' */
   renderFooter?(props: MessageContainerProps<TMessage>): React.ReactNode;
   /* Custom component to render in the ListView when messages are empty */
@@ -207,11 +196,11 @@ export interface AjoraProps<TMessage extends IMessage>
   /* Show thread drawer */
   showThreads?: boolean;
   /* Thread drawer props */
-  threadProps?: Partial<ThreadProps>;
+  threadProps?: Partial<Thread>;
   /* Available threads */
   // threads?: ThreadItem[];
   /* Callback when thread is selected */
-  onThreadSelect?(thread: ThreadItem): void;
+  onThreadSelect?(thread: Thread): void;
   /* Callback when new thread is created */
   onNewThread?(): void;
   /* Callback when header menu is pressed */

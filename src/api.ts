@@ -285,7 +285,6 @@ export class ApiService {
 
     // Cache-bust to avoid 304/empty bodies on some platforms (okhttp)
     const url = `${this.apiBase}/threads?_=${Date.now()}`;
-    console.info("[Ajora]: getThreads request", { url });
     return fetch(url, { headers })
       .then(async (res) => {
         if (!res.ok) {
@@ -297,7 +296,6 @@ export class ApiService {
       .then((json) => {
         try {
           // Debug the raw payload to help diagnose shape mismatches
-          console.log("[Ajora]: getThreads raw payload:", json);
 
           // If the server already returns an array of threads, pass through
           if (Array.isArray(json)) {

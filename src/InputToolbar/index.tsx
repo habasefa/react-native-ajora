@@ -5,7 +5,6 @@ import { Composer, ComposerProps } from "../Composer";
 import { Send, SendProps } from "../Send";
 import { Actions, ActionsProps } from "../Actions";
 import { AttachmentPreview } from "./AttachmentPreview";
-import RecordingView from "../Recording";
 import { IMessage } from "../types";
 import { useChatContext } from "../AjoraContext";
 import styles from "./styles";
@@ -87,7 +86,6 @@ export function InputToolbar<TMessage extends IMessage = IMessage>(
   if (isRecording) {
     return (
       <View style={[styles.composer, { minHeight: attachement ? 200 : 100 }]}>
-        <RecordingView />
         <View style={[styles.actionsContainer, { justifyContent: "flex-end" }]}>
           {renderSend?.(props) || <Send {...props} />}
         </View>

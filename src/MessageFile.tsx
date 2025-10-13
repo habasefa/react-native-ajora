@@ -29,8 +29,8 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.08,
     shadowRadius: 4,
     elevation: 2,
-    maxWidth: 280,
-    minWidth: 200,
+    maxWidth: 350,
+    minWidth: 250,
     overflow: "hidden",
   },
   fileCard: {

@@ -76,7 +76,7 @@ const useAjora = ({
   const [ajora, dispatch] = useReducer(ajoraReducer, {
     stream: [],
     isThinking: false,
-    messages: mergeFunctionCallsAndResponses(initialMessages),
+    messages: mergeFunctionCallsAndResponses(initialMessages) as Messages,
     threads: initialThreads,
     activeThreadId: null,
     loadEarlier: false,
@@ -126,17 +126,6 @@ const useAjora = ({
         const isArray = Array.isArray(threads);
         const length = isArray ? (threads as Thread[]).length : 0;
         const sample = isArray ? (threads as Thread[])[0] : threads;
-        console.log(
-          "[Ajora]: getThreads() fetched:",
-          JSON.stringify({
-            isArray,
-            length,
-            activeThreadId: ajora.activeThreadId,
-            sample,
-          }),
-          null,
-          2
-        );
       } catch (logErr) {
         console.warn("[Ajora]: Failed to log threads debug info", logErr);
       }
@@ -156,13 +145,6 @@ const useAjora = ({
       }
       dispatch({ type: "SET_LOADING_MESSAGES", payload: { isLoading: true } });
       const resp = await apiServiceRef.current.getMessages(threadId);
-      console.info("[Ajora]: getMessages response", {
-        threadId,
-        total: resp?.pagination?.total,
-        limit: resp?.pagination?.limit,
-        offset: resp?.pagination?.offset,
-        count: Array.isArray(resp?.messages) ? resp.messages.length : 0,
-      });
       const messages = resp?.messages;
       if (Array.isArray(messages)) {
         dispatch({
@@ -277,7 +259,6 @@ const useAjora = ({
           });
         },
         onThreadTitle: (tt: ThreadTitleEvent) => {
-          console.log("[Ajora]: Thread title received:", tt);
           const incoming = tt.threadTitle as any;
           // Server may send a plain title string or a full Thread
           const normalizedThread: Thread | null =
@@ -295,10 +276,10 @@ const useAjora = ({
           });
         },
         onSources: (sources: SourcesEvent) => {
-          console.log("[Ajora]: Sources received:", sources);
+          console.info("[Ajora]: Sources received:", sources);
         },
         onSuggestions: (suggestions: SuggestionsEvent) => {
-          console.log("[Ajora]: Suggestions received:", suggestions);
+          console.info("[Ajora]: Suggestions received:", suggestions);
         },
         onComplete: (evt) => {
           const complete = (evt as any)?.is_complete === true;
@@ -386,14 +367,14 @@ const useAjora = ({
     }
     const currentThreadMessages = ajora.messages[ajora.activeThreadId] || [];
     const messageIndex = currentThreadMessages.findIndex(
-      (m) => m._id === message._id
+      (m: IMessage) => m._id === message._id
     );
     if (messageIndex === -1) {
       throw new Error("[Ajora]: Message not found.");
     }
     const userMessage = currentThreadMessages
       .slice(messageIndex)
-      .find((m) => m.role === "user");
+      .find((m: IMessage) => m.role === "user");
     if (!userMessage) {
       throw new Error(
         "[Ajora]: Could not find the corresponding user message to regenerate."

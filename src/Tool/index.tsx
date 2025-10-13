@@ -1,8 +1,6 @@
 import React from "react";
-import { View, Text } from "react-native";
 import { IMessage } from "../types";
 import { MessageToolCallProps } from "./types";
-import styles from "./styles";
 import {
   TodoListTool,
   DocSearchTool,
@@ -44,7 +42,7 @@ export function MessageToolCall<TMessage extends IMessage = IMessage>({
         name: toolName,
         description: `Tool: ${toolName}`,
         args: toolCall.args || {},
-        response: toolCall.response,
+        response: (toolCall as any).response,
       },
     };
 
@@ -58,7 +56,7 @@ export function MessageToolCall<TMessage extends IMessage = IMessage>({
 
       // Update tool request with response data
       toolRequest.tool.response =
-        functionResponse?.response || toolCall.response;
+        functionResponse?.response || (toolCall as any).response;
 
       switch (toolName) {
         case "todo_list":

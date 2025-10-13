@@ -4,7 +4,6 @@ import { Share, TouchableWithoutFeedback, View } from "react-native";
 import { useChatContext } from "../AjoraContext";
 import { MessageText } from "../MessageText";
 import { MessageImage } from "../MessageImage";
-import { MessageAudio } from "../MessageAudio";
 import { MessageToolCall } from "../Tool";
 
 import { isSameUser, isSameDay } from "../utils";
@@ -171,29 +170,6 @@ const Bubble = <TMessage extends IMessage = IMessage>(
     return null;
   }, [props, currentMessage]);
 
-  const renderMessageAudio = useCallback(() => {
-    // Check if there are any audio parts in the message
-    const hasAudioParts = currentMessage?.parts?.some((part) => {
-      const mimeType = part.fileData?.mimeType;
-      return mimeType && mimeType.startsWith("audio/");
-    });
-
-    if (!hasAudioParts) return null;
-
-    const {
-      /* eslint-disable @typescript-eslint/no-unused-vars */
-      containerStyle,
-      wrapperStyle,
-      /* eslint-enable @typescript-eslint/no-unused-vars */
-      ...messageAudioProps
-    } = props;
-
-    if (props.renderMessageAudio)
-      return props.renderMessageAudio(messageAudioProps);
-
-    return <MessageAudio {...messageAudioProps} />;
-  }, [props, currentMessage]);
-
   const renderMessageFile = useCallback(() => {
     // Check if there are any file parts in the message
     const hasFileParts = currentMessage?.parts?.some((part) => {
@@ -239,7 +215,6 @@ const Bubble = <TMessage extends IMessage = IMessage>(
     return (
       <View>
         {renderMessageImage()}
-        {/* {renderMessageAudio()} */}
         {renderMessageText()}
         {renderMessageToolCall()}
         {renderMessageFile()}
@@ -247,7 +222,6 @@ const Bubble = <TMessage extends IMessage = IMessage>(
     );
   }, [
     renderMessageImage,
-    // renderMessageAudio,
     renderMessageText,
     renderMessageFile,
     renderMessageToolCall,

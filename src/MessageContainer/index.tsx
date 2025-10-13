@@ -61,7 +61,6 @@ function MessageContainer<TMessage extends IMessage = IMessage>(
     forwardRef,
     handleOnScroll: handleOnScrollProp,
     scrollToBottomComponent: scrollToBottomComponentProp,
-    renderDay: renderDayProp,
     renderSuggestedQuestions,
     onSend,
   } = props;

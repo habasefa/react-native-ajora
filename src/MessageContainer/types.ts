@@ -3,7 +3,7 @@ import { FlatListProps, StyleProp, ViewStyle } from "react-native";
 
 import { LoadEarlierProps } from "../LoadEarlier";
 import { MessageProps } from "../Message";
-import { IMessage, DayProps } from "../types";
+import { IMessage } from "../types";
 import { ReanimatedScrollEvent } from "react-native-reanimated/lib/typescript/hook/commonTypes";
 import { FlatList } from "react-native-reanimated/lib/typescript/Animated";
 import { AnimateProps } from "react-native-reanimated";
@@ -35,7 +35,6 @@ export interface MessageContainerProps<TMessage extends IMessage = IMessage> {
   renderSuggestedQuestions?(): React.ReactNode;
   renderFooter?(props: MessageContainerProps<TMessage>): React.ReactNode;
   renderMessage?(props: MessageProps<TMessage>): React.ReactElement;
-  renderDay?(props: DayProps): React.ReactNode;
   renderLoadEarlier?(props: LoadEarlierProps): React.ReactNode;
   renderThinkingIndicator?(): React.ReactNode;
   scrollToBottomComponent?(): React.ReactNode;

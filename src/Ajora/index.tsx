@@ -109,7 +109,7 @@ function Ajora<TMessage extends IMessage = IMessage>(
     [props.textInputRef]
   );
 
-  const isTextInputWasFocused: RefObject<boolean> = useRef(false);
+  const isTextInputWasFocused = useRef(false);
 
   const [isInitialized, setIsInitialized] = useState<boolean>(false);
   const [composerHeight, setComposerHeight] = useState<number>(
@@ -152,7 +152,7 @@ function Ajora<TMessage extends IMessage = IMessage>(
   const handleTextInputFocusWhenKeyboardHide = useCallback(() => {
     if (!isTextInputWasFocused.current)
       isTextInputWasFocused.current =
-        textInputRef.current?.isFocused() || false;
+        textInputRef.current?.isFocused?.() || false;
   }, [textInputRef]);
 
   /**
@@ -265,23 +265,27 @@ function Ajora<TMessage extends IMessage = IMessage>(
   ]);
 
   const _onSend = useCallback(
-    (messages: TMessage[] = [], shouldResetInputToolbar: boolean = false) => {
+    (
+      messages: IMessage | IMessage[] = [],
+      shouldResetInputToolbar: boolean = false
+    ) => {
       if (shouldResetInputToolbar === true) {
         disableThinking();
         resetInputToolbar();
       }
 
-      console.log("messages in _onSend", JSON.stringify(messages));
+      // Normalize messages to array
+      const messagesArray = Array.isArray(messages) ? messages : [messages];
 
       // Send the message to the server
-      if (messages.length > 0) {
+      if (messagesArray.length > 0) {
         submitQuery({
           type: "text",
-          message: messages[0],
+          message: messagesArray[0],
         });
       }
 
-      onSend?.(messages);
+      onSend?.(messagesArray as TMessage[]);
 
       setTimeout(() => scrollToBottom(), 10);
     },

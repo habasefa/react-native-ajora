@@ -22,7 +22,6 @@ export function AttachmentPreview({
 }: AttachmentPreviewProps) {
   const { ajora } = useChatContext();
   const { clearAttachement, attachement } = ajora;
-  console.log("attachement in AttachmentPreview.tsx", attachement);
 
   const fadeAnim = React.useRef(new Animated.Value(0)).current;
 
@@ -47,8 +46,6 @@ export function AttachmentPreview({
     if (!mimeType) return "file";
 
     if (mimeType.startsWith("image/")) return "image";
-    if (mimeType.startsWith("video/")) return "video";
-    if (mimeType.startsWith("audio/")) return "audio";
     if (mimeType === "application/pdf") return "pdf";
 
     return "file";
@@ -58,8 +55,6 @@ export function AttachmentPreview({
   const getFileIcon = (fileType: string): string => {
     const iconMap: Record<string, string> = {
       image: "image",
-      video: "videocam",
-      audio: "audiotrack",
       pdf: "picture-as-pdf",
       file: "insert-drive-file",
     };

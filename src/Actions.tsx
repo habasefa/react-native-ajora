@@ -15,7 +15,6 @@ import {
   pickImageAsync,
   takePictureAsync,
   filePickerAsync,
-  audioPickerAsync,
 } from "./utils/mediaUtils";
 import { MaterialIcons } from "@expo/vector-icons";
 import { useChatContext } from "./AjoraContext";
@@ -40,7 +39,6 @@ export function Actions({
     Camera: () => {},
     Photo: () => {},
     File: () => {},
-    // Audio: () => {},
     Cancel: () => {},
   },
   optionTintColor: _optionTintColor = Color.optionTintColor,
@@ -111,9 +109,6 @@ export function Actions({
             return;
           case 2:
             filePickerAsync(onAttachement);
-            return;
-          case 3:
-            // audioPickerAsync(onAttachement);
             return;
         }
       }

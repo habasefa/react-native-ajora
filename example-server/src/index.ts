@@ -21,10 +21,9 @@ app.use((req, res, next) => {
   const authHeader = req.headers.authorization;
   if (authHeader && authHeader.startsWith("Bearer ")) {
     const token = authHeader.substring(7); // Remove 'Bearer ' prefix
-    console.log(`[Ajora:Server]: Bearer token received: ${token}`);
     (req as any).bearerToken = token;
   } else {
-    console.log("[Ajora:Server]: No bearer token provided");
+    console.warn("[Ajora:Server]: No bearer token provided");
   }
   next();
 });
@@ -41,7 +40,6 @@ async function initializeDatabase() {
 
 // Streaming endpoint
 app.get("/api/stream", async (req, res) => {
-  console.log("[Ajora:Server]: Streaming request received", req.query);
   try {
     const { type, message, mode } = req.query;
 
@@ -170,7 +168,6 @@ app.get("/api/stream", async (req, res) => {
 app.get("/api/threads", async (req, res) => {
   try {
     const threads = await dbService.getThreads();
-    console.log("[Ajora:Server]: threads:", threads.length);
     res.json(threads);
   } catch (error: any) {
     console.error("[Ajora:Server]: Error getting threads:", error);
@@ -207,9 +204,6 @@ app.get("/api/threads/:threadId/messages", async (req, res) => {
       },
     };
 
-    console.log(
-      `[Ajora:Server]: Retrieved ${messages.length} messages for thread ${threadId} (${offsetNum || 0}-${(offsetNum || 0) + messages.length}/${totalCount})`
-    );
     res.json(response);
   } catch (error: any) {
     console.error("[Ajora:Server]: Error getting messages:", error);

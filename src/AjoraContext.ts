@@ -39,6 +39,15 @@ export const AjoraContext = createContext<IAjoraContext>({
     setIsLoadingEarlier: () => {},
     setMode: () => {},
     regenerateMessage: () => {},
+    setIsComplete: () => {},
+    setAttachement: () => {},
+    updateAttachement: () => {},
+    clearAttachement: () => {},
+    setIsRecording: () => {},
+    isComplete: false,
+    attachement: undefined,
+    isRecording: false,
+    stopStreaming: () => {},
   },
 });
 

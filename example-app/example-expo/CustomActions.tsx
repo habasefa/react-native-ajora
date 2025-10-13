@@ -14,7 +14,6 @@ import {
   pickImageAsync,
   takePictureAsync,
   filePickerAsync,
-  audioPickerAsync,
 } from "./mediaUtils";
 import { MaterialIcons } from "@expo/vector-icons";
 
@@ -40,7 +39,7 @@ const CustomActions = ({
   const { showActionSheetWithOptions } = useActionSheet();
 
   const onActionsPress = useCallback(() => {
-    const options = ["Photo", "Camera", "File", "Audio", "Cancel"];
+    const options = ["Photo", "Camera", "File", "Cancel"];
     const cancelButtonIndex = options.length - 1;
 
     showActionSheetWithOptions(
@@ -58,9 +57,6 @@ const CustomActions = ({
             return;
           case 2:
             filePickerAsync(onSend);
-            return;
-          case 3:
-            audioPickerAsync(onSend);
             return;
         }
       }

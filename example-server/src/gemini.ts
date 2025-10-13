@@ -51,8 +51,6 @@ const processMessage = async (message: Message[]) => {
         },
       });
 
-      console.log("uploadedFile", uploadedFile);
-
       fileData!.fileUri = uploadedFile.uri;
       fileData!.mimeType = uploadedFile.mimeType;
     }
@@ -75,7 +73,6 @@ export const gemini = async function* (
     }
 
     const processedMessage = await processMessage(message);
-    console.log("processedMessage", JSON.stringify(processedMessage, null, 2));
 
     const systemInstruction = mode === "agent" ? agentPrompt : assistantPrompt;
     if (signal?.aborted) return;

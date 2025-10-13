@@ -39,7 +39,7 @@
     "lib"
   ],
   "scripts": {
-    "build": "tsc --noEmitOnError false || true && echo '\n⚠️  Build completed with TypeScript errors. JS output was still generated.\n'",
+    "build": "tsc --noEmitOnError false && echo '\n✅ Build completed successfully with no TypeScript errors.\n' || (echo '\n⚠️  Build completed with TypeScript errors. JS output was still generated.\n' && exit 1)",
     "lint": "eslint src",
     "lint:fix": "eslint --cache --fix",
     "prepublishOnly": "echo 'Skipping build and test for publish'",
@@ -85,8 +85,8 @@
     "@react-native/eslint-config": "^0.76.6",
     "@stylistic/eslint-plugin": "^3.1.0",
     "@types/jest": "^29.5.14",
-    "@types/react": "^19.0.10",
-    "@types/react-dom": "^19.0.4",
+    "@types/react": "^18.3.26",
+    "@types/react-dom": "^18.3.1",
     "@types/react-native": "^0.72.8",
     "@typescript-eslint/eslint-plugin": "^8.28.0",
     "@typescript-eslint/parser": "^8.28.0",
@@ -97,9 +97,9 @@
     "eslint-plugin-import": "^2.31.0",
     "eslint-plugin-jest": "^28.11.0",
     "eslint-plugin-json": "^4.0.1",
-    "eslint-plugin-n": "^17.17.0",
+    "eslint-plugin-n": "^16.6.2",
     "eslint-plugin-node": "^11.1.0",
-    "eslint-plugin-promise": "^7.2.1",
+    "eslint-plugin-promise": "^6.6.0",
     "eslint-plugin-react": "^7.37.4",
     "husky": "^9.1.7",
     "jest": "^29.7.0",
@@ -114,12 +114,11 @@
     "typescript": "^5.8.2"
   },
   "peerDependencies": {
-    "@expo/vector-icons": "^14.1.0",
+    "@expo/vector-icons": "^15.0.0",
     "react": ">=18.0.0",
     "react-native": "*",
     "react-native-keyboard-controller": ">=1.0.0",
     "react-native-reanimated": ">=3.0.0",
-    "expo-audio": ">=0.4.9",
     "expo-document-picker": "^14.0.7",
     "expo-image-picker": "^17.0.8"
   },

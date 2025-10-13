@@ -128,7 +128,7 @@ export const ajoraReducer = (state: AjoraState, action: Action): AjoraState => {
           ...message,
           // Ensure stable _id and createdAt from existing when streaming
           _id: existingMessage._id,
-          createdAt: existingMessage.createdAt || existingMessage.created_at,
+          createdAt: existingMessage.createdAt,
           parts: mergedParts,
         };
       } else {
@@ -189,7 +189,7 @@ export const ajoraReducer = (state: AjoraState, action: Action): AjoraState => {
           ...message,
           // Ensure stable _id and createdAt from existing when streaming
           _id: existingMessage._id,
-          createdAt: existingMessage.createdAt || existingMessage.created_at,
+          createdAt: existingMessage.createdAt,
           parts: mergedParts,
         };
       } else {
@@ -227,9 +227,7 @@ export const ajoraReducer = (state: AjoraState, action: Action): AjoraState => {
     case "SET_THINKING": {
       return { ...state, isThinking: action.payload.isThinking };
     }
-    case "SET_LOADING_EARLIER": {
-      return { ...state, loadEarlier: action.payload.loadEarlier };
-    }
+
     case "SET_MODE": {
       return { ...state, mode: action.payload.mode };
     }
@@ -257,12 +255,6 @@ export const ajoraReducer = (state: AjoraState, action: Action): AjoraState => {
           ...state.messages,
           [action.payload.threadId]: action.payload.messages,
         },
-        pagination: action.payload.pagination
-          ? {
-              ...state.pagination,
-              [action.payload.threadId]: action.payload.pagination,
-            }
-          : state.pagination,
       };
     }
     case "ADD_EARLIER_MESSAGES": {
@@ -274,18 +266,12 @@ export const ajoraReducer = (state: AjoraState, action: Action): AjoraState => {
           ...state.messages,
           [threadId]: [...existingMessages, ...messages],
         },
-        pagination: {
-          ...state.pagination,
-          [threadId]: pagination,
-        },
       };
     }
     case "SET_LOADING_MESSAGES": {
       return { ...state, isLoadingMessages: action.payload.isLoading } as any;
     }
-    case "SET_LOADING_EARLIER": {
-      return { ...state, isLoadingEarlier: action.payload.isLoading } as any;
-    }
+
     case "SET_COMPLETE": {
       return { ...state, isComplete: action.payload.isComplete };
     }
@@ -293,9 +279,9 @@ export const ajoraReducer = (state: AjoraState, action: Action): AjoraState => {
       return { ...state, attachement: action.payload.attachement };
     }
     case "UPDATE_ATTACHEMENT": {
-      const id = action.payload.attachement.id;
+      const fileUri = action.payload.attachement.fileUri;
       const existingAttachement = state.attachement;
-      if (existingAttachement && existingAttachement.id === id) {
+      if (existingAttachement && existingAttachement.fileUri === fileUri) {
         return { ...state, attachement: action.payload.attachement };
       } else {
         return state;

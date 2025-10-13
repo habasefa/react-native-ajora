@@ -41,7 +41,7 @@ export function Composer({
   textInputProps,
   textInputStyle,
 }: ComposerProps): React.ReactElement {
-  const dimensionsRef = useRef<{ width: number; height: number }>(null);
+  const dimensionsRef = useRef<{ width: number; height: number } | null>(null);
 
   const determineInputSizeChange = useCallback(
     (dimensions: { width: number; height: number }) => {

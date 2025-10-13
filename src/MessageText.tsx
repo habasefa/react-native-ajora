@@ -159,7 +159,6 @@ export function MessageText<TMessage extends IMessage = IMessage>({
               .map((part) => part.text)
               .join(" ") || ""
           }
-          compact={position === "right"}
           textColor={String(
             (textStyle?.[position] as TextStyle)?.color ||
               (customTextStyle as TextStyle)?.color ||

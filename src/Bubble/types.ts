@@ -2,13 +2,7 @@ import React from "react";
 import { StyleProp, ViewStyle, TextStyle } from "react-native";
 import { MessageTextProps } from "../MessageText";
 import { MessageImageProps } from "../MessageImage";
-import {
-  IMessage,
-  LeftRightStyle,
-  Omit,
-  MessageVideoProps,
-  MessageAudioProps,
-} from "../types";
+import { IMessage, LeftRightStyle, Omit, MessageVideoProps } from "../types";
 import { MessageFileProps } from "../MessageFile";
 
 /* eslint-disable no-use-before-define */
@@ -23,12 +17,6 @@ export type RenderMessageVideoProps<TMessage extends IMessage> = Omit<
   "containerStyle" | "wrapperStyle"
 > &
   MessageVideoProps<TMessage>;
-
-export type RenderMessageAudioProps<TMessage extends IMessage> = Omit<
-  BubbleProps<TMessage>,
-  "containerStyle" | "wrapperStyle"
-> &
-  MessageAudioProps<TMessage>;
 
 export type RenderMessageTextProps<TMessage extends IMessage> = Omit<
   BubbleProps<TMessage>,
@@ -69,9 +57,6 @@ export interface BubbleProps<TMessage extends IMessage> {
     props: RenderMessageImageProps<TMessage>
   ): React.ReactNode;
 
-  renderMessageAudio?(
-    props: RenderMessageAudioProps<TMessage>
-  ): React.ReactNode;
   renderMessageFile?(props: RenderMessageFileProps<TMessage>): React.ReactNode;
   renderMessageText?(props: RenderMessageTextProps<TMessage>): React.ReactNode;
   renderMessageToolCall?(props: any): React.ReactNode;

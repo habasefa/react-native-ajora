@@ -239,7 +239,7 @@ const Bubble = <TMessage extends IMessage = IMessage>(
     return (
       <View>
         {renderMessageImage()}
-        {renderMessageAudio()}
+        {/* {renderMessageAudio()} */}
         {renderMessageText()}
         {renderMessageToolCall()}
         {renderMessageFile()}
@@ -247,7 +247,7 @@ const Bubble = <TMessage extends IMessage = IMessage>(
     );
   }, [
     renderMessageImage,
-    renderMessageAudio,
+    // renderMessageAudio,
     renderMessageText,
     renderMessageFile,
     renderMessageToolCall,

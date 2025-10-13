@@ -1,4 +1,4 @@
-import React, { ReactNode, useCallback } from "react";
+import { ReactNode, useCallback } from "react";
 import {
   StyleSheet,
   Text,
@@ -16,13 +16,10 @@ import {
   takePictureAsync,
   filePickerAsync,
   audioPickerAsync,
-  videoPickerAsync,
 } from "./utils/mediaUtils";
 import { MaterialIcons } from "@expo/vector-icons";
 import { useChatContext } from "./AjoraContext";
 import { Attachement } from "./hooks/useAjora";
-import { ImagePickerAsset } from "expo-image-picker";
-import { DocumentPickerAsset } from "expo-document-picker";
 
 export interface ActionsProps {
   options?: { [key: string]: () => void };
@@ -35,16 +32,15 @@ export interface ActionsProps {
   onUpload?(
     uri: string,
     onProgress?: (progress: number, isUploaded?: boolean) => void
-  ): void;
+  ): Promise<string>;
 }
 
 export function Actions({
   options = {
-    Photo: () => {},
     Camera: () => {},
+    Photo: () => {},
     File: () => {},
-    Audio: () => {},
-    Video: () => {},
+    // Audio: () => {},
     Cancel: () => {},
   },
   optionTintColor: _optionTintColor = Color.optionTintColor,
@@ -59,15 +55,15 @@ export function Actions({
   const { setMode, setAttachement, clearAttachement, attachement } = ajora;
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  const onActionsPress = useCallback(() => {
-    const options = ["Photo", "Camera", "File", "Audio", "Cancel"];
+  const onActionsPress = useCallback(async () => {
+    const options = ["Camera", "Photo", "File", "Cancel"];
     const cancelButtonIndex = options.length - 1;
 
-    const onAttachement = (attachement: Attachement) => {
-      const newAttachement = {
+    const onAttachement = async (attachement: Attachement) => {
+      const newAttachement: Attachement = {
         displayName: attachement.displayName,
         mimeType: attachement.mimeType,
-        uri: attachement.fileUri,
+        fileUri: attachement.fileUri,
         progress: 0,
         isUploaded: false,
       };
@@ -77,14 +73,24 @@ export function Actions({
 
       // Call handleUpload with the attachment data directly instead of relying on state
       if (onUpload) {
-        const onProgress = (progress: number, isUploaded?: boolean) => {
+        const onProgress = async (progress: number, isUploaded?: boolean) => {
           ajora.updateAttachement({
             ...newAttachement,
             progress,
             isUploaded: isUploaded ?? false,
           });
         };
-        onUpload(newAttachement.uri as string, onProgress);
+        const uploadedUrl = await onUpload(
+          newAttachement.fileUri as string,
+          onProgress
+        );
+
+        ajora.updateAttachement({
+          ...newAttachement,
+          fileUri: uploadedUrl,
+          isUploaded: true,
+          progress: 100,
+        });
       } else {
         console.error("[Ajora]: onUpload is not defined");
       }
@@ -98,16 +104,16 @@ export function Actions({
       async (buttonIndex) => {
         switch (buttonIndex) {
           case 0:
-            pickImageAsync(onAttachement);
+            takePictureAsync(onAttachement);
             return;
           case 1:
-            takePictureAsync(onAttachement);
+            pickImageAsync(onAttachement);
             return;
           case 2:
             filePickerAsync(onAttachement);
             return;
           case 3:
-            audioPickerAsync(onAttachement);
+            // audioPickerAsync(onAttachement);
             return;
         }
       }

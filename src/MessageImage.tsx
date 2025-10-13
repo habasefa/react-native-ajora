@@ -19,7 +19,7 @@ const styles = StyleSheet.create({
   container: {
     backgroundColor: Color.card,
     borderRadius: 12,
-    borderWidth: 1,
+    borderWidth: 0,
     borderColor: Color.border,
     shadowColor: Color.shadow,
     shadowOffset: {
@@ -44,6 +44,12 @@ const styles = StyleSheet.create({
   imageActive: {
     resizeMode: "contain",
   },
+  fullscreenImage: {
+    width: "100%",
+    height: "100%",
+    resizeMode: "contain",
+    backgroundColor: "black",
+  },
   imageOverlay: {
     position: "absolute",
     top: 0,
@@ -62,7 +68,7 @@ const styles = StyleSheet.create({
     textShadowRadius: 2,
   },
   imageInfo: {
-    padding: 12,
+    padding: 0,
     backgroundColor: Color.muted,
     borderTopWidth: 1,
     borderTopColor: Color.border,
@@ -115,23 +121,29 @@ export function MessageImage<TMessage extends IMessage = IMessage>({
       part.fileData?.mimeType === "image/heif"
   );
   const imageUri = imagePart?.fileData?.fileUri;
+  if (!imageUri) return null;
 
   return (
     <View style={[styles.container, containerStyle]}>
       {/* @ts-expect-error: Lightbox types are not fully compatible */}
       <Lightbox
+        renderContent={() => (
+          <Image
+            {...imageProps}
+            style={styles.fullscreenImage}
+            source={{ ...imageSourceProps, uri: imageUri }}
+          />
+        )}
         activeProps={{
           style: [stylesCommon.fill, styles.imageActive],
         }}
         {...lightboxProps}
       >
-        <View style={styles.imageContainer}>
-          <Image
-            {...imageProps}
-            style={[styles.image, imageStyle]}
-            source={{ ...imageSourceProps, uri: imageUri }}
-          />
-        </View>
+        <Image
+          {...imageProps}
+          style={[styles.image, imageStyle]}
+          source={{ ...imageSourceProps, uri: imageUri }}
+        />
       </Lightbox>
     </View>
   );

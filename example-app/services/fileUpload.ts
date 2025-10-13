@@ -1,30 +1,57 @@
-export async function uploadToCloudinary(image: any) {
-  // If image.base64 is provided, you can use it; else use the URI + blob approach
-  const data = new FormData();
+import { UploadApiOptions, upload } from "cloudinary-react-native";
+import { Cloudinary } from "@cloudinary/url-gen";
 
-  if (image.base64) {
-    data.append("file", `data:${image.type};base64,${image.base64}`);
-  } else {
-    data.append("file", {
-      uri: image.uri as string,
-      type: image.type || "image/jpeg",
-      name: image.fileName || `upload.${image.uri.split(".").pop()}`,
-    } as any);
-  }
+const CLOUDINARY_CLOUD_NAME = process.env.EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME;
+const CLOUDINARY_API_KEY = process.env.EXPO_PUBLIC_CLOUDINARY_API_KEY;
+const CLOUDINARY_API_SECRET = process.env.EXPO_PUBLIC_CLOUDINARY_API_SECRET;
+const CLOUDINARY_UPLOAD_PRESET =
+  process.env.EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET;
+const CLOUDINARY_FOLDER = process.env.EXPO_PUBLIC_CLOUDINARY_FOLDER;
 
-  data.append("upload_preset", "ajora-agent");
-  data.append("cloud_name", "ajora");
+const cloudinary = new Cloudinary({
+  cloud: {
+    cloudName: CLOUDINARY_CLOUD_NAME,
+    apiKey: CLOUDINARY_API_KEY,
+    apiSecret: CLOUDINARY_API_SECRET,
+  },
+  url: {
+    secure: true,
+  },
+});
 
-  const response = await fetch(
-    `https://api.cloudinary.com/v1_1/ajora/image/upload`,
-    {
-      method: "POST",
-      body: data,
-    }
-  );
-  if (!response.ok) {
-    throw new Error(`Upload failed with status ${response.status}`);
-  }
-  const json = await response.json();
-  return json.secure_url;
+export async function uploadToCloudinary(
+  fileUri: string,
+  onProgress?: (progress: number, isUploaded?: boolean) => void
+): Promise<string> {
+  const options: UploadApiOptions = {
+    upload_preset: CLOUDINARY_UPLOAD_PRESET,
+    unsigned: true,
+    folder: CLOUDINARY_FOLDER,
+  };
+
+  if (onProgress) onProgress(0);
+
+  return new Promise<string>((resolve, reject) => {
+    upload(cloudinary, {
+      file: fileUri,
+      options: options,
+      callback: (error: any, response: any) => {
+        if (error) {
+          console.error("Upload failed:", error);
+          reject(error);
+          return;
+        }
+
+        if (response && response.secure_url) {
+          if (onProgress) onProgress(100, true);
+          resolve(response.secure_url as string);
+          return;
+        }
+
+        const err = new Error("No response from Cloudinary");
+        console.error("Upload failed:", err.message);
+        reject(err);
+      },
+    });
+  });
 }

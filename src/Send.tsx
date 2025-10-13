@@ -133,16 +133,14 @@ export const Send = <TMessage extends IMessage = IMessage>({
     // Show button when there is text/attachment to send, when alwaysShowSend, when streaming (to show abort), or when recording
     const hasText = !!(text && text.trim().length > 0);
     return (
-      alwaysShowSend ||
-      hasText ||
-      !!attachement?.isUploaded ||
-      !isComplete ||
-      isRecording
+      alwaysShowSend || hasText || !!attachement?.isUploaded || !isComplete
+      // ||
+      // isRecording
     );
   }, [alwaysShowSend, text, isComplete, attachement, isRecording]);
 
   // Show audio wave icon when no text/attachment but not recording
-  if (!showSend) {
+  if (false) {
     return (
       <TouchableOpacity
         testID={TEST_ID.SEND_TOUCHABLE}
@@ -163,6 +161,10 @@ export const Send = <TMessage extends IMessage = IMessage>({
         </View>
       </TouchableOpacity>
     );
+  }
+
+  if (!showSend) {
+    return null;
   }
 
   return (

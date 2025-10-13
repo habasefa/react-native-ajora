@@ -18,6 +18,11 @@ export type UserEvent =
       mode?: string;
     }
   | {
+      type: "attachement";
+      message: IMessage;
+      mode?: string;
+    }
+  | {
       type: "function_response";
       message: IMessage;
       mode?: string;

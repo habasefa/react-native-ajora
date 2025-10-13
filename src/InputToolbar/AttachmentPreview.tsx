@@ -2,11 +2,13 @@ import React from "react";
 import {
   View,
   Image,
-  Text,
   TouchableOpacity,
   StyleSheet,
   Animated,
+  ActivityIndicator,
 } from "react-native";
+// TODO: support web
+import Lightbox from "react-native-lightbox-v2";
 import { MaterialIcons } from "@expo/vector-icons";
 import { useChatContext } from "../AjoraContext";
 import Color from "../Color";
@@ -20,6 +22,7 @@ export function AttachmentPreview({
 }: AttachmentPreviewProps) {
   const { ajora } = useChatContext();
   const { clearAttachement, attachement } = ajora;
+  console.log("attachement in AttachmentPreview.tsx", attachement);
 
   const fadeAnim = React.useRef(new Animated.Value(0)).current;
 
@@ -64,23 +67,6 @@ export function AttachmentPreview({
     return iconMap[fileType] || "insert-drive-file";
   };
 
-  // Helper function to get file name
-  const getFileName = (): string => {
-    if (attachement?.displayName) {
-      return attachement.displayName;
-    }
-    if ((attachement as any)?.name) {
-      return (attachement as any).name;
-    }
-    if ((attachement as any)?.uri) {
-      const pathParts = (attachement as any).uri.split("/");
-      const fileName = pathParts[pathParts.length - 1];
-      const cleanFileName = fileName.split("?")[0];
-      return cleanFileName || "File";
-    }
-    return "File";
-  };
-
   const handleRemove = () => {
     clearAttachement();
   };
@@ -92,7 +78,6 @@ export function AttachmentPreview({
   if (renderAttachment) return renderAttachment();
 
   const fileType = getFileType(attachement.mimeType);
-  const fileName = getFileName();
   const fileIcon = getFileIcon(fileType);
   const isImage = fileType === "image";
 
@@ -117,11 +102,23 @@ export function AttachmentPreview({
         {/* File Preview Container */}
         <View style={styles.previewContainer}>
           {isImage ? (
-            // Image Preview
-            <Image
-              source={{ uri: (attachement as any)?.uri }}
-              style={styles.image}
-            />
+            // Image Preview with Lightbox
+            // @ts-expect-error: Lightbox types are not fully compatible
+            <Lightbox
+              renderContent={() => (
+                <Image
+                  source={{ uri: (attachement as any)?.fileUri }}
+                  style={styles.fullscreenImage}
+                />
+              )}
+              activeProps={{ style: styles.fullscreenImage }}
+              underlayColor="transparent"
+            >
+              <Image
+                source={{ uri: (attachement as any)?.fileUri }}
+                style={styles.image}
+              />
+            </Lightbox>
           ) : (
             // Non-image file preview
             <View style={styles.filePreview}>
@@ -137,11 +134,7 @@ export function AttachmentPreview({
           {attachement?.progress !== undefined &&
             attachement?.progress < 100 && (
               <View style={styles.progressOverlay}>
-                <View style={styles.progressTextContainer}>
-                  <Text style={styles.progressText}>
-                    {Math.round(attachement?.progress || 0)}%
-                  </Text>
-                </View>
+                <ActivityIndicator size="small" color={Color.white} />
               </View>
             )}
 
@@ -197,6 +190,12 @@ const styles = StyleSheet.create({
     width: "100%",
     height: "100%",
     resizeMode: "cover",
+  },
+  fullscreenImage: {
+    width: "100%",
+    height: "100%",
+    resizeMode: "contain",
+    backgroundColor: "black",
   },
   progressOverlay: {
     position: "absolute",

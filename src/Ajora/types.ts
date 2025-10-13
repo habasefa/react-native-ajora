@@ -219,5 +219,8 @@ export interface AjoraProps<TMessage extends IMessage>
   /* Callback when header plus is pressed */
   onHeaderRightPress?(): void;
   /* Callback when attachment is uploaded */
-  onUpload?(uri: string): void;
+  onUpload?(
+    uri: string,
+    onProgress?: (progress: number, isUploaded?: boolean) => void
+  ): Promise<string>;
 }

@@ -9,7 +9,6 @@ import {
 } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import { IMessage } from "./types";
-import stylesCommon from "./styles";
 import Color from "./Color";
 
 // Optional expo-audio import for audio playback functionality

@@ -64,13 +64,17 @@ export async function pickImageAsync(onSend: (messages: IMessage[]) => void) {
   onSend([
     {
       _id: "1",
+      thread_id: "1",
       role: "user",
       parts: [
         {
-          image: images[0].image,
+          fileData: {
+            fileUri: images[0].image,
+            mimeType: "image/jpeg",
+          },
         },
       ],
-      createdAt: new Date(),
+      createdAt: new Date().toISOString(),
     },
   ]);
 }
@@ -90,13 +94,17 @@ export async function takePictureAsync(onSend: (images: IMessage[]) => void) {
   onSend([
     {
       _id: "1",
+      thread_id: "1",
       role: "user",
       parts: [
         {
-          image: images[0].image,
+          fileData: {
+            fileUri: images[0].image,
+            mimeType: "image/jpeg",
+          },
         },
       ],
-      createdAt: new Date(),
+      createdAt: new Date().toISOString(),
     },
   ]);
 }
@@ -110,18 +118,17 @@ export async function filePickerAsync(onSend: (files: IMessage[]) => void) {
   onSend([
     {
       _id: "1",
+      thread_id: "1",
       role: "user",
       parts: [
         {
-          file: {
-            uri: file.uri,
-            name: file.name,
-            size: file.size,
+          fileData: {
+            fileUri: file.uri,
             mimeType: file.mimeType,
           },
         },
       ],
-      createdAt: new Date(),
+      createdAt: new Date().toISOString(),
     },
   ]);
 }
@@ -139,18 +146,17 @@ export async function audioPickerAsync(onSend: (audios: IMessage[]) => void) {
   onSend([
     {
       _id: "1",
+      thread_id: "1",
       role: "user",
       parts: [
         {
-          audio: {
-            uri: audioFile.uri,
-            name: audioFile.name,
-            size: audioFile.size,
+          fileData: {
+            fileUri: audioFile.uri,
             mimeType: audioFile.mimeType,
           },
         },
       ],
-      createdAt: new Date(),
+      createdAt: new Date().toISOString(),
     },
   ]);
 }

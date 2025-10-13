@@ -1,11 +1,11 @@
 import React, { useMemo } from "react";
-import { View, StyleProp, ViewStyle } from "react-native";
+import { View, StyleProp, ViewStyle, StyleSheet } from "react-native";
 
 import { Composer, ComposerProps } from "../Composer";
 import { Send, SendProps } from "../Send";
 import { Actions, ActionsProps } from "../Actions";
 import { AttachmentPreview } from "./AttachmentPreview";
-import { RecordingView } from "../Recording";
+import RecordingView from "../Recording";
 import { IMessage } from "../types";
 import { useChatContext } from "../AjoraContext";
 import styles from "./styles";
@@ -24,7 +24,10 @@ export interface InputToolbarProps<TMessage extends IMessage> {
   icon?: () => React.ReactNode;
   wrapperStyle?: StyleProp<ViewStyle>;
   renderAttachment?: () => React.ReactNode;
-  onUpload?(uri: string): void;
+  onUpload?(
+    uri: string,
+    onProgress?: (progress: number, isUploaded?: boolean) => void
+  ): Promise<string>;
 }
 
 export function InputToolbar<TMessage extends IMessage = IMessage>(

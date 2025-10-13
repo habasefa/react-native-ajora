@@ -1,9 +1,6 @@
 import * as Linking from "expo-linking";
 import * as ImagePicker from "expo-image-picker";
 import * as DocumentPicker from "expo-document-picker";
-
-import { IMessage } from "../../src/Ajora";
-
 import { Alert } from "react-native";
 import { Attachement } from "../hooks/useAjora";
 

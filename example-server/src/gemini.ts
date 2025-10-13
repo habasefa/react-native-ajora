@@ -15,6 +15,55 @@ const genAI = new GoogleGenAI({
   apiKey,
 });
 
+const processMessage = async (message: Message[]) => {
+  // 1. Check if there are file parts
+  // 2. If there are file parts, check if they are uploaded to FileAPI
+  // 3. If they are not uploaded, upload them to FileAPI
+  // 4. Update the part to a gemini compatible part and return the processed message with role and parts
+
+  const fileParts = message.filter((message) =>
+    message.parts?.some((part) => part.fileData)
+  );
+
+  if (fileParts.length > 0) {
+    for (const filePart of fileParts) {
+      const fileData = filePart.parts.find((part) => part.fileData)?.fileData;
+      const imageUrl = fileData?.fileUri;
+      if (!imageUrl) {
+        console.error("File URL is not set", filePart);
+        continue;
+      }
+      const response = await fetch(imageUrl);
+      if (!response.ok) {
+        console.error("Failed to fetch file", response);
+        continue;
+      }
+
+      const blob = await response.blob();
+      const file = new File([blob], fileData?.displayName as string, {
+        type: filePart.parts[0].fileData?.mimeType as string,
+      });
+
+      const uploadedFile = await genAI.files.upload({
+        file: file,
+        config: {
+          mimeType: fileData?.mimeType,
+        },
+      });
+
+      console.log("uploadedFile", uploadedFile);
+
+      fileData!.fileUri = uploadedFile.uri;
+      fileData!.mimeType = uploadedFile.mimeType;
+    }
+  }
+
+  return message.reverse().map((message) => ({
+    role: message.role,
+    parts: message.parts,
+  }));
+};
+
 export const gemini = async function* (
   message: Message[],
   mode: "agent" | "assistant" = "agent",
@@ -24,17 +73,16 @@ export const gemini = async function* (
     if (message.length === 0) {
       throw new Error("Message is empty");
     }
-    const formattedMessage = message.map((message) => ({
-      role: message.role,
-      parts: message.parts,
-    }));
+
+    const processedMessage = await processMessage(message);
+    console.log("processedMessage", JSON.stringify(processedMessage, null, 2));
 
     const systemInstruction = mode === "agent" ? agentPrompt : assistantPrompt;
     if (signal?.aborted) return;
     const response = await genAI.models.generateContentStream({
       model: "gemini-2.5-pro",
 
-      contents: formattedMessage,
+      contents: processedMessage,
       config: {
         tools: [
           {

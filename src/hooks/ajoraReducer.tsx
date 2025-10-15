@@ -279,9 +279,8 @@ export const ajoraReducer = (state: AjoraState, action: Action): AjoraState => {
       return { ...state, attachement: action.payload.attachement };
     }
     case "UPDATE_ATTACHEMENT": {
-      const fileUri = action.payload.attachement.fileUri;
       const existingAttachement = state.attachement;
-      if (existingAttachement && existingAttachement.fileUri === fileUri) {
+      if (existingAttachement) {
         return { ...state, attachement: action.payload.attachement };
       } else {
         return state;

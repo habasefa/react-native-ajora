@@ -2,7 +2,7 @@ import React, { RefObject } from "react";
 import { ActionSheetOptions } from "@expo/react-native-action-sheet";
 import { TextInput, StyleProp, TextStyle, ViewStyle } from "react-native";
 import { LightboxProps } from "react-native-lightbox-v2";
-import { ActionsProps } from "../Actions";
+import { ActionsProps, OnUploadProps } from "../Actions";
 import { ComposerProps } from "../Composer";
 import { InputToolbarProps } from "../InputToolbar";
 import { LoadEarlierProps } from "../LoadEarlier";
@@ -208,8 +208,5 @@ export interface AjoraProps<TMessage extends IMessage>
   /* Callback when header plus is pressed */
   onHeaderRightPress?(): void;
   /* Callback when attachment is uploaded */
-  onUpload?(
-    uri: string,
-    onProgress?: (progress: number, isUploaded?: boolean) => void
-  ): Promise<string>;
+  onUpload?(props: OnUploadProps): Promise<void>;
 }

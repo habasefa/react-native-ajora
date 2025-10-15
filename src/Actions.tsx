@@ -20,6 +20,13 @@ import { MaterialIcons } from "@expo/vector-icons";
 import { useChatContext } from "./AjoraContext";
 import { Attachement } from "./hooks/useAjora";
 
+export interface OnUploadProps {
+  file: { fileUri: string; displayName: string; mimeType: string };
+  onProgress?: (progress: number, isUploaded?: boolean) => void;
+  onSuccess?: (uploadedUrl: string) => void;
+  onError?: (error: any) => void;
+}
+
 export interface ActionsProps {
   options?: { [key: string]: () => void };
   optionTintColor?: string;
@@ -28,10 +35,7 @@ export interface ActionsProps {
   iconTextStyle?: StyleProp<TextStyle>;
   containerStyle?: StyleProp<ViewStyle>;
   onPressActionButton?(): void;
-  onUpload?(
-    uri: string,
-    onProgress?: (progress: number, isUploaded?: boolean) => void
-  ): Promise<string>;
+  onUpload?(props: OnUploadProps): Promise<void>;
 }
 
 export function Actions({
@@ -78,17 +82,39 @@ export function Actions({
             isUploaded: isUploaded ?? false,
           });
         };
-        const uploadedUrl = await onUpload(
-          newAttachement.fileUri as string,
-          onProgress
-        );
 
-        ajora.updateAttachement({
-          ...newAttachement,
-          fileUri: uploadedUrl,
-          isUploaded: true,
-          progress: 100,
-        });
+        try {
+          await onUpload({
+            file: {
+              fileUri: newAttachement.fileUri ?? "",
+              displayName: newAttachement.displayName ?? "",
+              mimeType: newAttachement.mimeType ?? "",
+            },
+            onProgress: (progress) => {
+              onProgress?.(progress, progress === 100);
+            },
+            onSuccess: (uploadedUrl) => {
+              console.log("File uploaded successfully", uploadedUrl);
+              ajora.updateAttachement({
+                ...newAttachement,
+                fileUri: uploadedUrl,
+                isUploaded: true,
+                progress: 100,
+              });
+            },
+            onError: (error) => {
+              console.error("File upload failed:", error);
+              clearAttachement();
+            },
+          });
+        } catch (error) {
+          console.error("File upload failed:", error);
+          ajora.updateAttachement({
+            ...newAttachement,
+            isUploaded: false,
+            progress: 0,
+          });
+        }
       } else {
         console.error("[Ajora]: onUpload is not defined");
       }

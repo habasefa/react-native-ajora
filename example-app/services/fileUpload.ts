@@ -43,7 +43,7 @@ export async function uploadToCloudinary(
         }
 
         if (response && response.secure_url) {
-          if (onProgress) onProgress(100, true);
+          // if (onProgress) onProgress(100, true);
           resolve(response.secure_url as string);
           return;
         }

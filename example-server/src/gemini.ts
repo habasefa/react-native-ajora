@@ -33,6 +33,7 @@ const processMessage = async (message: Message[]) => {
         console.error("File URL is not set", filePart);
         continue;
       }
+      console.log("imageUrl", imageUrl);
       const response = await fetch(imageUrl);
       if (!response.ok) {
         console.error("Failed to fetch file", response);

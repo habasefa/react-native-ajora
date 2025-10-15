@@ -3,7 +3,7 @@ import { View, StyleProp, ViewStyle, StyleSheet } from "react-native";
 
 import { Composer, ComposerProps } from "../Composer";
 import { Send, SendProps } from "../Send";
-import { Actions, ActionsProps } from "../Actions";
+import { Actions, ActionsProps, OnUploadProps } from "../Actions";
 import { AttachmentPreview } from "./AttachmentPreview";
 import { IMessage } from "../types";
 import { useChatContext } from "../AjoraContext";
@@ -23,10 +23,7 @@ export interface InputToolbarProps<TMessage extends IMessage> {
   icon?: () => React.ReactNode;
   wrapperStyle?: StyleProp<ViewStyle>;
   renderAttachment?: () => React.ReactNode;
-  onUpload?(
-    uri: string,
-    onProgress?: (progress: number, isUploaded?: boolean) => void
-  ): Promise<string>;
+  onUpload?(props: OnUploadProps): Promise<void>;
 }
 
 export function InputToolbar<TMessage extends IMessage = IMessage>(

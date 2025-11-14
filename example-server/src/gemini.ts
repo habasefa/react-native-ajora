@@ -1,3 +1,6 @@
+import dotenv from "dotenv";
+dotenv.config();
+
 import { GoogleGenAI, Type } from "@google/genai";
 import { nativeTools } from "./tools/toolsDeclaration";
 import { agentPrompt, assistantPrompt } from "./system_prompt";
@@ -10,6 +13,8 @@ if (!apiKey) {
     "GEMINI_API_KEY is not set. Create example-backend/.env and set GEMINI_API_KEY."
   );
 }
+
+console.log("apiKey", apiKey);
 
 const genAI = new GoogleGenAI({
   apiKey,
@@ -96,7 +101,7 @@ export const gemini = async function* (
       yield chunk;
     }
   } catch (error) {
-    console.error("Error in gemini:", error);
+    console.error("Error in gemini function:", error);
   }
 };
 const CHECK_PROMPT = `
@@ -249,7 +254,7 @@ export const threadTitleUpdate = async (history: Message[]) => {
 
     return title.title;
   } catch (error) {
-    console.error("Error in threadTitleUpdate:", error);
+    console.error("Error in threadTitleUpdate function:", error);
     return "Untitled Thread";
   }
 };

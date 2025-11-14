@@ -10,44 +10,66 @@ export interface IAjoraContext {
     ) => void;
   };
   getLocale(): string;
+  getTimezone(): string;
   ajora: Ajora;
 }
 
 export const AjoraContext = createContext<IAjoraContext>({
   getLocale: () => "en",
+  getTimezone: () => "America/New_York",
   actionSheet: () => ({
     showActionSheetWithOptions: () => {},
   }),
   ajora: {
+    // Streaming
     stream: [],
-    messages: {},
-    messagesByThread: [],
-    threads: [],
-    activeThreadId: null,
+    stopStreaming: () => {},
+
+    // Thinking
     isThinking: false,
-    loadEarlier: false,
+    setIsThinking: () => {},
+
+    // Messages
+    messages: {},
     isLoadingMessages: false,
-    mode: "auto",
-    baseUrl: "",
-    apiService: null,
-    submitQuery: () => Promise.resolve(),
+    getMessages: () => {},
+
+    // Threads
+    activeThreadId: null,
     addNewThread: () => {},
     switchThread: () => {},
-    getThreads: () => {},
-    getMessages: () => {},
-    setIsThinking: () => {},
+
+    // Load earlier
+    loadEarlier: false,
     setIsLoadingEarlier: () => {},
+
+    // Mode
+    mode: "auto",
     setMode: () => {},
-    regenerateMessage: () => {},
-    setIsComplete: () => {},
+
+    // Attachement
+    attachement: undefined,
     setAttachement: () => {},
     updateAttachement: () => {},
     clearAttachement: () => {},
-    setIsRecording: () => {},
-    isComplete: false,
-    attachement: undefined,
+
+    // Recording
     isRecording: false,
-    stopStreaming: () => {},
+    setIsRecording: () => {},
+
+    // Base URL
+    baseUrl: "",
+    apiService: null,
+
+    // Submit query
+    submitQuery: () => Promise.resolve(),
+
+    // Regenerate message
+    regenerateMessage: () => {},
+
+    // Complete
+    isComplete: false,
+    setIsComplete: () => {},
   },
 });
 

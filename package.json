@@ -60,6 +60,7 @@
     ]
   },
   "dependencies": {
+    "@ag-ui/core": "^0.0.41",
     "@expo/react-native-action-sheet": "^4.1.1",
     "@google/genai": "^1.20.0",
     "@types/lodash.isequal": "^4.5.8",
@@ -115,12 +116,12 @@
   },
   "peerDependencies": {
     "@expo/vector-icons": "^15.0.0",
+    "expo-document-picker": "^14.0.7",
+    "expo-image-picker": "^17.0.8",
     "react": ">=18.0.0",
     "react-native": "*",
     "react-native-keyboard-controller": ">=1.0.0",
-    "react-native-reanimated": ">=3.0.0",
-    "expo-document-picker": "^14.0.7",
-    "expo-image-picker": "^17.0.8"
+    "react-native-reanimated": ">=3.0.0"
   },
   "packageManager": "npm@10.0.0",
   "engines": {

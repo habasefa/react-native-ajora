@@ -9,7 +9,6 @@ import { LoadEarlierProps } from "../LoadEarlier";
 import { MessageProps } from "../Message";
 import { MessageImageProps } from "../MessageImage";
 import { MessageTextProps } from "../MessageText";
-import { HeaderProps, IMessage, LeftRightStyle } from "../types";
 import { SendProps } from "../Send";
 import {
   AnimatedList,
@@ -18,8 +17,7 @@ import {
 } from "../MessageContainer";
 import { BubbleProps } from "../Bubble";
 import { MessageActionsProps } from "../MessageActions";
-import { Thread } from "../Thread/types";
-
+import { IMessage } from "../types";
 export interface AjoraProps<TMessage extends IMessage>
   extends Partial<MessageContainerProps<TMessage>> {
   /* Message container ref */
@@ -102,7 +100,6 @@ export interface AjoraProps<TMessage extends IMessage>
   isCustomViewBottom?: boolean;
   /* infinite scroll up when reach the top of messages container, automatically call onLoadEarlier function if exist */
   infiniteScroll?: boolean;
-  timeTextStyle?: LeftRightStyle<TextStyle>;
   /* Custom action sheet */
   actionSheet?(): {
     showActionSheetWithOptions: (
@@ -140,10 +137,6 @@ export interface AjoraProps<TMessage extends IMessage>
   /* Custom view inside the bubble */
   renderCustomView?(props: BubbleProps<TMessage>): React.ReactNode;
 
-  /* Custom header component */
-  renderHeader?(props: HeaderProps): React.ReactNode;
-  /* Custom thread component */
-  renderThread?(props: Thread): React.ReactNode;
   /* Custom footer component on the ListView, e.g. 'User is typing...' */
   renderFooter?(props: MessageContainerProps<TMessage>): React.ReactNode;
   /* Custom component to render in the ListView when messages are empty */
@@ -188,15 +181,6 @@ export interface AjoraProps<TMessage extends IMessage>
     nextProps: MessageProps<TMessage>
   ): boolean;
 
-  /* Header and Thread Management */
-  /* Show header component */
-  showHeader?: boolean;
-  /* Header component props */
-  headerProps?: Partial<HeaderProps>;
-  /* Show thread drawer */
-  showThreads?: boolean;
-  /* Thread drawer props */
-  threadProps?: Partial<Thread>;
   /* Available threads */
   // threads?: ThreadItem[];
   /* Callback when thread is selected */

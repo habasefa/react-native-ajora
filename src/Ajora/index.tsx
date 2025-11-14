@@ -19,14 +19,11 @@ import Bubble from "../Bubble";
 import { Composer } from "../Composer";
 import { MAX_COMPOSER_HEIGHT, MIN_COMPOSER_HEIGHT, TEST_ID } from "../Constant";
 import { AjoraContext, useChatContext } from "../AjoraContext";
-import { Header } from "../Header";
 import { LoadEarlier } from "../LoadEarlier";
 import Message from "../Message";
 import MessageContainer, { AnimatedList } from "../MessageContainer";
 import { MessageImage } from "../MessageImage";
 import { MessageText } from "../MessageText";
-import { Thread } from "../Thread";
-import type { Thread as ThreadType } from "../Thread/types";
 import { IMessage } from "../types";
 import { Send } from "../Send";
 import * as utils from "../utils";
@@ -46,8 +43,12 @@ import { AjoraProps } from "./types";
 import stylesCommon from "../styles";
 import styles from "./styles";
 import { InputToolbar } from "../InputToolbar";
-
 dayjs.extend(localizedFormat);
+declare const setTimeout: (
+  handler: (...args: any[]) => void,
+  timeout?: number
+) => any;
+declare const clearTimeout: (handle?: any) => void;
 
 function Ajora<TMessage extends IMessage = IMessage>(
   props: AjoraProps<TMessage>
@@ -73,30 +74,11 @@ function Ajora<TMessage extends IMessage = IMessage>(
     minComposerHeight = MIN_COMPOSER_HEIGHT,
     maxComposerHeight = MAX_COMPOSER_HEIGHT,
     isKeyboardInternallyHandled = true,
-
-    // Header and Thread props
-    showHeader = true,
-    headerProps = {},
-    showThreads = true,
-    threadProps = {},
-    onThreadSelect,
-    onNewThread,
-    onHeaderLeftPress,
-    onHeaderRightPress,
-    onPressActionButton,
   } = props;
 
   const { ajora } = useChatContext();
-  const {
-    activeThreadId,
-    threads = [],
-    addNewThread,
-    switchThread,
-    submitQuery,
-    clearAttachement,
-  } = ajora;
+  const { submitQuery, clearAttachement } = ajora;
 
-  const currentThread = threads.find((thread) => thread.id === activeThreadId);
   const actionSheetRef = useRef<ActionSheetProviderRef>(null);
 
   const messageContainerRef = useMemo(
@@ -117,7 +99,6 @@ function Ajora<TMessage extends IMessage = IMessage>(
   );
   const [text, setText] = useState<string | undefined>(() => props.text || "");
   const [isThinkingDisabled, setIsThinkingDisabled] = useState<boolean>(false);
-  const [isThreadDrawerOpen, setIsThreadDrawerOpen] = useState<boolean>(false);
 
   const keyboard = useReanimatedKeyboardAnimation();
   const trackingKeyboardMovement = useSharedValue(false);
@@ -201,46 +182,6 @@ function Ajora<TMessage extends IMessage = IMessage>(
     [messageContainerRef]
   );
 
-  // Header and Thread handlers
-  const handleHeaderLeftPress = useCallback(() => {
-    if (showThreads) {
-      setIsThreadDrawerOpen(true);
-    }
-    if (onHeaderLeftPress) {
-      onHeaderLeftPress();
-    }
-  }, [showThreads, onHeaderLeftPress]);
-
-  const handleHeaderRightPress = useCallback(() => {
-    if (onHeaderRightPress) {
-      onHeaderRightPress();
-    } else {
-      addNewThread();
-    }
-  }, [onHeaderRightPress, addNewThread]);
-
-  const handleThreadSelect = useCallback(
-    (thread: ThreadType) => {
-      setIsThreadDrawerOpen(false);
-
-      if (onThreadSelect) {
-        onThreadSelect(thread);
-      } else {
-        switchThread(thread.id);
-      }
-    },
-    [onThreadSelect, switchThread]
-  );
-
-  const handleNewThread = useCallback(() => {
-    setIsThreadDrawerOpen(false);
-    if (onNewThread) {
-      onNewThread();
-    } else {
-      addNewThread();
-    }
-  }, [onNewThread, addNewThread]);
-
   const notifyInputTextReset = useCallback(() => {
     onInputTextChanged?.("");
   }, [onInputTextChanged]);
@@ -289,14 +230,7 @@ function Ajora<TMessage extends IMessage = IMessage>(
 
       setTimeout(() => scrollToBottom(), 10);
     },
-    [
-      onSend,
-      resetInputToolbar,
-      disableThinking,
-      scrollToBottom,
-      submitQuery,
-      activeThreadId,
-    ]
+    [onSend, resetInputToolbar, disableThinking, scrollToBottom, submitQuery]
   );
 
   const renderMessages = useMemo(() => {
@@ -324,11 +258,6 @@ function Ajora<TMessage extends IMessage = IMessage>(
     keyboardShouldPersistTaps,
     messageContainerRef,
     renderChatFooter,
-    showHeader,
-    currentThread,
-    handleHeaderLeftPress,
-    handleHeaderRightPress,
-    headerProps,
     _onSend,
   ]);
 
@@ -436,7 +365,7 @@ function Ajora<TMessage extends IMessage = IMessage>(
 
   useAnimatedReaction(
     () => -keyboard.height.value,
-    (value, prevValue) => {
+    (value: number, prevValue: number) => {
       if (prevValue !== null && value !== prevValue) {
         const isKeyboardMovingUp = value > prevValue;
         if (isKeyboardMovingUp !== trackingKeyboardMovement.value) {
@@ -480,13 +409,6 @@ function Ajora<TMessage extends IMessage = IMessage>(
     <AjoraContext.Provider value={contextValues}>
       <ActionSheetProvider ref={actionSheetRef}>
         <View style={stylesCommon.fill}>
-          {showHeader && (
-            <Header
-              onLeftPress={handleHeaderLeftPress}
-              onRightPress={handleHeaderRightPress}
-              {...headerProps}
-            />
-          )}
           <View
             testID={TEST_ID.WRAPPER}
             style={[stylesCommon.fill, styles.contentContainer]}
@@ -506,15 +428,6 @@ function Ajora<TMessage extends IMessage = IMessage>(
               renderLoading?.()
             )}
           </View>
-          {showThreads && (
-            <Thread
-              isOpen={isThreadDrawerOpen}
-              onClose={() => setIsThreadDrawerOpen(false)}
-              onThreadSelect={handleThreadSelect}
-              onNewThread={handleNewThread}
-              {...threadProps}
-            />
-          )}
         </View>
       </ActionSheetProvider>
     </AjoraContext.Provider>

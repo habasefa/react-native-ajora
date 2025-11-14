@@ -276,94 +276,6 @@ export class ApiService {
     }
   }
 
-  // Thread endpoints
-  getThreads(): Promise<Thread[]> {
-    const headers: Record<string, string> = { "Cache-Control": "no-cache" };
-    if (this.config.bearerToken) {
-      headers.Authorization = `Bearer ${this.config.bearerToken}`;
-    }
-
-    // Cache-bust to avoid 304/empty bodies on some platforms (okhttp)
-    const url = `${this.apiBase}/threads?_=${Date.now()}`;
-    return fetch(url, { headers })
-      .then(async (res) => {
-        if (!res.ok) {
-          console.warn("[Ajora]: getThreads non-OK status", res.status);
-          return [] as Thread[];
-        }
-        return res.json();
-      })
-      .then((json) => {
-        try {
-          // Debug the raw payload to help diagnose shape mismatches
-
-          // If the server already returns an array of threads, pass through
-          if (Array.isArray(json)) {
-            return (json as any[]).map((t) => ({
-              id: t.id ?? t._id,
-              title: t.title ?? "New Conversation",
-              createdAt: t.createdAt || t.created_at,
-              updatedAt: t.updatedAt || t.updated_at,
-            })) as Thread[];
-          }
-
-          // If the server wraps the array under a `data` key
-          if (json && Array.isArray(json.data)) {
-            return (json.data as any[]).map((t) => ({
-              id: t.id ?? t._id,
-              title: t.title ?? "New Conversation",
-              createdAt: t.createdAt || t.created_at,
-              updatedAt: t.updatedAt || t.updated_at,
-            })) as Thread[];
-          }
-
-          // Unknown shape; return empty list to avoid runtime errors
-          console.warn("[Ajora]: Unexpected threads response shape");
-          return [] as Thread[];
-        } catch (e) {
-          console.warn("[Ajora]: Failed to normalize threads response", e);
-          return [] as Thread[];
-        }
-      });
-  }
-
-  createThread(title?: string): Promise<Thread> {
-    const headers: Record<string, string> = {
-      "Content-Type": "application/json",
-      Accept: "application/json",
-      "Cache-Control": "no-cache",
-    };
-    if (this.config.bearerToken) {
-      headers.Authorization = `Bearer ${this.config.bearerToken}`;
-    }
-
-    const url = `${this.apiBase}/threads`;
-    return fetch(url, {
-      method: "POST",
-      headers,
-      body: JSON.stringify({ title }),
-    })
-      .then((res) => res.json())
-      .then((json) => {
-        try {
-          const t = json && json.data ? json.data : json;
-          if (!t) {
-            throw new Error("Empty thread response");
-          }
-          const normalized: Thread = {
-            id: (t as any).id ?? (t as any)._id,
-            title: (t as any).title ?? "New Conversation",
-            createdAt: (t as any).createdAt || (t as any).created_at,
-            updatedAt: (t as any).updatedAt || (t as any).updated_at,
-          } as Thread;
-          return normalized;
-        } catch (e) {
-          console.warn("[Ajora]: Failed to normalize createThread response", e);
-          return { id: "", title: "New Conversation" } as Thread;
-        }
-      });
-  }
-
   private close(): void {
     if (this.eventSource) {
       try {
@@ -399,7 +311,9 @@ export class ApiService {
     // Cache-bust parameter
     params.append("_", Date.now().toString());
 
-    const url = `${this.apiBase}/threads/${threadId}/messages${params.toString() ? `?${params.toString()}` : ""}`;
+    const url = `${this.apiBase}/threads/${threadId}/messages${
+      params.toString() ? `?${params.toString()}` : ""
+    }`;
     console.info("[Ajora]: getMessages request", {
       url,
       threadId,

@@ -47,7 +47,6 @@ export type Ajora = AjoraState & {
   stopStreaming: () => void;
   addNewThread: () => void;
   switchThread: (threadId: string) => void;
-  getThreads: () => void;
   getMessages: (threadId: string) => void;
   setIsThinking: (isThinking: boolean) => void;
   setIsLoadingEarlier: (loadEarlier: boolean) => void;
@@ -105,36 +104,6 @@ const useAjora = ({
       if (cleanupRef.current) cleanupRef.current();
     };
   }, [baseUrl, bearerToken, debug]);
-
-  // Get the threads from the API service
-  useEffect(() => {
-    if (apiServiceRef.current) {
-      getThreads();
-    }
-  }, [apiServiceRef.current]);
-
-  // Get the threads from the API service
-  const getThreads = async () => {
-    try {
-      if (!apiServiceRef.current) {
-        console.warn("[Ajora]: API service not initialized");
-        return;
-      }
-      const threads = await apiServiceRef.current.getThreads();
-      // Debug logs right after fetching threads
-      try {
-        const isArray = Array.isArray(threads);
-        const length = isArray ? (threads as Thread[]).length : 0;
-        const sample = isArray ? (threads as Thread[])[0] : threads;
-      } catch (logErr) {
-        console.warn("[Ajora]: Failed to log threads debug info", logErr);
-      }
-      dispatch({ type: "SET_THREADS", payload: { threads: threads ?? [] } });
-    } catch (error) {
-      console.error("[Ajora]: Error fetching threads:", error);
-      dispatch({ type: "SET_THREADS", payload: { threads: [] } });
-    }
-  };
 
   // Get the messages for the active thread
   const getMessages = async (threadId: string) => {
@@ -265,8 +234,8 @@ const useAjora = ({
             typeof incoming === "string"
               ? { id: threadId, title: incoming }
               : incoming && incoming.id
-                ? incoming
-                : null;
+              ? incoming
+              : null;
 
           if (!normalizedThread) return;
 
@@ -404,7 +373,6 @@ const useAjora = ({
     addNewThread: () => dispatch({ type: "ADD_NEW_THREAD" }),
     switchThread: (threadId: string) =>
       dispatch({ type: "SWITCH_THREAD", payload: { threadId } }),
-    getThreads,
     getMessages,
     setIsThinking: (isThinking: boolean) =>
       dispatch({ type: "SET_THINKING", payload: { isThinking } }),

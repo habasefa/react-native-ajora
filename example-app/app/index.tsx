@@ -1,64 +1,55 @@
-import { Ajora } from "../../src";
-import { uploadToCloudinary } from "../services/fileUpload";
-import { OnUploadProps } from "../../src/Actions";
-import { Header } from "@/components/header";
-import { router } from "expo-router";
-import { StatusBar } from "expo-status-bar";
-import { StyleSheet } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { StyleSheet, Text, View } from "react-native";
+import { AjoraProvider, defineToolCallRenderer } from "@ajora-ai/native";
+import Chat from "@/components/v2/chat";
 
-// Theme values (self-contained)
-const colors = {
-  appPrimary: "#4095E5",
-  appSecondary: "#F3F4F6",
-  text: "#1F2937",
-  primaryText: "#111827",
-  secondaryText: "#6B7280",
-  background: "#F9FAFB",
-  white: "#FFFFFF",
-  border: "#E5E7EB",
-  shadow: "#000000",
-};
-
-const App = () => {
-  const onUpload = async ({
-    file,
-    onProgress,
-    onSuccess,
-    onError,
-  }: OnUploadProps) => {
-    try {
-      const { fileUri } = file;
-      const uploadedUrl = await uploadToCloudinary(fileUri, onProgress);
-      onProgress?.(100, true);
-      onSuccess?.(uploadedUrl);
-    } catch (error) {
-      onError?.(error);
-    }
-  };
-  return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar style="light" />
-      <Header
-        onLeftPress={() => {
-          router.push("/threadList");
+const index = () => {
+  // Define a wildcard renderer for any undefined tools
+  const wildcardRenderer = defineToolCallRenderer({
+    name: "*",
+    // No args needed for wildcard - defaults to z.any()
+    render: ({ name, args, status }) => (
+      <View
+        style={{
+          padding: 12,
+          marginVertical: 8,
+          backgroundColor: "#f0f0f0",
+          borderRadius: 8,
+          borderWidth: 1,
+          borderColor: "#ccc",
         }}
-      />
-      <Ajora
-        isScrollToBottomEnabled
-        keyboardShouldPersistTaps="never"
-        infiniteScroll
-        onUpload={onUpload}
-      />
-    </SafeAreaView>
+      >
+        <Text style={{ fontWeight: "bold" }}>Unknown Tool: {name}</Text>
+        <Text style={{ marginTop: 8, fontSize: 12, fontFamily: "monospace" }}>
+          Status: {status}
+          {args && "\nArguments: " + JSON.stringify(args, null, 2)}
+        </Text>
+      </View>
+    ),
+  });
+
+  return (
+    <AjoraProvider
+      runtimeUrl="http://localhost:4000/api/copilotkit"
+      useSingleEndpoint={true}
+      renderToolCalls={[wildcardRenderer]}
+    >
+      <View style={styles.container}>
+        <Chat />
+      </View>
+    </AjoraProvider>
   );
 };
 
-export default App;
+export default index;
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  text: {
+    fontSize: 20,
+    fontWeight: "bold",
   },
 });

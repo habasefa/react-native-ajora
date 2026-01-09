@@ -10,8 +10,13 @@ const path = require("path");
 
 const config = getDefaultConfig(__dirname);
 
-// Add the src directory to watch folders
-config.watchFolders = [path.resolve(__dirname, "../src")];
+// Add the src and packages directories to watch folders
+config.watchFolders = [
+  path.resolve(__dirname, "../src"),
+  path.resolve(__dirname, "../packages/native"),
+  path.resolve(__dirname, "../packages/core"),
+  path.resolve(__dirname, "../packages/shared"),
+];
 
 // Configure module resolution using the same approach as the working example
 config.resolver = {
@@ -23,10 +28,17 @@ config.resolver = {
         if (Object.prototype.hasOwnProperty.call(target, name))
           return target[name];
 
-        if (name === "react-native-ajora")
-          return path.join(process.cwd(), "../src");
+        if (name === "react-native-ajora") {
+          return path.resolve(__dirname, "../src");
+        } else if (name === "@ajora-ai/shared") {
+          return path.resolve(__dirname, "../packages/shared");
+        } else if (name === "@ajora-ai/core") {
+          return path.resolve(__dirname, "../packages/core");
+        } else if (name === "@ajora-ai/native") {
+          return path.resolve(__dirname, "../packages/native");
+        }
 
-        return path.join(process.cwd(), `node_modules/${name}`);
+        return path.join(__dirname, `node_modules/${name}`);
       },
     }
   ),

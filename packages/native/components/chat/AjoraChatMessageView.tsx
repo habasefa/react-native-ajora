@@ -4,7 +4,12 @@ import { View, StyleSheet, StyleProp, ViewStyle } from "react-native";
 import { renderSlot, WithSlots } from "../../lib/slots";
 import AjoraChatAssistantMessage from "./AjoraChatAssistantMessage";
 import AjoraChatUserMessage from "./AjoraChatUserMessage";
-import { ActivityMessage, AssistantMessage, Message, UserMessage } from "@ag-ui/core";
+import {
+  ActivityMessage,
+  AssistantMessage,
+  Message,
+  UserMessage,
+} from "@ag-ui/core";
 import { useRenderActivityMessage, useRenderCustomMessages } from "../../hooks";
 
 const MemoizedAssistantMessage = React.memo(
@@ -12,11 +17,13 @@ const MemoizedAssistantMessage = React.memo(
     message,
     messages,
     isRunning,
+    onRegenerate,
     AssistantMessageComponent,
   }: {
     message: AssistantMessage;
     messages: Message[];
     isRunning: boolean;
+    onRegenerate?: (message: AssistantMessage) => void;
     AssistantMessageComponent: typeof AjoraChatAssistantMessage;
   }) {
     return (
@@ -24,6 +31,7 @@ const MemoizedAssistantMessage = React.memo(
         message={message}
         messages={messages}
         isRunning={isRunning}
+        onRegenerate={onRegenerate}
       />
     );
   },
@@ -137,6 +145,7 @@ export type AjoraChatMessageViewProps = Omit<
     {
       isRunning?: boolean;
       messages?: Message[];
+      onRegenerate?: (message: AssistantMessage) => void;
       style?: StyleProp<ViewStyle>;
     }
   >,
@@ -154,6 +163,7 @@ export function AjoraChatMessageView({
   assistantMessage,
   userMessage,
   isRunning = false,
+  onRegenerate,
   children,
   style,
   ...props
@@ -189,6 +199,7 @@ export function AjoraChatMessageView({
             message={message as AssistantMessage}
             messages={messages}
             isRunning={isRunning}
+            onRegenerate={onRegenerate}
             AssistantMessageComponent={AssistantComponent}
           />
         );

@@ -1,8 +1,59 @@
 import { StyleSheet, Text, View } from "react-native";
-import { AjoraProvider, defineToolCallRenderer } from "@ajora-ai/native";
+import {
+  AjoraProvider,
+  defineToolCallRenderer,
+  useAgent,
+  useAjora,
+} from "@ajora-ai/native";
+import { useEffect } from "react";
 import Chat from "@/components/v2/chat";
 
-const index = () => {
+const LoggingComponent = () => {
+  const { agent } = useAgent();
+  const { ajora } = useAjora();
+
+  useEffect(() => {
+    // Log messages whenever they change
+    console.log("=== Ajora Messages ===");
+    console.log("Agent ID:", agent.agentId);
+    console.log("Thread ID:", agent.threadId);
+    console.log("Messages:", JSON.stringify(agent.messages, null, 2));
+    console.log("Messages Count:", agent.messages.length);
+    console.log("Is Running:", agent.isRunning);
+    console.log("=====================");
+  }, [agent.messages, agent.agentId, agent.threadId, agent.isRunning]);
+
+  useEffect(() => {
+    // Log state if we have threadId and runId
+    if (agent.threadId && agent.agentId) {
+      const runIds = ajora.getRunIdsForThread(agent.agentId, agent.threadId);
+      console.log("=== Ajora State ===");
+      console.log("Agent ID:", agent.agentId);
+      console.log("Thread ID:", agent.threadId);
+      console.log("Run IDs:", runIds);
+
+      // Log state for each run
+      runIds.forEach((runId) => {
+        const state = ajora.getStateByRun(
+          agent.agentId!,
+          agent.threadId,
+          runId
+        );
+        console.log(`State for Run ${runId}:`, JSON.stringify(state, null, 2));
+      });
+
+      // Also log agent's state property if available
+      if (agent.state) {
+        console.log("Agent State:", JSON.stringify(agent.state, null, 2));
+      }
+      console.log("===================");
+    }
+  }, [agent.threadId, agent.agentId, agent.messages, agent.state, ajora]);
+
+  return null;
+};
+
+const Index = () => {
   // Define a wildcard renderer for any undefined tools
   const wildcardRenderer = defineToolCallRenderer({
     name: "*",
@@ -33,6 +84,7 @@ const index = () => {
       useSingleEndpoint={true}
       renderToolCalls={[wildcardRenderer]}
     >
+      <LoggingComponent />
       <View style={styles.container}>
         <Chat />
       </View>
@@ -40,7 +92,7 @@ const index = () => {
   );
 };
 
-export default index;
+export default Index;
 
 const styles = StyleSheet.create({
   container: {

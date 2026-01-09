@@ -124,12 +124,43 @@ export function AjoraChat({
     }
   }, [agent, ajora]);
 
+  const handleRegenerate = useCallback(
+    async (messageToRegenerate: { id: string }) => {
+      // Find the index of the message to regenerate
+      const messageIndex = agent.messages.findIndex(
+        (m) => m.id === messageToRegenerate.id
+      );
+
+      if (messageIndex === -1) {
+        console.warn("AjoraChat: Message to regenerate not found");
+        return;
+      }
+
+      // Remove the assistant message and any messages after it
+      // This keeps the user message that triggered the response
+      const messagesToKeep = agent.messages.slice(0, messageIndex);
+
+      // Update agent messages (remove the assistant message and everything after)
+      agent.messages.length = 0;
+      agent.messages.push(...messagesToKeep);
+
+      // Re-run the agent to generate a new response
+      try {
+        await ajora.runAgent({ agent });
+      } catch (error) {
+        console.error("AjoraChat: regenerate failed", error);
+      }
+    },
+    [agent, ajora]
+  );
+
   const mergedProps = merge(
     {
       isRunning: agent.isRunning,
       suggestions: autoSuggestions,
       onSelectSuggestion: handleSelectSuggestion,
       suggestionView: providedSuggestionView,
+      onRegenerate: handleRegenerate,
     },
     {
       ...restProps,
@@ -182,7 +213,6 @@ export function AjoraChat({
   );
 }
 
-// eslint-disable-next-line @typescript-eslint/no-namespace
 export namespace AjoraChat {
   export const View = AjoraChatView;
 }

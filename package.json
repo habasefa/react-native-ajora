@@ -68,6 +68,7 @@
     "@ai-sdk/openai": "^2.0.42",
     "@expo/react-native-action-sheet": "^4.1.1",
     "@google/genai": "^1.20.0",
+    "@gorhom/bottom-sheet": "^5.2.8",
     "@modelcontextprotocol/sdk": "^1.18.2",
     "@stardazed/streams-text-encoding": "^1.0.2",
     "@types/lodash.isequal": "^4.5.8",

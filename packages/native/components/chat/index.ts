@@ -1,6 +1,18 @@
 export {
   default as AjoraChatInput,
+  AjoraChatInput as AjoraChatInputComponent,
   type AjoraChatInputProps,
+  type AjoraChatInputMode,
+  type AjoraChatInputTheme,
+  type AjoraChatInputRef,
+  type AjoraChatInputChildrenArgs,
+  type AjoraChatTextInputProps,
+  type AjoraChatIconButtonProps,
+  type AgentSelectorProps,
+  type AgentTypeOption,
+  DEFAULT_AGENT_TYPES,
+  DEFAULT_DARK_COLORS,
+  DEFAULT_LIGHT_COLORS,
 } from "./AjoraChatInput";
 
 export {
@@ -55,24 +67,15 @@ export {
   type AjoraSidebarViewProps,
 } from "./AjoraSidebarView";
 
-export {
-  AjoraPopupView,
-  type AjoraPopupViewProps,
-} from "./AjoraPopupView";
+export { AjoraPopupView, type AjoraPopupViewProps } from "./AjoraPopupView";
 
 export {
   AjoraModalHeader,
   type AjoraModalHeaderProps,
 } from "./AjoraModalHeader";
 
-export {
-  AjoraSidebar,
-  type AjoraSidebarProps,
-} from "./AjoraSidebar";
+export { AjoraSidebar, type AjoraSidebarProps } from "./AjoraSidebar";
 
-export {
-  AjoraPopup,
-  type AjoraPopupProps,
-} from "./AjoraPopup";
+export { AjoraPopup, type AjoraPopupProps } from "./AjoraPopup";
 
 export { WildcardToolCallRender } from "./WildcardToolCallRender";

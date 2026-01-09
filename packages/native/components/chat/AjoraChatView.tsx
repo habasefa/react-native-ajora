@@ -6,17 +6,19 @@ import {
   StyleProp,
   ViewStyle,
   StyleSheet,
-  KeyboardAvoidingView,
-  Platform,
 } from "react-native";
+import Animated, { useAnimatedStyle } from "react-native-reanimated";
+import {
+  KeyboardProvider,
+  useReanimatedKeyboardAnimation,
+} from "react-native-keyboard-controller";
 import { WithSlots, renderSlot } from "../../lib/slots";
 import AjoraChatInput, { AjoraChatInputProps } from "./AjoraChatInput";
 import { Suggestion } from "@ajora-ai/core";
-import { Message } from "@ag-ui/core";
+import { AssistantMessage, Message } from "@ag-ui/core";
 import AjoraChatSuggestionView, {
   AjoraChatSuggestionViewProps,
 } from "./AjoraChatSuggestionView";
-import { useKeyboardHeight } from "../../hooks/use-keyboard-height";
 import AjoraChatMessageView from "./AjoraChatMessageView";
 
 export type AjoraChatViewProps = WithSlots<
@@ -33,11 +35,16 @@ export type AjoraChatViewProps = WithSlots<
     suggestions?: Suggestion[];
     suggestionLoadingIndexes?: ReadonlyArray<number>;
     onSelectSuggestion?: (suggestion: Suggestion, index: number) => void;
+    onRegenerate?: (message: AssistantMessage) => void;
     style?: StyleProp<ViewStyle>;
   }
 >;
 
-export function AjoraChatView({
+/**
+ * Inner component that uses keyboard animation
+ * Must be used within KeyboardProvider
+ */
+function AjoraChatViewInner({
   messageView,
   input,
   scrollView,
@@ -48,15 +55,26 @@ export function AjoraChatView({
   suggestions,
   suggestionLoadingIndexes,
   onSelectSuggestion,
+  onRegenerate,
   children,
   style,
   ...props
 }: AjoraChatViewProps) {
-  const keyboardHeight = useKeyboardHeight();
+  // Keyboard animation using react-native-keyboard-controller
+  const keyboard = useReanimatedKeyboardAnimation();
+
+  // Animated style that translates content up when keyboard appears
+  const keyboardAnimatedStyle = useAnimatedStyle(
+    () => ({
+      transform: [{ translateY: keyboard.height.value }],
+    }),
+    [keyboard]
+  );
 
   const BoundMessageView = renderSlot(messageView, AjoraChatMessageView, {
     messages,
     isRunning,
+    onRegenerate,
   });
 
   const BoundInput = renderSlot(input, AjoraChatInput, {
@@ -77,18 +95,9 @@ export function AjoraChatView({
   const BoundScrollView = renderSlot(scrollView, ScrollView, {
     style: { flex: 1 },
     contentContainerStyle: { padding: 16 },
+    keyboardShouldPersistTaps: "handled",
     children: <View>{BoundMessageView}</View>,
   });
-
-  const content = (
-    <View style={[{ flex: 1 }, style]} {...props}>
-      {BoundScrollView}
-      <View style={styles.bottomContainer}>
-        {BoundSuggestionView}
-        {BoundInput}
-      </View>
-    </View>
-  );
 
   if (children) {
     return children({
@@ -99,28 +108,43 @@ export function AjoraChatView({
     });
   }
 
-  // Use KeyboardAvoidingView for iOS, Android handles standard adjustResize usually
-  if (Platform.OS === "ios") {
-    return (
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior="padding"
-        keyboardVerticalOffset={0} // Adjust based on header height if needed
-      >
-        {content}
-      </KeyboardAvoidingView>
-    );
-  }
+  return (
+    <View style={[styles.container, style]} {...props}>
+      <Animated.View style={[styles.animatedContainer, keyboardAnimatedStyle]}>
+        {BoundScrollView}
+        <View style={styles.bottomContainer}>
+          {BoundSuggestionView}
+          {BoundInput}
+        </View>
+      </Animated.View>
+    </View>
+  );
+}
 
-  return content;
+/**
+ * Main AjoraChatView component with keyboard handling
+ * Wraps content in KeyboardProvider for proper keyboard animation
+ */
+export function AjoraChatView(props: AjoraChatViewProps) {
+  return (
+    <KeyboardProvider>
+      <AjoraChatViewInner {...props} />
+    </KeyboardProvider>
+  );
 }
 
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    overflow: "hidden",
+  },
+  animatedContainer: {
+    flex: 1,
+  },
   messageList: {
     paddingBottom: 20,
   },
   bottomContainer: {
-    paddingBottom: 10,
     backgroundColor: "transparent",
   },
   suggestionList: {

@@ -21,7 +21,7 @@
     "@copilotkitnext/runtime": "^0.0.33",
     "@expo/vector-icons": "^14.1.0",
     "@google/genai": "^1.19.0",
-    "@gorhom/bottom-sheet": "^5.2.6",
+    "@gorhom/bottom-sheet": "^5.2.8",
     "@modelcontextprotocol/sdk": "^1.18.2",
     "@react-navigation/bottom-tabs": "^7.3.10",
     "@react-navigation/elements": "^2.3.8",

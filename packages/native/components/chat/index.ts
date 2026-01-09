@@ -10,10 +10,31 @@ export {
   type AjoraChatIconButtonProps,
   type AgentSelectorProps,
   type AgentTypeOption,
+  type AttachmentUploadState,
+  type AttachmentPreviewItem,
   DEFAULT_AGENT_TYPES,
   DEFAULT_DARK_COLORS,
   DEFAULT_LIGHT_COLORS,
 } from "./AjoraChatInput";
+
+// Re-export sheet components and types
+export {
+  AttachmentSheet,
+  AgentPickerSheet,
+  ModelsSheet,
+  type AttachmentSheetProps,
+  type AttachmentSheetTheme,
+  type AttachmentOption,
+  type AttachmentType,
+  type AgentPickerSheetProps,
+  type AgentPickerSheetTheme,
+  type AgentOption,
+  type ModelsSheetProps,
+  type ModelsSheetTheme,
+  type ModelOption,
+  type ModelProvider,
+  type ModelTier,
+} from "../sheets";
 
 export {
   default as AjoraChatAssistantMessage,

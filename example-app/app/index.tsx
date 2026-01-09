@@ -7,6 +7,8 @@ import {
 } from "@ajora-ai/native";
 import { useEffect } from "react";
 import Chat from "@/components/v2/chat";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
 
 const LoggingComponent = () => {
   const { agent } = useAgent();
@@ -79,16 +81,20 @@ const Index = () => {
   });
 
   return (
-    <AjoraProvider
-      runtimeUrl="http://localhost:4000/api/copilotkit"
-      useSingleEndpoint={true}
-      renderToolCalls={[wildcardRenderer]}
-    >
-      <LoggingComponent />
-      <View style={styles.container}>
-        <Chat />
-      </View>
-    </AjoraProvider>
+    <GestureHandlerRootView style={styles.container}>
+      <BottomSheetModalProvider>
+        <AjoraProvider
+          runtimeUrl="http://localhost:4000/api/copilotkit"
+          useSingleEndpoint={true}
+          renderToolCalls={[wildcardRenderer]}
+        >
+          <LoggingComponent />
+          <View style={styles.container}>
+            <Chat />
+          </View>
+        </AjoraProvider>
+      </BottomSheetModalProvider>
+    </GestureHandlerRootView>
   );
 };
 

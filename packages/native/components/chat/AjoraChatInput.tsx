@@ -25,20 +25,49 @@ import {
   Modal,
   FlatList,
   TouchableOpacity,
+  Image,
+  ActivityIndicator,
 } from "react-native";
 import { Ionicons, MaterialIcons, Feather } from "@expo/vector-icons";
+import { BottomSheetModal } from "@gorhom/bottom-sheet";
 import {
   useAjoraChatConfiguration,
   AjoraChatLabels,
   AjoraChatDefaultLabels,
 } from "../../providers/AjoraChatConfigurationProvider";
 import { AjoraChatAudioRecorder } from "./AjoraChatAudioRecorder";
+import {
+  AttachmentSheet,
+  type AttachmentType,
+  AgentPickerSheet,
+  type AgentOption,
+  ModelsSheet,
+  type ModelOption,
+  DEFAULT_MODELS,
+} from "../sheets";
 
 // ============================================================================
 // Types & Interfaces
 // ============================================================================
 
 export type AjoraChatInputMode = "input" | "transcribe" | "processing";
+
+/**
+ * Attachment upload state
+ */
+export type AttachmentUploadState = "idle" | "uploading" | "uploaded" | "error";
+
+/**
+ * Attachment preview item
+ */
+export interface AttachmentPreviewItem {
+  id: string;
+  uri: string;
+  type: "image" | "file" | "document";
+  name?: string;
+  uploadState: AttachmentUploadState;
+  uploadProgress?: number;
+}
 
 /**
  * Agent type option for selection
@@ -206,6 +235,24 @@ export interface AjoraChatInputProps {
   children?: (props: AjoraChatInputChildrenArgs) => React.ReactNode;
   /** Container style */
   style?: StyleProp<ViewStyle>;
+  /** Callback when an attachment type is selected */
+  onAttachmentSelect?: (type: AttachmentType) => void;
+  /** Callback when an agent is selected from the picker */
+  onAgentSelect?: (agent: AgentOption) => void;
+  /** Currently selected agent ID for the agent picker */
+  selectedAgentId?: string;
+  /** Custom agent options for the agent picker */
+  agents?: AgentOption[];
+  /** Callback when a model is selected */
+  onModelSelect?: (model: ModelOption) => void;
+  /** Currently selected model ID */
+  selectedModelId?: string;
+  /** Custom model options */
+  models?: ModelOption[];
+  /** Attachments to preview in the input */
+  attachments?: AttachmentPreviewItem[];
+  /** Callback when an attachment is removed */
+  onRemoveAttachment?: (attachmentId: string) => void;
 }
 
 /**
@@ -220,12 +267,14 @@ export interface AjoraChatInputChildrenArgs {
   agentSelector: React.ReactElement;
   addButton: React.ReactElement;
   settingsButton: React.ReactElement;
+  attachmentPreview: React.ReactElement | null;
   mode: AjoraChatInputMode;
   isRunning: boolean;
   value: string;
   canSend: boolean;
   canStop: boolean;
   colors: typeof DEFAULT_DARK_COLORS;
+  attachments: AttachmentPreviewItem[];
 }
 
 /**
@@ -520,6 +569,171 @@ const AgentSelector: React.FC<AgentSelectorProps> = ({
 AgentSelector.displayName = "AjoraChatInput.AgentSelector";
 
 // ============================================================================
+// Attachment Preview Sub-Component
+// ============================================================================
+
+interface AttachmentPreviewProps {
+  attachments: AttachmentPreviewItem[];
+  onRemove: (id: string) => void;
+  colors: typeof DEFAULT_DARK_COLORS;
+  testID?: string;
+}
+
+const ATTACHMENT_PREVIEW_SIZE = 56;
+
+/**
+ * Attachment Preview sub-component - shows image thumbnails with upload spinner
+ */
+const AttachmentPreview: React.FC<AttachmentPreviewProps> = ({
+  attachments,
+  onRemove,
+  colors,
+  testID,
+}) => {
+  if (!attachments || attachments.length === 0) return null;
+
+  return (
+    <View style={attachmentPreviewStyles.container} testID={testID}>
+      {attachments.map((attachment) => (
+        <View key={attachment.id} style={attachmentPreviewStyles.itemWrapper}>
+          {/* Image Thumbnail */}
+          <View
+            style={[
+              attachmentPreviewStyles.thumbnailContainer,
+              { backgroundColor: colors.secondary },
+            ]}
+          >
+            {attachment.type === "image" && attachment.uri ? (
+              <Image
+                source={{ uri: attachment.uri }}
+                style={attachmentPreviewStyles.thumbnail}
+                resizeMode="cover"
+                accessibilityLabel={attachment.name || "Attached image"}
+              />
+            ) : (
+              <View
+                style={[
+                  attachmentPreviewStyles.filePlaceholder,
+                  { backgroundColor: colors.secondary },
+                ]}
+              >
+                <Ionicons
+                  name="document-outline"
+                  size={24}
+                  color={colors.iconDefault}
+                />
+              </View>
+            )}
+
+            {/* Upload Spinner Overlay */}
+            {attachment.uploadState === "uploading" && (
+              <View
+                style={[
+                  attachmentPreviewStyles.spinnerOverlay,
+                  { backgroundColor: "rgba(0, 0, 0, 0.5)" },
+                ]}
+              >
+                <ActivityIndicator
+                  size="small"
+                  color="#FFFFFF"
+                  accessibilityLabel="Uploading attachment"
+                />
+              </View>
+            )}
+
+            {/* Error indicator */}
+            {attachment.uploadState === "error" && (
+              <View
+                style={[
+                  attachmentPreviewStyles.spinnerOverlay,
+                  { backgroundColor: "rgba(239, 68, 68, 0.7)" },
+                ]}
+              >
+                <Ionicons name="alert-circle" size={20} color="#FFFFFF" />
+              </View>
+            )}
+          </View>
+
+          {/* Remove Button */}
+          <Pressable
+            onPress={() => onRemove(attachment.id)}
+            style={({ pressed }) => [
+              attachmentPreviewStyles.removeButton,
+              { backgroundColor: colors.inputBackground },
+              pressed && { opacity: 0.7, transform: [{ scale: 0.9 }] },
+            ]}
+            accessibilityLabel="Remove attachment"
+            accessibilityRole="button"
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <Ionicons name="close" size={14} color={colors.text} />
+          </Pressable>
+        </View>
+      ))}
+    </View>
+  );
+};
+
+AttachmentPreview.displayName = "AjoraChatInput.AttachmentPreview";
+
+const attachmentPreviewStyles = StyleSheet.create({
+  container: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginBottom: 8,
+  },
+  itemWrapper: {
+    position: "relative",
+  },
+  thumbnailContainer: {
+    width: ATTACHMENT_PREVIEW_SIZE,
+    height: ATTACHMENT_PREVIEW_SIZE,
+    borderRadius: 12,
+    overflow: "hidden",
+  },
+  thumbnail: {
+    width: "100%",
+    height: "100%",
+  },
+  filePlaceholder: {
+    width: "100%",
+    height: "100%",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  spinnerOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 12,
+  },
+  removeButton: {
+    position: "absolute",
+    top: -6,
+    right: -6,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 2,
+    borderColor: "rgba(0,0,0,0.1)",
+    ...Platform.select({
+      ios: {
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.2,
+        shadowRadius: 2,
+      },
+      android: {
+        elevation: 3,
+      },
+    }),
+  },
+});
+
+// ============================================================================
 // Main Component
 // ============================================================================
 
@@ -558,6 +772,15 @@ const AjoraChatInputComponent = forwardRef<
     audioRecorder: customAudioRecorder,
     children,
     style,
+    onAttachmentSelect,
+    onAgentSelect,
+    selectedAgentId,
+    agents,
+    onModelSelect,
+    selectedModelId,
+    models,
+    attachments = [],
+    onRemoveAttachment,
   },
   ref
 ) {
@@ -566,12 +789,23 @@ const AjoraChatInputComponent = forwardRef<
   // ========================================================================
 
   const isControlled = value !== undefined;
+  const isModelControlled = selectedModelId !== undefined;
   const [internalValue, setInternalValue] = useState<string>(() => value ?? "");
   const [internalAgentType, setInternalAgentType] = useState(
-    selectedAgentType ?? agentTypes[0]?.id
+    selectedAgentType ?? agentTypes?.[0]?.id
+  );
+  // Default to the first model if no selectedModelId provided
+  const defaultModelId = models?.[0]?.id ?? DEFAULT_MODELS[0].id;
+  const [internalModelId, setInternalModelId] = useState<string>(
+    selectedModelId ?? defaultModelId
   );
   const inputRef = useRef<RNTextInput>(null);
   const fadeAnim = useRef(new Animated.Value(1)).current;
+
+  // Bottom Sheet Modal refs
+  const attachmentSheetRef = useRef<BottomSheetModal>(null);
+  const agentPickerSheetRef = useRef<BottomSheetModal>(null);
+  const modelsSheetRef = useRef<BottomSheetModal>(null);
 
   // ========================================================================
   // Configuration
@@ -596,6 +830,14 @@ const AjoraChatInputComponent = forwardRef<
   const canStop = !!onStop;
   const maxHeight = Math.min(maxLines * LINE_HEIGHT + 20, INPUT_MAX_HEIGHT);
   const currentAgentType = selectedAgentType ?? internalAgentType;
+
+  // Model selection - single source of truth
+  const modelsList: ModelOption[] = models ?? DEFAULT_MODELS;
+  const resolvedModelId = isModelControlled ? selectedModelId : internalModelId;
+  const selectedModel = useMemo(() => {
+    if (!resolvedModelId || modelsList.length === 0) return null;
+    return modelsList.find((m) => m.id === resolvedModelId) ?? null;
+  }, [resolvedModelId, modelsList]);
 
   // ========================================================================
   // Effects
@@ -709,6 +951,55 @@ const AjoraChatInputComponent = forwardRef<
   );
 
   // ========================================================================
+  // Bottom Sheet Handlers
+  // ========================================================================
+
+  const handleOpenAttachmentSheet = useCallback(() => {
+    attachmentSheetRef.current?.present();
+    onAddPress?.();
+  }, [onAddPress]);
+
+  const handleOpenAgentPickerSheet = useCallback(() => {
+    agentPickerSheetRef.current?.present();
+    onSettingsPress?.();
+  }, [onSettingsPress]);
+
+  const handleOpenModelsSheet = useCallback(() => {
+    modelsSheetRef.current?.present();
+  }, []);
+
+  const handleAttachmentSelect = useCallback(
+    (type: AttachmentType) => {
+      onAttachmentSelect?.(type);
+    },
+    [onAttachmentSelect]
+  );
+
+  const handleAgentSelect = useCallback(
+    (agent: AgentOption) => {
+      onAgentSelect?.(agent);
+    },
+    [onAgentSelect]
+  );
+
+  const handleModelSelect = useCallback(
+    (model: ModelOption) => {
+      if (!isModelControlled) {
+        setInternalModelId(model.id);
+      }
+      onModelSelect?.(model);
+    },
+    [onModelSelect, isModelControlled]
+  );
+
+  const handleRemoveAttachment = useCallback(
+    (attachmentId: string) => {
+      onRemoveAttachment?.(attachmentId);
+    },
+    [onRemoveAttachment]
+  );
+
+  // ========================================================================
   // Computed Styles
   // ========================================================================
 
@@ -762,7 +1053,7 @@ const AjoraChatInputComponent = forwardRef<
 
   const addButtonElement = (
     <AjoraChatIconButton
-      onPress={onAddPress}
+      onPress={handleOpenAttachmentSheet}
       icon="add"
       color={colors.iconDefault}
       activeColor={colors.iconActive}
@@ -773,7 +1064,7 @@ const AjoraChatInputComponent = forwardRef<
 
   const settingsButtonElement = (
     <AjoraChatIconButton
-      onPress={onSettingsPress}
+      onPress={handleOpenAgentPickerSheet}
       icon="options"
       color={colors.iconDefault}
       activeColor={colors.iconActive}
@@ -783,13 +1074,25 @@ const AjoraChatInputComponent = forwardRef<
   );
 
   const agentSelectorElement = (
-    <AgentSelector
-      options={agentTypes}
-      selectedId={currentAgentType}
-      onSelect={handleAgentTypeChange}
-      colors={colors}
+    <Pressable
+      onPress={handleOpenModelsSheet}
+      style={({ pressed }) => [
+        styles.agentSelector,
+        { borderColor: colors.border },
+        pressed && styles.buttonPressed,
+      ]}
       testID={`${testID}-agent-selector`}
-    />
+      accessibilityRole="button"
+      accessibilityLabel={`Selected model: ${selectedModel?.name ?? "Select model"}`}
+      accessibilityHint="Tap to select AI model"
+    >
+      <Text
+        style={[styles.agentSelectorText, { color: colors.text }]}
+        numberOfLines={1}
+      >
+        {selectedModel?.name ?? "Select Model"}
+      </Text>
+    </Pressable>
   );
 
   const micButtonElement = customStartTranscribeButton ?? (
@@ -846,6 +1149,16 @@ const AjoraChatInputComponent = forwardRef<
     </Pressable>
   );
 
+  const attachmentPreviewElement =
+    attachments.length > 0 ? (
+      <AttachmentPreview
+        attachments={attachments}
+        onRemove={handleRemoveAttachment}
+        colors={colors}
+        testID={`${testID}-attachment-preview`}
+      />
+    ) : null;
+
   // ========================================================================
   // Render with children function
   // ========================================================================
@@ -860,12 +1173,14 @@ const AjoraChatInputComponent = forwardRef<
       agentSelector: agentSelectorElement,
       addButton: addButtonElement,
       settingsButton: settingsButtonElement,
+      attachmentPreview: attachmentPreviewElement,
       mode,
       isRunning,
       value: resolvedValue,
       canSend,
       canStop,
       colors,
+      attachments,
     };
 
     return <>{children(childProps)}</>;
@@ -876,67 +1191,77 @@ const AjoraChatInputComponent = forwardRef<
   // ========================================================================
 
   return (
-    <Animated.View
-      style={[computedStyles.container, { opacity: fadeAnim }]}
-      testID={testID}
-      accessibilityRole="none"
-      accessibilityLabel="Chat input area"
-    >
-      {/* Main Input Container */}
-      <View style={computedStyles.inputWrapper}>
-        {/* Top Row: Text Input */}
-        <View style={styles.inputRow}>
-          {mode === "transcribe" ? audioRecorderElement : textInputElement}
-        </View>
-
-        {/* Bottom Row: Toolbar */}
-        <View style={styles.bottomRow}>
-          {/* Left Side: Add & Settings Buttons */}
-          <View style={computedStyles.toolbarContainer}>
-            {showAddButton && addButtonElement}
-            {showSettingsButton && settingsButtonElement}
-          </View>
-
-          {/* Center: Agent Type Selector */}
-          {showAgentSelector && (
-            <View style={styles.centerContainer}>{agentSelectorElement}</View>
+    <>
+      <Animated.View
+        style={[computedStyles.container, { opacity: fadeAnim }]}
+        testID={testID}
+        accessibilityRole="none"
+        accessibilityLabel="Chat input area"
+      >
+        {/* Main Input Container */}
+        <View style={computedStyles.inputWrapper}>
+          {/* Attachment Previews */}
+          {attachments.length > 0 && (
+            <AttachmentPreview
+              attachments={attachments}
+              onRemove={handleRemoveAttachment}
+              colors={colors}
+              testID={`${testID}-attachment-preview`}
+            />
           )}
 
-          {/* Right Side: Action Buttons */}
-          <View style={computedStyles.actionsContainer}>
-            {mode === "transcribe" ? (
-              <>
-                <AjoraChatIconButton
-                  onPress={onCancelTranscribe}
-                  icon="close"
-                  color="#EF4444"
-                  style={[
-                    styles.circleButton,
-                    { backgroundColor: "rgba(239, 68, 68, 0.2)" },
-                  ]}
-                  accessibilityLabel="Cancel recording"
-                />
-                <AjoraChatIconButton
-                  onPress={onFinishTranscribe}
-                  icon="checkmark"
-                  color="#22C55E"
-                  style={[
-                    styles.circleButton,
-                    { backgroundColor: "rgba(34, 197, 94, 0.2)" },
-                  ]}
-                  accessibilityLabel="Finish recording"
-                />
-              </>
-            ) : (
-              <>
-                {onStartTranscribe && !isProcessing && micButtonElement}
-                {isProcessing ? stopButtonElement : sendButtonElement}
-              </>
+          {/* Top Row: Text Input */}
+          <View style={styles.inputRow}>
+            {mode === "transcribe" ? audioRecorderElement : textInputElement}
+          </View>
+
+          {/* Bottom Row: Toolbar */}
+          <View style={styles.bottomRow}>
+            {/* Left Side: Add & Settings Buttons */}
+            <View style={computedStyles.toolbarContainer}>
+              {showAddButton && addButtonElement}
+              {showSettingsButton && settingsButtonElement}
+            </View>
+
+            {/* Center: Agent Type Selector */}
+            {showAgentSelector && (
+              <View style={styles.centerContainer}>{agentSelectorElement}</View>
             )}
+
+            {/* Right Side: Action Buttons */}
+            <View style={computedStyles.actionsContainer}>
+              {isProcessing ? stopButtonElement : sendButtonElement}
+            </View>
           </View>
         </View>
-      </View>
-    </Animated.View>
+      </Animated.View>
+
+      {/* Bottom Sheets */}
+      <AttachmentSheet
+        ref={attachmentSheetRef}
+        onSelect={handleAttachmentSelect}
+        darkMode={darkMode}
+        testID={`${testID}-attachment-sheet`}
+      />
+
+      <AgentPickerSheet
+        ref={agentPickerSheetRef}
+        selectedAgentId={selectedAgentId}
+        onSelect={handleAgentSelect}
+        agents={agents}
+        darkMode={darkMode}
+        testID={`${testID}-agent-picker-sheet`}
+      />
+
+      <ModelsSheet
+        ref={modelsSheetRef}
+        selectedModelId={resolvedModelId}
+        onSelect={handleModelSelect}
+        models={modelsList}
+        darkMode={darkMode}
+        testID={`${testID}-models-sheet`}
+      />
+    </>
   );
 });
 
@@ -949,6 +1274,7 @@ type AjoraChatInputType = typeof AjoraChatInputComponent & {
   IconButton: typeof AjoraChatIconButton;
   AgentSelector: typeof AgentSelector;
   AudioRecorder: typeof AjoraChatAudioRecorder;
+  AttachmentPreview: typeof AttachmentPreview;
 };
 
 export const AjoraChatInput = AjoraChatInputComponent as AjoraChatInputType;
@@ -958,14 +1284,18 @@ AjoraChatInput.TextInput = AjoraChatTextInput;
 AjoraChatInput.IconButton = AjoraChatIconButton;
 AjoraChatInput.AgentSelector = AgentSelector;
 AjoraChatInput.AudioRecorder = AjoraChatAudioRecorder;
+AjoraChatInput.AttachmentPreview = AttachmentPreview;
 
 // ============================================================================
 // Styles
 // ============================================================================
 
 const styles = StyleSheet.create({
-  container: {},
+  container: {
+    width: "100%",
+  },
   inputWrapper: {
+    width: "100%",
     borderRadius: 32,
     paddingHorizontal: 16,
     paddingTop: 14,
@@ -989,11 +1319,14 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     marginTop: 8,
+    width: "100%",
   },
   toolbarContainer: {
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "flex-start",
     gap: 4,
+    minWidth: 88,
   },
   centerContainer: {
     flex: 1,
@@ -1003,7 +1336,9 @@ const styles = StyleSheet.create({
   actionsContainer: {
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "flex-end",
     gap: 8,
+    minWidth: 88,
   },
   iconButton: {
     width: BUTTON_SIZE,

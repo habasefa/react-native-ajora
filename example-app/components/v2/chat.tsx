@@ -7,6 +7,7 @@ import {
   useAgentContext,
   useConfigureSuggestions,
   useFrontendTool,
+  type Suggestion,
 } from "@ajora-ai/native";
 import { useState } from "react";
 import {
@@ -108,30 +109,36 @@ const MultipleChoiceQuestion = ({
 };
 
 // Example starter suggestions for empty state
-const STARTER_SUGGESTIONS = [
+const STARTER_SUGGESTIONS: Suggestion[] = [
   {
     id: "1",
-    title: "Tell me a joke",
-    message: "Tell me a funny joke to brighten my day",
-    isLoading: false,
+    title: "Explore Science",
+    message: "Explain how black holes form and what happens inside them",
+    icon: "flask-outline",
+    iconFamily: "Ionicons",
   },
   {
     id: "2",
-    title: "Quiz me on something",
-    message: "Ask me a multiple choice question to test my knowledge",
-    isLoading: false,
+    title: "Discover History",
+    message:
+      "Tell me about an interesting historical event that changed the world",
+    icon: "history",
+    iconFamily: "MaterialIcons",
   },
   {
     id: "3",
-    title: "Help me write",
-    message: "Help me write a professional email",
-    isLoading: false,
+    title: "Role Play Adventure",
+    message:
+      "Let's play a text adventure game where I'm a detective solving a mystery",
+    icon: "sword-cross",
+    iconFamily: "MaterialCommunityIcons",
   },
   {
     id: "4",
-    title: "Explain a concept",
-    message: "Explain how AI assistants work in simple terms",
-    isLoading: false,
+    title: "Code Something",
+    message: "Help me write a function to sort an array in JavaScript",
+    icon: "code",
+    iconFamily: "Feather",
   },
 ];
 

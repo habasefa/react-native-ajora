@@ -147,6 +147,9 @@ export {
   DEFAULT_EMPTY_STATE_DARK_THEME,
 } from "./AjoraChatEmptyState";
 
+// Re-export core types for convenience
+export type { Suggestion, IconFamily, IconName } from "@ajora-ai/core";
+
 // Chat Loading State
 export {
   AjoraChatLoadingState,

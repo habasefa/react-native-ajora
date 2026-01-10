@@ -1,5 +1,12 @@
 import { ToolCall } from "@ag-ui/client";
 import { z } from "zod";
+import type {
+  Ionicons,
+  MaterialIcons,
+  MaterialCommunityIcons,
+  Feather,
+} from "@expo/vector-icons";
+import type { ComponentProps } from "react";
 
 /**
  * Status of a tool call execution
@@ -12,7 +19,9 @@ export enum ToolCallStatus {
 
 export type AjoraRuntimeTransport = "rest" | "single";
 
-export type FrontendTool<T extends Record<string, unknown> = Record<string, unknown>> = {
+export type FrontendTool<
+  T extends Record<string, unknown> = Record<string, unknown>,
+> = {
   name: string;
   description?: string;
   parameters?: z.ZodType<T>;
@@ -25,14 +34,57 @@ export type FrontendTool<T extends Record<string, unknown> = Record<string, unkn
   agentId?: string;
 };
 
+/**
+ * Supported icon families from @expo/vector-icons.
+ * Limited to most commonly used families for optimal TypeScript performance.
+ */
+export type IconFamily =
+  | "Ionicons"
+  | "MaterialIcons"
+  | "MaterialCommunityIcons"
+  | "Feather";
+
+/**
+ * Icon name types extracted from component props (gives proper literal types)
+ */
+export type IoniconsName = ComponentProps<typeof Ionicons>["name"];
+export type MaterialIconsName = ComponentProps<typeof MaterialIcons>["name"];
+export type MaterialCommunityIconsName = ComponentProps<
+  typeof MaterialCommunityIcons
+>["name"];
+export type FeatherName = ComponentProps<typeof Feather>["name"];
+
+/**
+ * Union of all valid icon names from commonly used @expo/vector-icons families.
+ * Note: Due to TypeScript limitations with large unions, some icon names might not autocomplete.
+ */
+export type IconName =
+  | IoniconsName
+  | MaterialIconsName
+  | MaterialCommunityIconsName
+  | FeatherName;
+
+/**
+ * Suggestion with type-safe icon and iconFamily support.
+ */
 export type Suggestion = {
+  /** Optional unique identifier for the suggestion */
+  id?: string;
   title: string;
   message: string;
-  /** Indicates whether this suggestion is still being generated. */
-  isLoading: boolean;
+  /** Indicates whether this suggestion is still being generated. Defaults to false. */
+  isLoading?: boolean;
+  /** Icon name from @expo/vector-icons */
+  icon?: IconName;
+  /** Icon family from @expo/vector-icons */
+  iconFamily?: IconFamily;
 };
 
-export type SuggestionAvailability = "before-first-message" | "after-first-message" | "always" | "disabled";
+export type SuggestionAvailability =
+  | "before-first-message"
+  | "after-first-message"
+  | "always"
+  | "disabled";
 
 export type DynamicSuggestionsConfig = {
   /**
@@ -83,4 +135,6 @@ export type StaticSuggestionsConfig = {
   consumerAgentId?: string;
 };
 
-export type SuggestionsConfig = DynamicSuggestionsConfig | StaticSuggestionsConfig;
+export type SuggestionsConfig =
+  | DynamicSuggestionsConfig
+  | StaticSuggestionsConfig;

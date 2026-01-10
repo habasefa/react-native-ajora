@@ -9,7 +9,22 @@ import {
   TextStyle,
   Pressable,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import {
+  Ionicons,
+  MaterialIcons,
+  MaterialCommunityIcons,
+  FontAwesome,
+  FontAwesome5,
+  FontAwesome6,
+  Feather,
+  AntDesign,
+  Entypo,
+  EvilIcons,
+  Foundation,
+  Octicons,
+  SimpleLineIcons,
+  Zocial,
+} from "@expo/vector-icons";
 import { renderSlot, WithSlots } from "../../lib/slots";
 import {
   useAjoraChatConfiguration,
@@ -88,85 +103,65 @@ export const DEFAULT_EMPTY_STATE_DARK_THEME: AjoraChatEmptyStateTheme = {
 };
 
 // ============================================================================
-// Suggestion Icon Mapping
+// Icon Types & Components
 // ============================================================================
 
-const SUGGESTION_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
-  joke: "happy-outline",
-  quiz: "school-outline",
-  hello: "hand-left-outline",
-  help: "help-circle-outline",
-  write: "create-outline",
-  code: "code-slash-outline",
-  search: "search-outline",
-  question: "chatbubble-ellipses-outline",
-  idea: "bulb-outline",
-  learn: "book-outline",
-  analyze: "analytics-outline",
-  create: "add-circle-outline",
-  default: "sparkles-outline",
-};
+/**
+ * Supported icon families from @expo/vector-icons (for internal use)
+ */
+type IconFamily =
+  | "Ionicons"
+  | "MaterialIcons"
+  | "MaterialCommunityIcons"
+  | "FontAwesome"
+  | "FontAwesome5"
+  | "FontAwesome6"
+  | "Feather"
+  | "AntDesign"
+  | "Entypo"
+  | "EvilIcons"
+  | "Foundation"
+  | "Octicons"
+  | "SimpleLineIcons"
+  | "Zocial";
 
 /**
- * Infer an icon based on suggestion content
+ * Icon component map for rendering different icon families
  */
-function getIconForSuggestion(
-  suggestion: Suggestion
-): keyof typeof Ionicons.glyphMap {
-  const text = (suggestion.title || suggestion.message || "").toLowerCase();
+const ICON_COMPONENTS: Record<IconFamily, React.ComponentType<any>> = {
+  Ionicons,
+  MaterialIcons,
+  MaterialCommunityIcons,
+  FontAwesome,
+  FontAwesome5,
+  FontAwesome6,
+  Feather,
+  AntDesign,
+  Entypo,
+  EvilIcons,
+  Foundation,
+  Octicons,
+  SimpleLineIcons,
+  Zocial,
+};
 
-  if (text.includes("joke") || text.includes("funny") || text.includes("laugh"))
-    return SUGGESTION_ICONS.joke;
-  if (
-    text.includes("quiz") ||
-    text.includes("question") ||
-    text.includes("test")
-  )
-    return SUGGESTION_ICONS.quiz;
-  if (text.includes("hello") || text.includes("hi") || text.includes("greet"))
-    return SUGGESTION_ICONS.hello;
-  if (text.includes("help") || text.includes("assist"))
-    return SUGGESTION_ICONS.help;
-  if (
-    text.includes("write") ||
-    text.includes("email") ||
-    text.includes("draft")
-  )
-    return SUGGESTION_ICONS.write;
-  if (
-    text.includes("code") ||
-    text.includes("program") ||
-    text.includes("develop")
-  )
-    return SUGGESTION_ICONS.code;
-  if (text.includes("search") || text.includes("find") || text.includes("look"))
-    return SUGGESTION_ICONS.search;
-  if (
-    text.includes("idea") ||
-    text.includes("brainstorm") ||
-    text.includes("suggest")
-  )
-    return SUGGESTION_ICONS.idea;
-  if (
-    text.includes("learn") ||
-    text.includes("explain") ||
-    text.includes("teach")
-  )
-    return SUGGESTION_ICONS.learn;
-  if (
-    text.includes("analyze") ||
-    text.includes("analysis") ||
-    text.includes("data")
-  )
-    return SUGGESTION_ICONS.analyze;
-  if (
-    text.includes("create") ||
-    text.includes("make") ||
-    text.includes("generate")
-  )
-    return SUGGESTION_ICONS.create;
+/** Default icon family */
+const DEFAULT_ICON_FAMILY: IconFamily = "Ionicons";
 
-  return SUGGESTION_ICONS.default;
+/** Default icon used when no icon is specified */
+const DEFAULT_SUGGESTION_ICON = "sparkles-outline";
+
+/**
+ * Render an icon from any supported icon family
+ */
+function renderIcon(
+  name: string,
+  family: IconFamily = DEFAULT_ICON_FAMILY,
+  size: number = 20,
+  color: string = "#3B82F6"
+): React.ReactNode {
+  const IconComponent = ICON_COMPONENTS[family] || Ionicons;
+  return <IconComponent name={name} size={size} color={color} />;
 }
 
 // ============================================================================
@@ -196,8 +191,10 @@ export interface AjoraChatEmptyStateSuggestionProps {
   style?: StyleProp<ViewStyle>;
   textStyle?: StyleProp<TextStyle>;
   theme?: AjoraChatEmptyStateTheme;
-  /** Override icon for this suggestion */
-  icon?: keyof typeof Ionicons.glyphMap;
+  /** Override icon name for this suggestion */
+  icon?: string;
+  /** Override icon family for this suggestion */
+  iconFamily?: IconFamily;
   /** Show subtitle/description */
   showDescription?: boolean;
 }
@@ -376,9 +373,13 @@ export namespace AjoraChatEmptyState {
     textStyle,
     theme = DEFAULT_EMPTY_STATE_LIGHT_THEME,
     icon,
+    iconFamily,
     showDescription = true,
   }) => {
-    const resolvedIcon = icon ?? getIconForSuggestion(suggestion);
+    const resolvedIcon = icon ?? suggestion.icon ?? DEFAULT_SUGGESTION_ICON;
+    const resolvedIconFamily = (iconFamily ??
+      suggestion.iconFamily ??
+      DEFAULT_ICON_FAMILY) as IconFamily;
     const title = suggestion.title || suggestion.message;
     const description = suggestion.title ? suggestion.message : null;
 
@@ -404,11 +405,12 @@ export namespace AjoraChatEmptyState {
             { backgroundColor: theme.suggestionIconBackgroundColor },
           ]}
         >
-          <Ionicons
-            name={resolvedIcon}
-            size={20}
-            color={theme.suggestionIconColor}
-          />
+          {renderIcon(
+            resolvedIcon,
+            resolvedIconFamily,
+            20,
+            theme.suggestionIconColor
+          )}
         </View>
 
         {/* Text content */}

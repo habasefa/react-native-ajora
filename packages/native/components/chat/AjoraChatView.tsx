@@ -370,7 +370,7 @@ function AjoraChatViewInner({
 }: AjoraChatViewProps) {
   // Safe area insets for bottom padding
   const insets = useSafeAreaInsets();
-  
+
   // Keyboard animation using react-native-keyboard-controller
   const keyboard = useReanimatedKeyboardAnimation();
 
@@ -479,7 +479,9 @@ function AjoraChatViewInner({
     <View style={[styles.container, style]} {...props}>
       <Animated.View style={[styles.animatedContainer, keyboardAnimatedStyle]}>
         {BoundScrollView}
-        <View style={[styles.bottomContainer, { paddingBottom: insets.bottom }]}>
+        <View
+          style={[styles.bottomContainer, { paddingBottom: insets.bottom }]}
+        >
           {BoundSuggestionView}
           {BoundInput}
         </View>

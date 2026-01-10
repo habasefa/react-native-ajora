@@ -87,6 +87,7 @@
     "react-native-mathjax-svg": "^0.9.9",
     "react-native-parsed-text": "^0.0.22",
     "react-native-sse": "^1.2.1",
+    "react-native-svg": "^15.15.1",
     "react-native-uuid": "^2.0.3",
     "rxjs": "7.8.1",
     "ts-deepmerge": "^7.0.3",

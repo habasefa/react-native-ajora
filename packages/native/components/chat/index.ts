@@ -67,12 +67,19 @@ export {
 } from "./AjoraChatMessageView";
 
 export {
+  default as AjoraChatThinkingIndicator,
+  type AjoraChatThinkingIndicatorProps,
+} from "./AjoraChatThinkingIndicator";
+
+export {
   default as AjoraChatToolCallsView,
   type AjoraChatToolCallsViewProps,
 } from "./AjoraChatToolCallsView";
 
 export {
   default as AjoraChatView,
+  AjoraChatScrollView,
+  AjoraChatScrollToBottomButton,
   type AjoraChatViewProps,
 } from "./AjoraChatView";
 

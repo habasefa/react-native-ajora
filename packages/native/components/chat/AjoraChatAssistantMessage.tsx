@@ -1,7 +1,6 @@
 import React, { useState, useCallback } from "react";
 import {
   View,
-  Text,
   StyleSheet,
   Pressable,
   StyleProp,
@@ -11,6 +10,7 @@ import {
 } from "react-native";
 import * as Clipboard from "expo-clipboard";
 import { Ionicons } from "@expo/vector-icons";
+import RichText from "../../../../src/richText/RichText";
 
 // Optional haptics import - gracefully handle if not available
 let Haptics: {
@@ -409,9 +409,23 @@ export namespace AjoraChatAssistantMessage {
     content: string;
     style?: StyleProp<ViewStyle>;
     textStyle?: StyleProp<TextStyle>;
-  }> = ({ content, style, textStyle }) => (
+    textColor?: string;
+    fontSize?: number;
+    lineHeight?: number;
+  }> = ({
+    content,
+    style,
+    textColor = COLORS.text,
+    fontSize = 16,
+    lineHeight = 24,
+  }) => (
     <View style={[styles.markdownContainer, style]}>
-      <Text style={[styles.markdownText, textStyle]}>{content}</Text>
+      <RichText
+        text={content}
+        textColor={textColor}
+        fontSize={fontSize}
+        lineHeight={lineHeight}
+      />
     </View>
   );
 
@@ -534,11 +548,6 @@ const styles = StyleSheet.create({
   },
   markdownContainer: {
     paddingVertical: 4,
-  },
-  markdownText: {
-    fontSize: 16,
-    lineHeight: 24,
-    color: COLORS.text,
   },
   toolbar: {
     width: "100%",

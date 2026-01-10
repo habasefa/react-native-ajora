@@ -1,13 +1,22 @@
 // @ts-nocheck
 import * as React from "react";
 import { useMemo, useState } from "react";
-import { View, Text, StyleSheet, Pressable, StyleProp, ViewStyle, TextStyle } from "react-native";
+import {
+  View,
+  Text,
+  StyleSheet,
+  Pressable,
+  StyleProp,
+  ViewStyle,
+  TextStyle,
+} from "react-native";
 import {
   useAjoraChatConfiguration,
   AjoraChatDefaultLabels,
 } from "../../providers/AjoraChatConfigurationProvider";
 import { UserMessage } from "@ag-ui/core";
 import { renderSlot, WithSlots } from "../../lib/slots";
+import RichText from "../../../../src/richText/RichText";
 
 function flattenUserMessageContent(content?: UserMessage["content"]): string {
   if (!content) {
@@ -129,7 +138,6 @@ export function AjoraChatUserMessage({
 
   const BoundToolbar = renderSlot(toolbar, AjoraChatUserMessage.Toolbar, {
     children: (
-       
       <View style={styles.toolbarInner}>
         {additionalToolbarItems}
         {BoundCopyButton}
@@ -170,11 +178,7 @@ export namespace AjoraChatUserMessage {
   export const Container: React.FC<
     React.PropsWithChildren<{ style?: StyleProp<ViewStyle> }>
   > = ({ children, style, ...props }) => (
-     
-    <View
-      style={[styles.container, style]}
-      {...props}
-    >
+    <View style={[styles.container, style]} {...props}>
       {children}
     </View>
   );
@@ -183,26 +187,31 @@ export namespace AjoraChatUserMessage {
     content: string;
     style?: StyleProp<ViewStyle>;
     textStyle?: StyleProp<TextStyle>;
-  }> = ({ content, style, textStyle }) => (
-     
+    textColor?: string;
+    fontSize?: number;
+    lineHeight?: number;
+  }> = ({
+    content,
+    style,
+    textColor = "#FFFFFF",
+    fontSize = 16,
+    lineHeight = 22,
+  }) => (
     <View style={[styles.messageBubble, style]}>
-      {/* @ts-ignore */}
-      <Text style={[styles.messageText, textStyle]}>
-        {content}
-      </Text>
+      <RichText
+        text={content}
+        textColor={textColor}
+        fontSize={fontSize}
+        lineHeight={lineHeight}
+      />
     </View>
   );
 
-  export const Toolbar: React.FC<{ children: React.ReactNode; style?: StyleProp<ViewStyle> }> = ({
-    style,
-    children,
-    ...props
-  }) => (
-     
-    <View
-      style={[styles.toolbar, style]}
-      {...props}
-    >
+  export const Toolbar: React.FC<{
+    children: React.ReactNode;
+    style?: StyleProp<ViewStyle>;
+  }> = ({ style, children, ...props }) => (
+    <View style={[styles.toolbar, style]} {...props}>
       {children}
     </View>
   );
@@ -214,13 +223,12 @@ export namespace AjoraChatUserMessage {
     style?: StyleProp<ViewStyle>;
   }> = ({ title, children, onPress, style, ...props }) => {
     return (
-       
       <Pressable
         onPress={onPress}
         style={({ pressed }) => [
           styles.toolbarButton,
           pressed && styles.pressed,
-          style
+          style,
         ]}
         {...props}
       >
@@ -229,7 +237,10 @@ export namespace AjoraChatUserMessage {
     );
   };
 
-  export const CopyButton: React.FC<{ onClick?: () => void; style?: StyleProp<ViewStyle> }> = ({ style, onClick, ...props }) => {
+  export const CopyButton: React.FC<{
+    onClick?: () => void;
+    style?: StyleProp<ViewStyle>;
+  }> = ({ style, onClick, ...props }) => {
     const config = useAjoraChatConfiguration();
     const labels = config?.labels ?? AjoraChatDefaultLabels;
     const [copied, setCopied] = useState(false);
@@ -254,7 +265,10 @@ export namespace AjoraChatUserMessage {
     );
   };
 
-  export const EditButton: React.FC<{ onClick?: () => void; style?: StyleProp<ViewStyle> }> = ({ style, onClick, ...props }) => {
+  export const EditButton: React.FC<{
+    onClick?: () => void;
+    style?: StyleProp<ViewStyle>;
+  }> = ({ style, onClick, ...props }) => {
     const config = useAjoraChatConfiguration();
     const labels = config?.labels ?? AjoraChatDefaultLabels;
     return (
@@ -270,14 +284,14 @@ export namespace AjoraChatUserMessage {
   };
 
   export const BranchNavigation: React.FC<{
-      currentBranch?: number;
-      numberOfBranches?: number;
-      onSwitchToBranch?: (
-        props: AjoraChatUserMessageOnSwitchToBranchProps
-      ) => void;
-      message: UserMessage;
-      style?: StyleProp<ViewStyle>;
-    }> = ({
+    currentBranch?: number;
+    numberOfBranches?: number;
+    onSwitchToBranch?: (
+      props: AjoraChatUserMessageOnSwitchToBranchProps
+    ) => void;
+    message: UserMessage;
+    style?: StyleProp<ViewStyle>;
+  }> = ({
     style,
     currentBranch = 0,
     numberOfBranches = 1,
@@ -294,8 +308,7 @@ export namespace AjoraChatUserMessage {
 
     return (
       <View style={[styles.branchNav, style]} {...props}>
-         
-      <Pressable
+        <Pressable
           onPress={() =>
             onSwitchToBranch?.({
               branchIndex: currentBranch - 1,
@@ -304,15 +317,19 @@ export namespace AjoraChatUserMessage {
             })
           }
           disabled={!canGoPrev}
-          style={({ pressed }) => [styles.navButton, !canGoPrev && styles.disabled, pressed && styles.pressed]}
+          style={({ pressed }) => [
+            styles.navButton,
+            !canGoPrev && styles.disabled,
+            pressed && styles.pressed,
+          ]}
         >
           <Text style={styles.navButtonText}>{"<"}</Text>
         </Pressable>
         <Text style={styles.branchText}>
           {currentBranch + 1}/{numberOfBranches}
         </Text>
-         
-      <Pressable
+
+        <Pressable
           onPress={() =>
             onSwitchToBranch?.({
               branchIndex: currentBranch + 1,
@@ -321,7 +338,11 @@ export namespace AjoraChatUserMessage {
             })
           }
           disabled={!canGoNext}
-          style={({ pressed }) => [styles.navButton, !canGoNext && styles.disabled, pressed && styles.pressed]}
+          style={({ pressed }) => [
+            styles.navButton,
+            !canGoNext && styles.disabled,
+            pressed && styles.pressed,
+          ]}
         >
           <Text style={styles.navButtonText}>{">"}</Text>
         </Pressable>

@@ -32,6 +32,8 @@ import AjoraChatSuggestionView, {
 } from "./AjoraChatSuggestionView";
 import AjoraChatMessageView from "./AjoraChatMessageView";
 import AjoraChatThinkingIndicator from "./AjoraChatThinkingIndicator";
+import AjoraChatEmptyState from "./AjoraChatEmptyState";
+import AjoraChatLoadingState from "./AjoraChatLoadingState";
 
 // ============================================================================
 // Types
@@ -45,15 +47,25 @@ export type AjoraChatViewProps = WithSlots<
     suggestionView: typeof AjoraChatSuggestionView;
     thinkingIndicator: typeof AjoraChatThinkingIndicator;
     scrollToBottomButton: typeof AjoraChatScrollToBottomButton;
+    emptyState: typeof AjoraChatEmptyState;
+    loadingState: typeof AjoraChatLoadingState;
   },
   {
     messages?: Message[];
     inputProps?: Partial<Omit<AjoraChatInputProps, "children">>;
     isRunning?: boolean;
+    /** Whether the chat is in a loading state (e.g., connecting, loading history) */
+    isLoading?: boolean;
     /** Whether to show the thinking indicator when isRunning is true */
     showThinkingIndicator?: boolean;
+    /** Whether to show the empty state when there are no messages */
+    showEmptyState?: boolean;
+    /** Whether to show the loading state when isLoading is true */
+    showLoadingState?: boolean;
     /** Whether to auto-scroll to bottom when new messages arrive or content is streaming */
     autoScroll?: boolean;
+    /** Starter suggestions to show in the empty state */
+    starterSuggestions?: Suggestion[];
     suggestions?: Suggestion[];
     suggestionLoadingIndexes?: ReadonlyArray<number>;
     onSelectSuggestion?: (suggestion: Suggestion, index: number) => void;
@@ -336,11 +348,17 @@ function AjoraChatViewInner({
   suggestionView,
   thinkingIndicator,
   scrollToBottomButton,
+  emptyState,
+  loadingState,
   messages = [],
   inputProps,
   isRunning = false,
+  isLoading = false,
   showThinkingIndicator = true,
+  showEmptyState = true,
+  showLoadingState = true,
   autoScroll = true,
+  starterSuggestions,
   suggestions,
   suggestionLoadingIndexes,
   onSelectSuggestion,
@@ -365,6 +383,32 @@ function AjoraChatViewInner({
   const lastMessage = messages[messages.length - 1];
   const isStreaming =
     isRunning && lastMessage?.role === "assistant" && !!lastMessage.content;
+
+  // Determine if chat is empty (no messages)
+  const isEmpty = messages.length === 0;
+
+  // Should show loading state
+  const shouldShowLoading = showLoadingState && isLoading && isEmpty;
+
+  // Should show empty state (when not loading and no messages)
+  const shouldShowEmpty = showEmptyState && isEmpty && !isLoading;
+
+  // Render empty state
+  const BoundEmptyState = shouldShowEmpty
+    ? renderSlot(emptyState, AjoraChatEmptyState, {
+        suggestions: starterSuggestions,
+        onSelectSuggestion: onSelectSuggestion
+          ? (suggestion) => onSelectSuggestion(suggestion, -1)
+          : undefined,
+      })
+    : null;
+
+  // Render loading state
+  const BoundLoadingState = shouldShowLoading
+    ? renderSlot(loadingState, AjoraChatLoadingState, {
+        type: "connecting",
+      })
+    : null;
 
   const BoundMessageView = renderSlot(messageView, AjoraChatMessageView, {
     messages,
@@ -405,7 +449,15 @@ function AjoraChatViewInner({
     scrollToBottomButton: BoundScrollToBottomButton,
     showScrollToBottomButton: true,
     contentContainerStyle: styles.scrollViewContent,
-    children: <View>{BoundMessageView}</View>,
+    children: (
+      <View>
+        {/* Show empty or loading state when appropriate */}
+        {BoundLoadingState}
+        {BoundEmptyState}
+        {/* Only show messages when not in loading/empty state */}
+        {!shouldShowLoading && !shouldShowEmpty && BoundMessageView}
+      </View>
+    ),
   });
 
   if (children) {
@@ -414,6 +466,8 @@ function AjoraChatViewInner({
       input: BoundInput,
       scrollView: BoundScrollView,
       suggestionView: BoundSuggestionView ?? <></>,
+      emptyState: BoundEmptyState ?? <></>,
+      loadingState: BoundLoadingState ?? <></>,
     });
   }
 
@@ -462,8 +516,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollViewContent: {
-    padding: 16,
-    paddingBottom: 24,
+    paddingBottom: 16,
   },
   messageList: {
     paddingBottom: 20,

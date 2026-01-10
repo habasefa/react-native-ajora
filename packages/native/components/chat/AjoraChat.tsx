@@ -29,6 +29,10 @@ export type AjoraChatProps = Omit<
   labels?: Partial<AjoraChatLabels>;
   chatView?: SlotValue<typeof AjoraChatView>;
   isModalDefaultOpen?: boolean;
+  /** Whether the chat is in a loading state (e.g., connecting, loading history) */
+  isLoading?: boolean;
+  /** Starter suggestions to show in the empty state */
+  starterSuggestions?: Suggestion[];
 };
 export function AjoraChat({
   agentId,
@@ -36,6 +40,8 @@ export function AjoraChat({
   labels,
   chatView,
   isModalDefaultOpen,
+  isLoading = false,
+  starterSuggestions,
   ...props
 }: AjoraChatProps) {
   // Check for existing configuration provider
@@ -157,7 +163,9 @@ export function AjoraChat({
   const mergedProps = merge(
     {
       isRunning: agent.isRunning,
+      isLoading,
       suggestions: autoSuggestions,
+      starterSuggestions,
       onSelectSuggestion: handleSelectSuggestion,
       suggestionView: providedSuggestionView,
       onRegenerate: handleRegenerate,

@@ -1,10 +1,16 @@
 import {
   AjoraChat,
+  AjoraChatHeader,
+  AjoraThreadDrawer,
+  AjoraThreadProvider,
+  AjoraChatEmptyState,
+  AjoraChatLoadingState,
+  useAjoraThreads,
   useAgentContext,
   useConfigureSuggestions,
   useFrontendTool,
 } from "@ajora-ai/native";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -103,15 +109,44 @@ const MultipleChoiceQuestion = ({
   );
 };
 
-export default function Chat() {
-  const [selectedThreadId, setSelectedThreadId] = useState<
-    "thread---a" | "thread---b" | "thread---c"
-  >("thread---a");
-  const threadOptions: { id: typeof selectedThreadId; label: string }[] = [
-    { id: "thread---a", label: "Thread A" },
-    { id: "thread---b", label: "Thread B" },
-    { id: "thread---c", label: "Thread C" },
-  ];
+// Example starter suggestions for empty state
+const STARTER_SUGGESTIONS = [
+  {
+    id: "1",
+    title: "Tell me a joke",
+    message: "Tell me a funny joke to brighten my day",
+  },
+  {
+    id: "2",
+    title: "Quiz me on something",
+    message: "Ask me a multiple choice question to test my knowledge",
+  },
+  {
+    id: "3",
+    title: "Help me write",
+    message: "Help me write a professional email",
+  },
+  {
+    id: "4",
+    title: "Explain a concept",
+    message: "Explain how AI assistants work in simple terms",
+  },
+];
+
+// Inner Chat component that uses thread context
+function ChatContent() {
+  const { currentThreadId, currentThread } = useAjoraThreads();
+  
+  // Simulate initial loading state for demo
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
+  
+  useEffect(() => {
+    // Simulate connection/loading delay
+    const timer = setTimeout(() => {
+      setIsInitialLoading(false);
+    }, 1500);
+    return () => clearTimeout(timer);
+  }, [currentThreadId]);
 
   useConfigureSuggestions({
     instructions: "Suggest follow-up tasks based on the current page content",
@@ -119,25 +154,8 @@ export default function Chat() {
 
   useAgentContext({
     description: "The current Thread ID is:",
-    value: selectedThreadId,
+    value: currentThreadId ?? "none",
   });
-
-  //useConfigureSuggestions({
-  //  instructions: "Suggest helpful next actions",
-  //});
-
-  // useConfigureSuggestions({
-  //   suggestions: [
-  //     {
-  //       title: "Action 1",
-  //       message: "Do action 1",
-  //     },
-  //     {
-  //       title: "Action 2",
-  //       message: "Do action 2",
-  //     },
-  //   ],
-  // });
 
   // Joke Tool
   useFrontendTool({
@@ -235,8 +253,6 @@ export default function Chat() {
       correctAnswer: z.number().optional(),
     }),
     handler: async ({ question, options, correctAnswer }) => {
-      // In a real scenario, you might want to wait for user input
-      // For now, we'll just return the question and options
       return `Question: ${question}\nOptions: ${options.join(", ")}`;
     },
     render: ({ args, status }) => {
@@ -278,32 +294,79 @@ export default function Chat() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.buttonContainer}>
-        {threadOptions.map(({ id, label }, index) => {
-          const isActive = id === selectedThreadId;
-          return (
-            <Pressable
-              key={id}
-              onPress={() => setSelectedThreadId(id)}
-              style={[
-                styles.button,
-                isActive && styles.buttonActive,
-                index > 0 && styles.buttonSpacing,
-              ]}
-            >
-              <Text
-                style={[styles.buttonText, isActive && styles.buttonTextActive]}
-              >
-                {label}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </View>
+      {/* Chat Header with menu, title, and new thread button */}
+      <AjoraChatHeader
+        subtitle="AI Assistant"
+        onTitlePress={() => {
+          // Could open a thread picker or rename dialog
+          Alert.alert("Thread", currentThread?.name ?? "Unknown thread");
+        }}
+      />
+
+      {/* Thread Drawer */}
+      <AjoraThreadDrawer
+        onLongPressThread={(thread) => {
+          Alert.alert("Thread Options", `Options for "${thread.name}"`, [
+            {
+              text: "Rename",
+              onPress: () => {
+                // In a real app, you'd show a rename dialog
+                Alert.alert("Rename", "Rename functionality would go here");
+              },
+            },
+            {
+              text: "Cancel",
+              style: "cancel",
+            },
+          ]);
+        }}
+        emptyComponent={
+          <View style={styles.emptyContainer}>
+            <Text style={styles.emptyTitle}>No conversations yet</Text>
+            <Text style={styles.emptySubtitle}>Start a new chat to begin</Text>
+          </View>
+        }
+      />
+
+      {/* Main Chat Area */}
       <View style={styles.chatContainer}>
-        <AjoraChat threadId={selectedThreadId} />
+        {currentThreadId && (
+          <AjoraChat
+            threadId={currentThreadId}
+            isLoading={isInitialLoading}
+            starterSuggestions={STARTER_SUGGESTIONS}
+            labels={{
+              chatEmptyStateTitle: "How can I help you today?",
+              chatEmptyStateSubtitle:
+                "I can tell jokes, quiz you, or just chat!",
+            }}
+            // Custom empty state component (optional - uses default if not provided)
+            // emptyState={<CustomEmptyState />}
+          />
+        )}
       </View>
     </View>
+  );
+}
+
+// Main Chat component wrapped with Thread Provider
+export default function Chat() {
+  return (
+    <AjoraThreadProvider
+      autoCreateThread={true}
+      generateThreadName={(index) => `Conversation ${index}`}
+      onThreadChange={(thread) => {
+        console.log("Thread changed:", thread?.name);
+      }}
+      onThreadCreate={(thread) => {
+        console.log("Thread created:", thread.name);
+      }}
+      onThreadDelete={(threadId) => {
+        console.log("Thread deleted:", threadId);
+      }}
+    >
+      <ChatContent />
+    </AjoraThreadProvider>
   );
 }
 
@@ -311,40 +374,30 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     flexDirection: "column",
-    padding: 8,
-  },
-  buttonContainer: {
-    flexDirection: "row",
-    justifyContent: "center",
-    marginBottom: 16,
-  },
-  button: {
-    paddingVertical: 6,
-    paddingHorizontal: 14,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: "#d1d5db",
-    backgroundColor: "#ffffff",
-  },
-  buttonSpacing: {
-    marginLeft: 10,
-  },
-  buttonActive: {
-    borderWidth: 2,
-    borderColor: "#111827",
-    backgroundColor: "#111827",
-  },
-  buttonText: {
-    color: "#111827",
-    fontWeight: "600",
-    fontSize: 14,
-  },
-  buttonTextActive: {
-    color: "#ffffff",
+    backgroundColor: "#FFFFFF",
   },
   chatContainer: {
     flex: 1,
     minHeight: 0,
+  },
+  emptyContainer: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 32,
+    paddingVertical: 64,
+  },
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#374151",
+    marginBottom: 8,
+    textAlign: "center",
+  },
+  emptySubtitle: {
+    fontSize: 14,
+    color: "#6B7280",
+    textAlign: "center",
   },
 });
 

@@ -29,6 +29,27 @@ export const AjoraChatDefaultLabels = {
   chatToggleOpenLabel: "Open chat",
   chatToggleCloseLabel: "Close chat",
   modalHeaderTitle: "Ajora Chat",
+  // Chat header labels
+  chatHeaderTitle: "Chat",
+  chatHeaderMenuButtonLabel: "Open menu",
+  chatHeaderNewThreadButtonLabel: "New chat",
+  // Thread drawer labels
+  threadDrawerTitle: "Chats",
+  threadDrawerNewButtonLabel: "New Chat",
+  threadDrawerEmptyTitle: "No conversations yet",
+  threadDrawerEmptySubtitle: "Start a new chat to begin",
+  threadDrawerDeleteConfirmTitle: "Delete chat?",
+  threadDrawerDeleteConfirmMessage: "This action cannot be undone.",
+  threadDrawerDeleteConfirmButton: "Delete",
+  threadDrawerDeleteCancelButton: "Cancel",
+  // Chat empty state labels
+  chatEmptyStateTitle: "How can I help you today?",
+  chatEmptyStateSubtitle: "Ask me anything or choose a suggestion below",
+  // Chat loading state labels
+  chatLoadingConnecting: "Connecting...",
+  chatLoadingMessages: "Loading messages...",
+  chatLoadingThinking: "Thinking...",
+  chatLoadingReconnecting: "Reconnecting...",
 };
 
 export type AjoraChatLabels = typeof AjoraChatDefaultLabels;

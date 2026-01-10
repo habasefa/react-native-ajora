@@ -1,6 +1,6 @@
 // @ts-nocheck
 import * as React from "react";
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 import {
   View,
   Text,
@@ -13,8 +13,10 @@ import {
   Modal,
   Dimensions,
   Platform,
+  TextInput,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { renderSlot, WithSlots } from "../../lib/slots";
 import {
   useAjoraThreadContext,
@@ -31,93 +33,169 @@ import {
 
 /**
  * Theme configuration for the thread drawer
+ * Follows the library's color system patterns
  */
 export interface AjoraThreadDrawerTheme {
-  /** Background color of the drawer */
+  // Base colors
   backgroundColor?: string;
-  /** Background color of the overlay */
   overlayColor?: string;
-  /** Header background color */
+
+  // Header
   headerBackgroundColor?: string;
-  /** Header border color */
   headerBorderColor?: string;
-  /** Header title color */
   headerTitleColor?: string;
-  /** Thread item background color */
+
+  // Search bar
+  searchBackgroundColor?: string;
+  searchBorderColor?: string;
+  searchTextColor?: string;
+  searchPlaceholderColor?: string;
+  searchIconColor?: string;
+
+  // Section header
+  sectionHeaderColor?: string;
+  sectionChevronColor?: string;
+
+  // Thread items
   itemBackgroundColor?: string;
-  /** Thread item background color when selected */
   itemSelectedBackgroundColor?: string;
-  /** Thread item background color when pressed */
   itemPressedBackgroundColor?: string;
-  /** Thread item title color */
   itemTitleColor?: string;
-  /** Thread item subtitle color */
-  itemSubtitleColor?: string;
-  /** Thread item icon color */
+  itemDateColor?: string;
   itemIconColor?: string;
-  /** Thread item selected indicator color */
+  itemMenuIconColor?: string;
   itemSelectedIndicatorColor?: string;
-  /** New thread button background color */
+
+  // New thread button
   newThreadButtonBackgroundColor?: string;
-  /** New thread button text color */
+  newThreadButtonBorderColor?: string;
   newThreadButtonTextColor?: string;
-  /** Drawer width (number for fixed, string for percentage) */
+  newThreadButtonIconColor?: string;
+  newThreadButtonPressedBackgroundColor?: string;
+
+  // Footer / User profile area
+  footerBackgroundColor?: string;
+  footerBorderColor?: string;
+  userNameColor?: string;
+  userAvatarBackgroundColor?: string;
+  userAvatarTextColor?: string;
+  settingsIconColor?: string;
+
+  // Layout
   drawerWidth?: number | string;
-  /** Header height */
   headerHeight?: number;
-  /** Thread item height */
   itemHeight?: number;
+  borderRadius?: number;
 }
 
 /**
- * Default light theme for the drawer
+ * Default light theme - consistent with library patterns
  */
 export const DEFAULT_DRAWER_LIGHT_THEME: AjoraThreadDrawerTheme = {
-  backgroundColor: "#FFFFFF",
-  overlayColor: "rgba(0, 0, 0, 0.5)",
-  headerBackgroundColor: "#FFFFFF",
-  headerBorderColor: "#E5E5EA",
-  headerTitleColor: "#000000",
-  itemBackgroundColor: "#FFFFFF",
-  itemSelectedBackgroundColor: "#F3F4F6",
-  itemPressedBackgroundColor: "#E5E7EB",
-  itemTitleColor: "#000000",
-  itemSubtitleColor: "#6B7280",
+  backgroundColor: "#FAFAFA",
+  overlayColor: "rgba(0, 0, 0, 0.35)",
+
+  headerBackgroundColor: "#FAFAFA",
+  headerBorderColor: "#E5E7EB",
+  headerTitleColor: "#1F2937",
+
+  searchBackgroundColor: "#FFFFFF",
+  searchBorderColor: "#E8E8E8",
+  searchTextColor: "#1F2937",
+  searchPlaceholderColor: "#9CA3AF",
+  searchIconColor: "#9CA3AF",
+
+  sectionHeaderColor: "#6B7280",
+  sectionChevronColor: "#C4C4C6",
+
+  itemBackgroundColor: "transparent",
+  itemSelectedBackgroundColor: "transparent",
+  itemPressedBackgroundColor: "#F3F4F6",
+  itemTitleColor: "#1F2937",
+  itemDateColor: "#9CA3AF",
   itemIconColor: "#6B7280",
-  itemSelectedIndicatorColor: "#007AFF",
-  newThreadButtonBackgroundColor: "#007AFF",
-  newThreadButtonTextColor: "#FFFFFF",
-  drawerWidth: "80%",
+  itemMenuIconColor: "#D1D1D6",
+  itemSelectedIndicatorColor: "#3B82F6",
+
+  newThreadButtonBackgroundColor: "#FFFFFF",
+  newThreadButtonBorderColor: "#E8E8E8",
+  newThreadButtonTextColor: "#1F2937",
+  newThreadButtonIconColor: "#6B7280",
+  newThreadButtonPressedBackgroundColor: "#F5F5F5",
+
+  footerBackgroundColor: "#FAFAFA",
+  footerBorderColor: "transparent",
+  userNameColor: "#1F2937",
+  userAvatarBackgroundColor: "#E5E7EB",
+  userAvatarTextColor: "#6B7280",
+  settingsIconColor: "#8E8E93",
+
+  drawerWidth: "85%",
   headerHeight: 56,
   itemHeight: 64,
+  borderRadius: 24,
 };
 
 /**
- * Default dark theme for the drawer
+ * Default dark theme - follows library dark mode patterns
  */
 export const DEFAULT_DRAWER_DARK_THEME: AjoraThreadDrawerTheme = {
-  backgroundColor: "#1C1C1E",
-  overlayColor: "rgba(0, 0, 0, 0.7)",
-  headerBackgroundColor: "#1C1C1E",
-  headerBorderColor: "#38383A",
+  backgroundColor: "#0D0D0D",
+  overlayColor: "rgba(0, 0, 0, 0.6)",
+
+  headerBackgroundColor: "#0D0D0D",
+  headerBorderColor: "#1F1F1F",
   headerTitleColor: "#FFFFFF",
-  itemBackgroundColor: "#1C1C1E",
-  itemSelectedBackgroundColor: "#2C2C2E",
-  itemPressedBackgroundColor: "#3A3A3C",
+
+  searchBackgroundColor: "transparent",
+  searchBorderColor: "transparent",
+  searchTextColor: "#FFFFFF",
+  searchPlaceholderColor: "#6B7280",
+  searchIconColor: "#6B7280",
+
+  sectionHeaderColor: "#8E8E93",
+  sectionChevronColor: "#6B7280",
+
+  itemBackgroundColor: "transparent",
+  itemSelectedBackgroundColor: "#1C2536",
+  itemPressedBackgroundColor: "#1A1A1A",
   itemTitleColor: "#FFFFFF",
-  itemSubtitleColor: "#8E8E93",
-  itemIconColor: "#8E8E93",
-  itemSelectedIndicatorColor: "#0A84FF",
-  newThreadButtonBackgroundColor: "#0A84FF",
+  itemDateColor: "#8E8E93",
+  itemIconColor: "#6B7280",
+  itemMenuIconColor: "#48484A",
+  itemSelectedIndicatorColor: "#60A5FA",
+
+  newThreadButtonBackgroundColor: "transparent",
+  newThreadButtonBorderColor: "#2D2D2D",
   newThreadButtonTextColor: "#FFFFFF",
-  drawerWidth: "80%",
+  newThreadButtonIconColor: "#9CA3AF",
+  newThreadButtonPressedBackgroundColor: "#1A1A1A",
+
+  footerBackgroundColor: "#0D0D0D",
+  footerBorderColor: "#1F1F1F",
+  userNameColor: "#FFFFFF",
+  userAvatarBackgroundColor: "#2D2D2D",
+  userAvatarTextColor: "#9CA3AF",
+  settingsIconColor: "#6B7280",
+
+  drawerWidth: "85%",
   headerHeight: 56,
-  itemHeight: 64,
+  itemHeight: 52,
+  borderRadius: 10,
 };
 
 // ============================================================================
 // Sub-component Types
 // ============================================================================
+
+export interface AjoraThreadDrawerSearchBarProps {
+  value?: string;
+  onChangeText?: (text: string) => void;
+  placeholder?: string;
+  style?: StyleProp<ViewStyle>;
+  inputStyle?: StyleProp<TextStyle>;
+  theme?: AjoraThreadDrawerTheme;
+}
 
 export interface AjoraThreadDrawerHeaderProps {
   title?: string;
@@ -133,11 +211,12 @@ export interface AjoraThreadDrawerItemProps {
   isSelected?: boolean;
   style?: StyleProp<ViewStyle>;
   titleStyle?: StyleProp<TextStyle>;
-  subtitleStyle?: StyleProp<TextStyle>;
+  dateStyle?: StyleProp<TextStyle>;
   onPress?: (thread: Thread) => void;
   onLongPress?: (thread: Thread) => void;
+  onMenuPress?: (thread: Thread) => void;
   onDelete?: (thread: Thread) => void;
-  showDeleteButton?: boolean;
+  showMenuButton?: boolean;
   showSelectedIndicator?: boolean;
   theme?: AjoraThreadDrawerTheme;
   /** Custom render function for the thread item */
@@ -153,6 +232,15 @@ export interface AjoraThreadDrawerNewButtonProps {
   theme?: AjoraThreadDrawerTheme;
 }
 
+export interface AjoraThreadDrawerSectionHeaderProps {
+  title?: string;
+  isExpanded?: boolean;
+  onToggle?: () => void;
+  style?: StyleProp<ViewStyle>;
+  titleStyle?: StyleProp<TextStyle>;
+  theme?: AjoraThreadDrawerTheme;
+}
+
 export interface AjoraThreadDrawerListProps {
   threads: Thread[];
   currentThreadId?: string | null;
@@ -161,11 +249,24 @@ export interface AjoraThreadDrawerListProps {
   onSelectThread?: (thread: Thread) => void;
   onDeleteThread?: (thread: Thread) => void;
   onLongPressThread?: (thread: Thread) => void;
+  onMenuPressThread?: (thread: Thread) => void;
   itemTheme?: AjoraThreadDrawerTheme;
   /** Custom render function for each thread item */
   renderItem?: (props: AjoraThreadDrawerItemProps) => React.ReactElement;
   /** Empty state component */
   emptyComponent?: React.ReactNode;
+  /** Section header title */
+  sectionTitle?: string;
+  /** Search filter text */
+  searchFilter?: string;
+}
+
+export interface AjoraThreadDrawerFooterProps {
+  userName?: string;
+  userInitials?: string;
+  onSettingsPress?: () => void;
+  style?: StyleProp<ViewStyle>;
+  theme?: AjoraThreadDrawerTheme;
 }
 
 // ============================================================================
@@ -173,10 +274,13 @@ export interface AjoraThreadDrawerListProps {
 // ============================================================================
 
 type DrawerSlots = {
+  searchBar: typeof AjoraThreadDrawer.SearchBar;
   header: typeof AjoraThreadDrawer.Header;
   list: typeof AjoraThreadDrawer.List;
   newButton: typeof AjoraThreadDrawer.NewButton;
   item: typeof AjoraThreadDrawer.Item;
+  sectionHeader: typeof AjoraThreadDrawer.SectionHeader;
+  footer: typeof AjoraThreadDrawer.Footer;
 };
 
 type DrawerRestProps = {
@@ -192,22 +296,38 @@ type DrawerRestProps = {
   overlayStyle?: StyleProp<ViewStyle>;
   /** Position of the drawer */
   position?: "left" | "right";
+  /** Whether to show the search bar */
+  showSearchBar?: boolean;
   /** Whether to show the header */
   showHeader?: boolean;
   /** Whether to show the new thread button */
   showNewThreadButton?: boolean;
+  /** Whether to show section header */
+  showSectionHeader?: boolean;
+  /** Whether to show footer */
+  showFooter?: boolean;
   /** Header title override */
   headerTitle?: string;
   /** New thread button label override */
   newThreadButtonLabel?: string;
+  /** Section header title */
+  sectionTitle?: string;
+  /** Search placeholder */
+  searchPlaceholder?: string;
+  /** User name for footer */
+  userName?: string;
   /** Callback when a thread is selected */
   onSelectThread?: (thread: Thread) => void;
   /** Callback when a thread is deleted */
   onDeleteThread?: (thread: Thread) => void;
   /** Callback when a thread is long pressed */
   onLongPressThread?: (thread: Thread) => void;
+  /** Callback when thread menu is pressed */
+  onMenuPressThread?: (thread: Thread) => void;
   /** Callback when new thread button is pressed */
   onNewThread?: () => void;
+  /** Callback when settings is pressed */
+  onSettingsPress?: () => void;
   /** Whether to close drawer when a thread is selected */
   closeOnSelect?: boolean;
   /** Animation duration in ms */
@@ -221,6 +341,45 @@ type DrawerRestProps = {
 export type AjoraThreadDrawerProps = WithSlots<DrawerSlots, DrawerRestProps>;
 
 // ============================================================================
+// Helper Functions
+// ============================================================================
+
+/**
+ * Format date for thread item display
+ * Returns formats like: "3:11 PM", "Yesterday", "Dec 20, 2025"
+ */
+function formatThreadDate(date: Date | undefined): string {
+  if (!date) return "";
+
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const yesterday = new Date(today.getTime() - 24 * 60 * 60 * 1000);
+  const threadDate = new Date(
+    date.getFullYear(),
+    date.getMonth(),
+    date.getDate()
+  );
+
+  if (threadDate.getTime() === today.getTime()) {
+    // Today - show time
+    return date.toLocaleTimeString([], {
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    });
+  } else if (threadDate.getTime() === yesterday.getTime()) {
+    return "Yesterday";
+  } else {
+    // Show date
+    return date.toLocaleDateString([], {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+  }
+}
+
+// ============================================================================
 // Main Component
 // ============================================================================
 
@@ -231,31 +390,58 @@ export function AjoraThreadDrawer({
   style,
   overlayStyle,
   position = "left",
-  showHeader = true,
+  showSearchBar = true,
+  showHeader = false,
   showNewThreadButton = true,
+  showSectionHeader = true,
+  showFooter = false,
   headerTitle,
   newThreadButtonLabel,
+  sectionTitle,
+  searchPlaceholder,
+  userName,
   onSelectThread,
   onDeleteThread,
   onLongPressThread,
+  onMenuPressThread,
   onNewThread,
+  onSettingsPress,
   closeOnSelect = true,
   emptyComponent,
   renderItem,
+  searchBar,
   header,
   list,
   newButton,
+  sectionHeader,
+  footer,
   children,
   ...rest
 }: AjoraThreadDrawerProps) {
   const threadContext = useAjoraThreadContext();
   const configuration = useAjoraChatConfiguration();
+  const insets = useSafeAreaInsets();
+
+  // Local state
+  const [searchText, setSearchText] = useState("");
+  const [isSectionExpanded, setIsSectionExpanded] = useState(true);
 
   // Use controlled state or context state
   const isOpen = controlledIsOpen ?? threadContext?.isDrawerOpen ?? false;
 
   const threads = threadContext?.threads ?? [];
   const currentThreadId = threadContext?.currentThreadId ?? null;
+
+  // Filter threads by search
+  const filteredThreads = useMemo(() => {
+    if (!searchText.trim()) return threads;
+    const search = searchText.toLowerCase();
+    return threads.filter(
+      (thread) =>
+        thread.name.toLowerCase().includes(search) ||
+        thread.subtitle?.toLowerCase().includes(search)
+    );
+  }, [threads, searchText]);
 
   // Resolve labels
   const resolvedHeaderTitle =
@@ -269,6 +455,9 @@ export function AjoraThreadDrawer({
     configuration?.labels.threadDrawerNewButtonLabel ??
     AjoraChatDefaultLabels.threadDrawerNewButtonLabel ??
     "New Chat";
+
+  const resolvedSectionTitle = sectionTitle ?? "Conversations";
+  const resolvedSearchPlaceholder = searchPlaceholder ?? "Search conversations";
 
   // Handlers
   const handleClose = useCallback(() => {
@@ -314,6 +503,18 @@ export function AjoraThreadDrawer({
     [onLongPressThread]
   );
 
+  const handleMenuPressThread = useCallback(
+    (thread: Thread) => {
+      if (onMenuPressThread) {
+        onMenuPressThread(thread);
+      } else if (onLongPressThread) {
+        // Fallback to long press handler
+        onLongPressThread(thread);
+      }
+    },
+    [onMenuPressThread, onLongPressThread]
+  );
+
   const handleNewThread = useCallback(() => {
     if (onNewThread) {
       onNewThread();
@@ -326,29 +527,29 @@ export function AjoraThreadDrawer({
     }
   }, [onNewThread, threadContext, closeOnSelect, handleClose]);
 
+  const handleToggleSection = useCallback(() => {
+    setIsSectionExpanded((prev) => !prev);
+  }, []);
+
   // Calculate drawer width
   const screenWidth = Dimensions.get("window").width;
   const drawerWidth =
     typeof theme.drawerWidth === "string"
       ? (parseFloat(theme.drawerWidth) / 100) * screenWidth
-      : theme.drawerWidth ?? screenWidth * 0.8;
+      : (theme.drawerWidth ?? screenWidth * 0.85);
 
   // Render slots
+  const BoundSearchBar = renderSlot(searchBar, AjoraThreadDrawer.SearchBar, {
+    value: searchText,
+    onChangeText: setSearchText,
+    placeholder: resolvedSearchPlaceholder,
+    theme,
+  });
+
   const BoundHeader = renderSlot(header, AjoraThreadDrawer.Header, {
     title: resolvedHeaderTitle,
     onClose: handleClose,
     theme,
-  });
-
-  const BoundList = renderSlot(list, AjoraThreadDrawer.List, {
-    threads,
-    currentThreadId,
-    onSelectThread: handleSelectThread,
-    onDeleteThread: handleDeleteThread,
-    onLongPressThread: handleLongPressThread,
-    itemTheme: theme,
-    renderItem,
-    emptyComponent,
   });
 
   const BoundNewButton = renderSlot(newButton, AjoraThreadDrawer.NewButton, {
@@ -357,14 +558,47 @@ export function AjoraThreadDrawer({
     theme,
   });
 
+  const BoundSectionHeader = renderSlot(
+    sectionHeader,
+    AjoraThreadDrawer.SectionHeader,
+    {
+      title: resolvedSectionTitle,
+      isExpanded: isSectionExpanded,
+      onToggle: handleToggleSection,
+      theme,
+    }
+  );
+
+  const BoundList = renderSlot(list, AjoraThreadDrawer.List, {
+    threads: isSectionExpanded ? filteredThreads : [],
+    currentThreadId,
+    onSelectThread: handleSelectThread,
+    onDeleteThread: handleDeleteThread,
+    onLongPressThread: handleLongPressThread,
+    onMenuPressThread: handleMenuPressThread,
+    itemTheme: theme,
+    renderItem,
+    emptyComponent,
+    searchFilter: searchText,
+  });
+
+  const BoundFooter = renderSlot(footer, AjoraThreadDrawer.Footer, {
+    userName,
+    onSettingsPress,
+    theme,
+  });
+
   // Render function children pattern
   if (children) {
     return (
       <React.Fragment>
         {children({
+          searchBar: BoundSearchBar,
           header: BoundHeader,
           list: BoundList,
           newButton: BoundNewButton,
+          sectionHeader: BoundSectionHeader,
+          footer: BoundFooter,
           ...rest,
         })}
       </React.Fragment>
@@ -399,22 +633,39 @@ export function AjoraThreadDrawer({
             {
               backgroundColor: theme.backgroundColor,
               width: drawerWidth,
+              paddingTop: insets.top,
+              paddingBottom: insets.bottom,
             },
             drawerTransform,
             style,
           ]}
           onPress={(e) => e.stopPropagation()}
         >
-          {/* Header */}
+          {/* Header (optional) */}
           {showHeader && BoundHeader}
 
-          {/* New thread button at top */}
+          {/* Search bar */}
+          {showSearchBar && (
+            <View style={styles.searchBarContainer}>{BoundSearchBar}</View>
+          )}
+
+          {/* New thread button */}
           {showNewThreadButton && (
             <View style={styles.newButtonContainer}>{BoundNewButton}</View>
           )}
 
+          {/* Section header */}
+          {showSectionHeader && (
+            <View style={styles.sectionHeaderContainer}>
+              {BoundSectionHeader}
+            </View>
+          )}
+
           {/* Thread list */}
-          {BoundList}
+          <View style={styles.listContainer}>{BoundList}</View>
+
+          {/* Footer */}
+          {showFooter && BoundFooter}
         </Pressable>
       </Pressable>
     </Modal>
@@ -422,10 +673,65 @@ export function AjoraThreadDrawer({
 }
 
 // ============================================================================
-// Namespace Sub-components (following AjoraModalHeader pattern)
+// Namespace Sub-components
 // ============================================================================
 
 export namespace AjoraThreadDrawer {
+  export const SearchBar: React.FC<AjoraThreadDrawerSearchBarProps> = ({
+    value = "",
+    onChangeText,
+    placeholder = "Search",
+    style,
+    inputStyle,
+    theme = DEFAULT_DRAWER_LIGHT_THEME,
+  }) => (
+    <View
+      style={[
+        styles.searchBar,
+        {
+          backgroundColor: theme.searchBackgroundColor,
+          borderColor: theme.searchBorderColor,
+          borderRadius: theme.borderRadius,
+        },
+        style,
+      ]}
+    >
+      <Ionicons
+        name="search-outline"
+        size={20}
+        color={theme.searchIconColor}
+        style={styles.searchIcon}
+      />
+      <TextInput
+        value={value}
+        onChangeText={onChangeText}
+        placeholder={placeholder}
+        placeholderTextColor={theme.searchPlaceholderColor}
+        style={[
+          styles.searchInput,
+          { color: theme.searchTextColor },
+          inputStyle,
+        ]}
+        autoCapitalize="none"
+        autoCorrect={false}
+        clearButtonMode="while-editing"
+      />
+      {value.length > 0 && Platform.OS !== "ios" && (
+        <Pressable
+          onPress={() => onChangeText?.("")}
+          style={styles.searchClearButton}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        >
+          <Ionicons
+            name="close-circle"
+            size={18}
+            color={theme.searchIconColor}
+          />
+        </Pressable>
+      )}
+    </View>
+  );
+
   export const Header: React.FC<AjoraThreadDrawerHeaderProps> = ({
     title = "Chats",
     style,
@@ -471,16 +777,91 @@ export namespace AjoraThreadDrawer {
     </View>
   );
 
+  export const SectionHeader: React.FC<AjoraThreadDrawerSectionHeaderProps> = ({
+    title = "Conversations",
+    isExpanded = true,
+    onToggle,
+    style,
+    titleStyle,
+    theme = DEFAULT_DRAWER_LIGHT_THEME,
+  }) => (
+    <Pressable
+      onPress={onToggle}
+      style={[styles.sectionHeader, style]}
+      accessibilityRole="button"
+      accessibilityState={{ expanded: isExpanded }}
+    >
+      <Text
+        style={[
+          styles.sectionHeaderTitle,
+          { color: theme.sectionHeaderColor },
+          titleStyle,
+        ]}
+      >
+        {title}
+      </Text>
+      <Ionicons
+        name={isExpanded ? "chevron-up" : "chevron-down"}
+        size={18}
+        color={theme.sectionChevronColor}
+      />
+    </Pressable>
+  );
+
+  export const NewButton: React.FC<AjoraThreadDrawerNewButtonProps> = ({
+    style,
+    textStyle,
+    onPress,
+    label = "New Chat",
+    iconName = "create-outline",
+    theme = DEFAULT_DRAWER_LIGHT_THEME,
+  }) => (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.newButton,
+        {
+          backgroundColor: pressed
+            ? theme.newThreadButtonPressedBackgroundColor
+            : theme.newThreadButtonBackgroundColor,
+          borderColor: theme.newThreadButtonBorderColor,
+          borderRadius: theme.borderRadius,
+        },
+        style,
+      ]}
+      accessibilityLabel={label}
+      accessibilityRole="button"
+    >
+      <View style={styles.newButtonIconWrapper}>
+        <Ionicons
+          name={iconName}
+          size={20}
+          color={theme.newThreadButtonIconColor}
+        />
+      </View>
+      <Text
+        style={[
+          styles.newButtonText,
+          { color: theme.newThreadButtonTextColor },
+          textStyle,
+        ]}
+      >
+        {label}
+      </Text>
+    </Pressable>
+  );
+
   export const Item: React.FC<AjoraThreadDrawerItemProps> = ({
     thread,
     isSelected = false,
     style,
     titleStyle,
-    subtitleStyle,
+    dateStyle,
     onPress,
     onLongPress,
+    onMenuPress,
     onDelete,
-    showDeleteButton = false,
+    showMenuButton = true,
     showSelectedIndicator = true,
     theme = DEFAULT_DRAWER_LIGHT_THEME,
     renderItem,
@@ -491,11 +872,12 @@ export namespace AjoraThreadDrawer {
         isSelected,
         style,
         titleStyle,
-        subtitleStyle,
+        dateStyle,
         onPress,
         onLongPress,
+        onMenuPress,
         onDelete,
-        showDeleteButton,
+        showMenuButton,
         showSelectedIndicator,
         theme,
       });
@@ -503,24 +885,7 @@ export namespace AjoraThreadDrawer {
 
     const formattedDate = useMemo(() => {
       const date = thread.updatedAt || thread.createdAt;
-      if (!date) return "";
-
-      const now = new Date();
-      const diffMs = now.getTime() - date.getTime();
-      const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-
-      if (diffDays === 0) {
-        return date.toLocaleTimeString([], {
-          hour: "2-digit",
-          minute: "2-digit",
-        });
-      } else if (diffDays === 1) {
-        return "Yesterday";
-      } else if (diffDays < 7) {
-        return date.toLocaleDateString([], { weekday: "short" });
-      } else {
-        return date.toLocaleDateString([], { month: "short", day: "numeric" });
-      }
+      return formatThreadDate(date);
     }, [thread.updatedAt, thread.createdAt]);
 
     return (
@@ -532,10 +897,12 @@ export namespace AjoraThreadDrawer {
           {
             backgroundColor: isSelected
               ? theme.itemSelectedBackgroundColor
-              : theme.itemBackgroundColor,
+              : pressed
+                ? theme.itemPressedBackgroundColor
+                : theme.itemBackgroundColor,
             minHeight: theme.itemHeight,
+            borderRadius: 8,
           },
-          pressed && { backgroundColor: theme.itemPressedBackgroundColor },
           style,
         ]}
         accessibilityRole="button"
@@ -552,63 +919,44 @@ export namespace AjoraThreadDrawer {
           />
         )}
 
-        {/* Thread icon */}
-        <View style={styles.itemIcon}>
-          <Ionicons
-            name="chatbubble-outline"
-            size={20}
-            color={theme.itemIconColor}
-          />
-        </View>
-
         {/* Thread info */}
         <View style={styles.itemContent}>
-          <View style={styles.itemTitleRow}>
-            <Text
-              style={[
-                styles.itemTitle,
-                { color: theme.itemTitleColor },
-                isSelected && styles.itemTitleSelected,
-                titleStyle,
-              ]}
-              numberOfLines={1}
-            >
-              {thread.name}
-            </Text>
-            <Text
-              style={[styles.itemDate, { color: theme.itemSubtitleColor }]}
-              numberOfLines={1}
-            >
-              {formattedDate}
-            </Text>
-          </View>
-          {thread.subtitle && (
-            <Text
-              style={[
-                styles.itemSubtitle,
-                { color: theme.itemSubtitleColor },
-                subtitleStyle,
-              ]}
-              numberOfLines={1}
-            >
-              {thread.subtitle}
-            </Text>
-          )}
+          <Text
+            style={[
+              styles.itemTitle,
+              { color: theme.itemTitleColor },
+              isSelected && styles.itemTitleSelected,
+              titleStyle,
+            ]}
+            numberOfLines={1}
+          >
+            {thread.name}
+          </Text>
+          <Text
+            style={[styles.itemDate, { color: theme.itemDateColor }, dateStyle]}
+            numberOfLines={1}
+          >
+            {formattedDate}
+          </Text>
         </View>
 
-        {/* Delete button */}
-        {showDeleteButton && (
+        {/* Menu button */}
+        {showMenuButton && (
           <Pressable
-            onPress={() => onDelete?.(thread)}
+            onPress={() => onMenuPress?.(thread)}
             style={({ pressed }) => [
-              styles.deleteButton,
-              pressed && styles.deleteButtonPressed,
+              styles.menuButton,
+              pressed && styles.menuButtonPressed,
             ]}
-            accessibilityLabel="Delete thread"
+            accessibilityLabel="Thread options"
             accessibilityRole="button"
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           >
-            <Ionicons name="trash-outline" size={18} color="#EF4444" />
+            <Ionicons
+              name="ellipsis-vertical"
+              size={18}
+              color={theme.itemMenuIconColor}
+            />
           </Pressable>
         )}
       </Pressable>
@@ -623,19 +971,81 @@ export namespace AjoraThreadDrawer {
     onSelectThread,
     onDeleteThread,
     onLongPressThread,
+    onMenuPressThread,
     itemTheme = DEFAULT_DRAWER_LIGHT_THEME,
     renderItem,
     emptyComponent,
+    searchFilter,
   }) => {
-    if (threads.length === 0 && emptyComponent) {
-      return <View style={[styles.list, style]}>{emptyComponent}</View>;
+    if (threads.length === 0) {
+      if (searchFilter && searchFilter.length > 0) {
+        return (
+          <View style={[styles.list, style]}>
+            <View style={styles.emptyState}>
+              <Ionicons
+                name="search-outline"
+                size={32}
+                color={itemTheme.itemDateColor}
+              />
+              <Text
+                style={[
+                  styles.emptyStateTitle,
+                  { color: itemTheme.itemTitleColor },
+                ]}
+              >
+                No results found
+              </Text>
+              <Text
+                style={[
+                  styles.emptyStateSubtitle,
+                  { color: itemTheme.itemDateColor },
+                ]}
+              >
+                Try a different search term
+              </Text>
+            </View>
+          </View>
+        );
+      }
+
+      if (emptyComponent) {
+        return <View style={[styles.list, style]}>{emptyComponent}</View>;
+      }
+
+      return (
+        <View style={[styles.list, style]}>
+          <View style={styles.emptyState}>
+            <Ionicons
+              name="chatbubbles-outline"
+              size={32}
+              color={itemTheme.itemDateColor}
+            />
+            <Text
+              style={[
+                styles.emptyStateTitle,
+                { color: itemTheme.itemTitleColor },
+              ]}
+            >
+              No conversations yet
+            </Text>
+            <Text
+              style={[
+                styles.emptyStateSubtitle,
+                { color: itemTheme.itemDateColor },
+              ]}
+            >
+              Start a new conversation to begin
+            </Text>
+          </View>
+        </View>
+      );
     }
 
     return (
       <ScrollView
         style={[styles.list, style]}
         contentContainerStyle={[styles.listContent, contentContainerStyle]}
-        showsVerticalScrollIndicator={true}
+        showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
         {threads.map((thread) => (
@@ -645,8 +1055,9 @@ export namespace AjoraThreadDrawer {
             isSelected={thread.id === currentThreadId}
             onPress={onSelectThread}
             onLongPress={onLongPressThread}
+            onMenuPress={onMenuPressThread}
             onDelete={onDeleteThread}
-            showDeleteButton={threads.length > 1}
+            showMenuButton={true}
             theme={itemTheme}
             renderItem={renderItem}
           />
@@ -655,42 +1066,69 @@ export namespace AjoraThreadDrawer {
     );
   };
 
-  export const NewButton: React.FC<AjoraThreadDrawerNewButtonProps> = ({
+  export const Footer: React.FC<AjoraThreadDrawerFooterProps> = ({
+    userName = "User",
+    userInitials,
+    onSettingsPress,
     style,
-    textStyle,
-    onPress,
-    label = "New Chat",
-    iconName = "add",
     theme = DEFAULT_DRAWER_LIGHT_THEME,
-  }) => (
-    <Pressable
-      onPress={onPress}
-      style={({ pressed }) => [
-        styles.newButton,
-        { backgroundColor: theme.newThreadButtonBackgroundColor },
-        pressed && styles.newButtonPressed,
-        style,
-      ]}
-      accessibilityLabel={label}
-      accessibilityRole="button"
-    >
-      <Ionicons
-        name={iconName}
-        size={20}
-        color={theme.newThreadButtonTextColor}
-        style={styles.newButtonIcon}
-      />
-      <Text
+  }) => {
+    const initials = userInitials ?? userName.slice(0, 2).toUpperCase();
+
+    return (
+      <View
         style={[
-          styles.newButtonText,
-          { color: theme.newThreadButtonTextColor },
-          textStyle,
+          styles.footer,
+          {
+            backgroundColor: theme.footerBackgroundColor,
+            borderTopColor: theme.footerBorderColor,
+          },
+          style,
         ]}
       >
-        {label}
-      </Text>
-    </Pressable>
-  );
+        <View style={styles.footerContent}>
+          <View
+            style={[
+              styles.userAvatar,
+              { backgroundColor: theme.userAvatarBackgroundColor },
+            ]}
+          >
+            <Text
+              style={[
+                styles.userInitials,
+                { color: theme.userAvatarTextColor },
+              ]}
+            >
+              {initials}
+            </Text>
+          </View>
+          <Text
+            style={[styles.userName, { color: theme.userNameColor }]}
+            numberOfLines={1}
+          >
+            {userName}
+          </Text>
+        </View>
+        {onSettingsPress && (
+          <Pressable
+            onPress={onSettingsPress}
+            style={({ pressed }) => [
+              styles.settingsButton,
+              pressed && styles.settingsButtonPressed,
+            ]}
+            accessibilityLabel="Settings"
+            accessibilityRole="button"
+          >
+            <Ionicons
+              name="settings-outline"
+              size={22}
+              color={theme.settingsIconColor}
+            />
+          </Pressable>
+        )}
+      </View>
+    );
+  };
 }
 
 // ============================================================================
@@ -727,6 +1165,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 20,
     fontWeight: "700",
+    letterSpacing: -0.4,
   },
   closeButton: {
     width: 36,
@@ -738,94 +1177,184 @@ const styles = StyleSheet.create({
   closeButtonPressed: {
     backgroundColor: "rgba(0, 0, 0, 0.1)",
   },
+  searchBarContainer: {
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 8,
+  },
+  searchBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    height: 48,
+    borderWidth: 1,
+  },
+  searchIcon: {
+    marginRight: 12,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 16,
+    height: "100%",
+  },
+  searchClearButton: {
+    padding: 4,
+  },
+  sectionHeaderContainer: {
+    paddingHorizontal: 20,
+    marginTop: 8,
+  },
+  sectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 12,
+  },
+  sectionHeaderTitle: {
+    fontSize: 13,
+    fontWeight: "600",
+    letterSpacing: 0.2,
+  },
+  newButtonContainer: {
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 4,
+  },
+  newButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderWidth: 1,
+  },
+  newButtonIconWrapper: {
+    width: 24,
+    height: 24,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 12,
+  },
+  newButtonText: {
+    fontSize: 16,
+    fontWeight: "500",
+  },
+  listContainer: {
+    flex: 1,
+  },
   list: {
     flex: 1,
   },
   listContent: {
-    paddingVertical: 8,
+    paddingHorizontal: 0,
+    paddingTop: 0,
+    paddingBottom: 20,
   },
   item: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    marginHorizontal: 0,
+    marginVertical: 0,
     position: "relative",
   },
   selectedIndicator: {
     position: "absolute",
     left: 0,
-    top: 8,
-    bottom: 8,
+    top: 12,
+    bottom: 12,
     width: 3,
-    borderTopRightRadius: 2,
-    borderBottomRightRadius: 2,
-  },
-  itemIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: "rgba(0, 0, 0, 0.05)",
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 12,
+    borderTopRightRadius: 3,
+    borderBottomRightRadius: 3,
   },
   itemContent: {
     flex: 1,
     justifyContent: "center",
-  },
-  itemTitleRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
+    paddingLeft: 0,
   },
   itemTitle: {
     fontSize: 16,
     fontWeight: "500",
-    flex: 1,
-    marginRight: 8,
+    marginBottom: 4,
+    letterSpacing: -0.2,
   },
   itemTitleSelected: {
     fontWeight: "600",
   },
   itemDate: {
-    fontSize: 12,
-  },
-  itemSubtitle: {
     fontSize: 14,
-    marginTop: 2,
+    letterSpacing: 0,
   },
-  deleteButton: {
-    width: 32,
-    height: 32,
+  menuButton: {
+    width: 40,
+    height: 40,
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: 16,
+    borderRadius: 20,
     marginLeft: 8,
   },
-  deleteButtonPressed: {
-    backgroundColor: "rgba(239, 68, 68, 0.1)",
+  menuButtonPressed: {
+    backgroundColor: "rgba(0, 0, 0, 0.06)",
   },
-  newButtonContainer: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  newButton: {
-    flexDirection: "row",
+  emptyState: {
+    flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 12,
+    paddingHorizontal: 32,
+    paddingVertical: 64,
   },
-  newButtonPressed: {
-    opacity: 0.8,
-  },
-  newButtonIcon: {
-    marginRight: 8,
-  },
-  newButtonText: {
+  emptyStateTitle: {
     fontSize: 16,
     fontWeight: "600",
+    marginTop: 16,
+    marginBottom: 4,
+    textAlign: "center",
+  },
+  emptyStateSubtitle: {
+    fontSize: 14,
+    textAlign: "center",
+  },
+  footer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderTopWidth: 0,
+  },
+  footerContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
+  },
+  userAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 12,
+    overflow: "hidden",
+  },
+  userInitials: {
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  userName: {
+    fontSize: 16,
+    fontWeight: "600",
+    flex: 1,
+    letterSpacing: -0.2,
+  },
+  settingsButton: {
+    width: 44,
+    height: 44,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 22,
+  },
+  settingsButtonPressed: {
+    backgroundColor: "rgba(0, 0, 0, 0.05)",
   },
 });
 

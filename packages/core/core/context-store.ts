@@ -1,7 +1,7 @@
 import { Context } from "@ag-ui/client";
 import { randomUUID } from "@ajora-ai/shared";
 import type { AjoraCore } from "./core";
-import { AjoraCoreFriendsAccess } from "./core";
+import { AjoraCoreFriendsAccess } from "./core-types";
 
 /**
  * Manages context storage and lifecycle for AjoraCore.

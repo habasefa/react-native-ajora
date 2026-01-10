@@ -9,7 +9,7 @@ import {
 import { randomUUID, logger } from "@ajora-ai/shared";
 import { zodToJsonSchema } from "zod-to-json-schema";
 import type { AjoraCore } from "./core";
-import { AjoraCoreErrorCode, AjoraCoreFriendsAccess } from "./core";
+import { AjoraCoreErrorCode, AjoraCoreFriendsAccess } from "./core-types";
 import { FrontendTool } from "../types";
 
 export interface AjoraCoreRunAgentParams {

@@ -9,6 +9,7 @@ import { useEffect } from "react";
 import Chat from "@/components/v2/chat";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 const LoggingComponent = () => {
   const { agent } = useAgent();
@@ -88,10 +89,10 @@ const Index = () => {
           useSingleEndpoint={true}
           renderToolCalls={[wildcardRenderer]}
         >
-          <LoggingComponent />
-          <View style={styles.container}>
+          <SafeAreaView style={styles.safeArea}>
+            <LoggingComponent />
             <Chat />
-          </View>
+          </SafeAreaView>
         </AjoraProvider>
       </BottomSheetModalProvider>
     </GestureHandlerRootView>
@@ -103,11 +104,8 @@ export default Index;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
   },
-  text: {
-    fontSize: 20,
-    fontWeight: "bold",
+  safeArea: {
+    flex: 1,
   },
 });

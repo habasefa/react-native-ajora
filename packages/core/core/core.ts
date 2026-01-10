@@ -7,7 +7,13 @@ import {
 } from "../types";
 import { AgentRegistry, AjoraCoreAddAgentParams } from "./agent-registry";
 import { ContextStore } from "./context-store";
-import { SuggestionEngine } from "./suggestion-engine";
+import {
+  SuggestionEngine,
+  AjoraCoreGetSuggestionsResult,
+} from "./suggestion-engine";
+
+// Re-export suggestion result type
+export type { AjoraCoreGetSuggestionsResult };
 import {
   RunHandler,
   AjoraCoreRunAgentParams,
@@ -15,6 +21,22 @@ import {
   AjoraCoreGetToolParams,
 } from "./run-handler";
 import { StateManager } from "./state-manager";
+import {
+  AjoraCoreErrorCode,
+  AjoraCoreRuntimeConnectionStatus,
+  AjoraCoreFriendsAccess,
+  AjoraCoreSubscriber,
+  AjoraCoreSubscription,
+} from "./core-types";
+
+// Re-export types from core-types for backwards compatibility
+export {
+  AjoraCoreErrorCode,
+  AjoraCoreRuntimeConnectionStatus,
+  AjoraCoreFriendsAccess,
+  AjoraCoreSubscriber,
+  AjoraCoreSubscription,
+} from "./core-types";
 
 /** Configuration options for `AjoraCore`. */
 export interface AjoraCoreConfig {
@@ -43,127 +65,6 @@ export type {
 
 export interface AjoraCoreStopAgentParams {
   agent: AbstractAgent;
-}
-
-export type AjoraCoreGetSuggestionsResult = {
-  suggestions: Suggestion[];
-  isLoading: boolean;
-};
-
-export enum AjoraCoreErrorCode {
-  RUNTIME_INFO_FETCH_FAILED = "runtime_info_fetch_failed",
-  AGENT_CONNECT_FAILED = "agent_connect_failed",
-  AGENT_RUN_FAILED = "agent_run_failed",
-  AGENT_RUN_FAILED_EVENT = "agent_run_failed_event",
-  AGENT_RUN_ERROR_EVENT = "agent_run_error_event",
-  TOOL_ARGUMENT_PARSE_FAILED = "tool_argument_parse_failed",
-  TOOL_HANDLER_FAILED = "tool_handler_failed",
-}
-
-export interface AjoraCoreSubscriber {
-  onRuntimeConnectionStatusChanged?: (event: {
-    ajora: AjoraCore;
-    status: AjoraCoreRuntimeConnectionStatus;
-  }) => void | Promise<void>;
-  onToolExecutionStart?: (event: {
-    ajora: AjoraCore;
-    toolCallId: string;
-    agentId: string;
-    toolName: string;
-    args: unknown;
-  }) => void | Promise<void>;
-  onToolExecutionEnd?: (event: {
-    ajora: AjoraCore;
-    toolCallId: string;
-    agentId: string;
-    toolName: string;
-    result: string;
-    error?: string;
-  }) => void | Promise<void>;
-  onAgentsChanged?: (event: {
-    ajora: AjoraCore;
-    agents: Readonly<Record<string, AbstractAgent>>;
-  }) => void | Promise<void>;
-  onContextChanged?: (event: {
-    ajora: AjoraCore;
-    context: Readonly<Record<string, Context>>;
-  }) => void | Promise<void>;
-  onSuggestionsConfigChanged?: (event: {
-    ajora: AjoraCore;
-    suggestionsConfig: Readonly<Record<string, SuggestionsConfig>>;
-  }) => void | Promise<void>;
-  onSuggestionsChanged?: (event: {
-    ajora: AjoraCore;
-    agentId: string;
-    suggestions: Suggestion[];
-  }) => void | Promise<void>;
-  onSuggestionsStartedLoading?: (event: {
-    ajora: AjoraCore;
-    agentId: string;
-  }) => void | Promise<void>;
-  onSuggestionsFinishedLoading?: (event: {
-    ajora: AjoraCore;
-    agentId: string;
-  }) => void | Promise<void>;
-  onPropertiesChanged?: (event: {
-    ajora: AjoraCore;
-    properties: Readonly<Record<string, unknown>>;
-  }) => void | Promise<void>;
-  onHeadersChanged?: (event: {
-    ajora: AjoraCore;
-    headers: Readonly<Record<string, string>>;
-  }) => void | Promise<void>;
-  onError?: (event: {
-    ajora: AjoraCore;
-    error: Error;
-    code: AjoraCoreErrorCode;
-    context: Record<string, any>;
-  }) => void | Promise<void>;
-}
-
-// Subscription object returned by subscribe()
-export interface AjoraCoreSubscription {
-  unsubscribe: () => void;
-}
-
-export enum AjoraCoreRuntimeConnectionStatus {
-  Disconnected = "disconnected",
-  Connected = "connected",
-  Connecting = "connecting",
-  Error = "error",
-}
-
-/**
- * Internal interface for delegate classes to access AjoraCore methods.
- * This provides type safety while allowing controlled access to private functionality.
- */
-export interface AjoraCoreFriendsAccess {
-  // Notification methods
-  notifySubscribers(
-    handler: (subscriber: AjoraCoreSubscriber) => void | Promise<void>,
-    errorMessage: string
-  ): Promise<void>;
-
-  emitError(params: {
-    error: Error;
-    code: AjoraCoreErrorCode;
-    context?: Record<string, any>;
-  }): Promise<void>;
-
-  // Getters for internal state
-  readonly headers: Readonly<Record<string, string>>;
-  readonly properties: Readonly<Record<string, unknown>>;
-  readonly context: Readonly<Record<string, Context>>;
-
-  // Internal methods
-  buildFrontendTools(agentId?: string): import("@ag-ui/client").Tool[];
-  getAgent(id: string): AbstractAgent | undefined;
-
-  // References to delegate subsystems
-  readonly suggestionEngine: {
-    clearSuggestions(agentId: string): void;
-    reloadSuggestions(agentId: string): void;
-  };
 }
 
 export class AjoraCore {

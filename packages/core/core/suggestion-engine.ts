@@ -1,14 +1,18 @@
 import { AbstractAgent, Message, Tool, Context } from "@ag-ui/client";
 import { randomUUID, partialJSONParse } from "@ajora-ai/shared";
 import type { AjoraCore } from "./core";
-import type { AjoraCoreGetSuggestionsResult } from "./core";
-import { AjoraCoreFriendsAccess } from "./core";
+import { AjoraCoreFriendsAccess } from "./core-types";
 import {
   DynamicSuggestionsConfig,
   StaticSuggestionsConfig,
   Suggestion,
   SuggestionsConfig,
 } from "../types";
+
+export type AjoraCoreGetSuggestionsResult = {
+  suggestions: Suggestion[];
+  isLoading: boolean;
+};
 
 /**
  * Manages suggestion generation, streaming, and lifecycle for AjoraCore.

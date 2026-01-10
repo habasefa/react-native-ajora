@@ -22,6 +22,7 @@ import {
   KeyboardProvider,
   useReanimatedKeyboardAnimation,
 } from "react-native-keyboard-controller";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { WithSlots, renderSlot } from "../../lib/slots";
 import AjoraChatInput, { AjoraChatInputProps } from "./AjoraChatInput";
@@ -367,6 +368,9 @@ function AjoraChatViewInner({
   style,
   ...props
 }: AjoraChatViewProps) {
+  // Safe area insets for bottom padding
+  const insets = useSafeAreaInsets();
+  
   // Keyboard animation using react-native-keyboard-controller
   const keyboard = useReanimatedKeyboardAnimation();
 
@@ -475,7 +479,7 @@ function AjoraChatViewInner({
     <View style={[styles.container, style]} {...props}>
       <Animated.View style={[styles.animatedContainer, keyboardAnimatedStyle]}>
         {BoundScrollView}
-        <View style={styles.bottomContainer}>
+        <View style={[styles.bottomContainer, { paddingBottom: insets.bottom }]}>
           {BoundSuggestionView}
           {BoundInput}
         </View>
@@ -523,6 +527,7 @@ const styles = StyleSheet.create({
   },
   bottomContainer: {
     backgroundColor: "transparent",
+    paddingHorizontal: 16,
   },
   suggestionList: {
     maxHeight: 60,

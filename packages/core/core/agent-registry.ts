@@ -6,7 +6,7 @@ import {
   AjoraCoreErrorCode,
   AjoraCoreRuntimeConnectionStatus,
   AjoraCoreFriendsAccess,
-} from "./core";
+} from "./core-types";
 import { AjoraRuntimeTransport } from "../types";
 
 export interface AjoraCoreAddAgentParams {

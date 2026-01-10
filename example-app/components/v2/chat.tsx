@@ -3,14 +3,12 @@ import {
   AjoraChatHeader,
   AjoraThreadDrawer,
   AjoraThreadProvider,
-  AjoraChatEmptyState,
-  AjoraChatLoadingState,
   useAjoraThreads,
   useAgentContext,
   useConfigureSuggestions,
   useFrontendTool,
 } from "@ajora-ai/native";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import {
   View,
   Text,
@@ -115,38 +113,31 @@ const STARTER_SUGGESTIONS = [
     id: "1",
     title: "Tell me a joke",
     message: "Tell me a funny joke to brighten my day",
+    isLoading: false,
   },
   {
     id: "2",
     title: "Quiz me on something",
     message: "Ask me a multiple choice question to test my knowledge",
+    isLoading: false,
   },
   {
     id: "3",
     title: "Help me write",
     message: "Help me write a professional email",
+    isLoading: false,
   },
   {
     id: "4",
     title: "Explain a concept",
     message: "Explain how AI assistants work in simple terms",
+    isLoading: false,
   },
 ];
 
 // Inner Chat component that uses thread context
 function ChatContent() {
   const { currentThreadId, currentThread } = useAjoraThreads();
-  
-  // Simulate initial loading state for demo
-  const [isInitialLoading, setIsInitialLoading] = useState(true);
-  
-  useEffect(() => {
-    // Simulate connection/loading delay
-    const timer = setTimeout(() => {
-      setIsInitialLoading(false);
-    }, 1500);
-    return () => clearTimeout(timer);
-  }, [currentThreadId]);
 
   useConfigureSuggestions({
     instructions: "Suggest follow-up tasks based on the current page content",
@@ -263,7 +254,6 @@ function ChatContent() {
         return (
           <View style={toolStyles.mcContainer}>
             <View style={toolStyles.mcHeader}>
-              <Text style={toolStyles.mcIcon}>📝</Text>
               <Text style={toolStyles.mcTitle}>Preparing question...</Text>
             </View>
             <ActivityIndicator size="small" color="#6366f1" />
@@ -305,13 +295,40 @@ function ChatContent() {
 
       {/* Thread Drawer */}
       <AjoraThreadDrawer
-        onLongPressThread={(thread) => {
+        showSearchBar={true}
+        showSectionHeader={true}
+        showFooter={true}
+        userName="Habtamu Asefa"
+        searchPlaceholder="Search conversations"
+        onSettingsPress={() => {
+          Alert.alert("Settings", "Settings would open here");
+        }}
+        onMenuPressThread={(thread) => {
           Alert.alert("Thread Options", `Options for "${thread.name}"`, [
             {
               text: "Rename",
               onPress: () => {
-                // In a real app, you'd show a rename dialog
                 Alert.alert("Rename", "Rename functionality would go here");
+              },
+            },
+            {
+              text: "Delete",
+              style: "destructive",
+              onPress: () => {
+                Alert.alert(
+                  "Delete Thread",
+                  "Are you sure you want to delete this conversation?",
+                  [
+                    { text: "Cancel", style: "cancel" },
+                    {
+                      text: "Delete",
+                      style: "destructive",
+                      onPress: () => {
+                        // Thread deletion is handled by context
+                      },
+                    },
+                  ]
+                );
               },
             },
             {
@@ -320,12 +337,9 @@ function ChatContent() {
             },
           ]);
         }}
-        emptyComponent={
-          <View style={styles.emptyContainer}>
-            <Text style={styles.emptyTitle}>No conversations yet</Text>
-            <Text style={styles.emptySubtitle}>Start a new chat to begin</Text>
-          </View>
-        }
+        onLongPressThread={(thread) => {
+          Alert.alert("Thread Options", `Long pressed "${thread.name}"`);
+        }}
       />
 
       {/* Main Chat Area */}
@@ -333,7 +347,6 @@ function ChatContent() {
         {currentThreadId && (
           <AjoraChat
             threadId={currentThreadId}
-            isLoading={isInitialLoading}
             starterSuggestions={STARTER_SUGGESTIONS}
             labels={{
               chatEmptyStateTitle: "How can I help you today?",
@@ -379,25 +392,6 @@ const styles = StyleSheet.create({
   chatContainer: {
     flex: 1,
     minHeight: 0,
-  },
-  emptyContainer: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 32,
-    paddingVertical: 64,
-  },
-  emptyTitle: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#374151",
-    marginBottom: 8,
-    textAlign: "center",
-  },
-  emptySubtitle: {
-    fontSize: 14,
-    color: "#6B7280",
-    textAlign: "center",
   },
 });
 

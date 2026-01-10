@@ -110,21 +110,62 @@ const SUGGESTION_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
 /**
  * Infer an icon based on suggestion content
  */
-function getIconForSuggestion(suggestion: Suggestion): keyof typeof Ionicons.glyphMap {
+function getIconForSuggestion(
+  suggestion: Suggestion
+): keyof typeof Ionicons.glyphMap {
   const text = (suggestion.title || suggestion.message || "").toLowerCase();
-  
-  if (text.includes("joke") || text.includes("funny") || text.includes("laugh")) return SUGGESTION_ICONS.joke;
-  if (text.includes("quiz") || text.includes("question") || text.includes("test")) return SUGGESTION_ICONS.quiz;
-  if (text.includes("hello") || text.includes("hi") || text.includes("greet")) return SUGGESTION_ICONS.hello;
-  if (text.includes("help") || text.includes("assist")) return SUGGESTION_ICONS.help;
-  if (text.includes("write") || text.includes("email") || text.includes("draft")) return SUGGESTION_ICONS.write;
-  if (text.includes("code") || text.includes("program") || text.includes("develop")) return SUGGESTION_ICONS.code;
-  if (text.includes("search") || text.includes("find") || text.includes("look")) return SUGGESTION_ICONS.search;
-  if (text.includes("idea") || text.includes("brainstorm") || text.includes("suggest")) return SUGGESTION_ICONS.idea;
-  if (text.includes("learn") || text.includes("explain") || text.includes("teach")) return SUGGESTION_ICONS.learn;
-  if (text.includes("analyze") || text.includes("analysis") || text.includes("data")) return SUGGESTION_ICONS.analyze;
-  if (text.includes("create") || text.includes("make") || text.includes("generate")) return SUGGESTION_ICONS.create;
-  
+
+  if (text.includes("joke") || text.includes("funny") || text.includes("laugh"))
+    return SUGGESTION_ICONS.joke;
+  if (
+    text.includes("quiz") ||
+    text.includes("question") ||
+    text.includes("test")
+  )
+    return SUGGESTION_ICONS.quiz;
+  if (text.includes("hello") || text.includes("hi") || text.includes("greet"))
+    return SUGGESTION_ICONS.hello;
+  if (text.includes("help") || text.includes("assist"))
+    return SUGGESTION_ICONS.help;
+  if (
+    text.includes("write") ||
+    text.includes("email") ||
+    text.includes("draft")
+  )
+    return SUGGESTION_ICONS.write;
+  if (
+    text.includes("code") ||
+    text.includes("program") ||
+    text.includes("develop")
+  )
+    return SUGGESTION_ICONS.code;
+  if (text.includes("search") || text.includes("find") || text.includes("look"))
+    return SUGGESTION_ICONS.search;
+  if (
+    text.includes("idea") ||
+    text.includes("brainstorm") ||
+    text.includes("suggest")
+  )
+    return SUGGESTION_ICONS.idea;
+  if (
+    text.includes("learn") ||
+    text.includes("explain") ||
+    text.includes("teach")
+  )
+    return SUGGESTION_ICONS.learn;
+  if (
+    text.includes("analyze") ||
+    text.includes("analysis") ||
+    text.includes("data")
+  )
+    return SUGGESTION_ICONS.analyze;
+  if (
+    text.includes("create") ||
+    text.includes("make") ||
+    text.includes("generate")
+  )
+    return SUGGESTION_ICONS.create;
+
   return SUGGESTION_ICONS.default;
 }
 
@@ -417,9 +458,6 @@ export namespace AjoraChatEmptyState {
 
     return (
       <View style={[styles.suggestionsContainer, style]}>
-        <Text style={[styles.suggestionsLabel, { color: theme.subtitleColor }]}>
-          Try asking
-        </Text>
         {suggestions.map((suggestion, index) => (
           <AjoraChatEmptyState.Suggestion
             key={suggestion.id ?? `suggestion-${index}`}
@@ -488,15 +526,9 @@ const styles = StyleSheet.create({
   suggestionCard: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 14,
-    paddingHorizontal: 14,
+    padding: 16,
     borderRadius: 14,
     borderWidth: 1,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 3,
-    elevation: 1,
   },
   suggestionCardPressed: {
     opacity: 0.85,

@@ -27,7 +27,6 @@ export interface AttachmentOption {
   label: string;
   description?: string;
   icon: keyof typeof Ionicons.glyphMap;
-  color: string;
 }
 
 export interface AttachmentSheetTheme {
@@ -67,43 +66,44 @@ const DEFAULT_ATTACHMENT_OPTIONS: AttachmentOption[] = [
     id: "camera",
     label: "Camera",
     description: "Take a photo or video",
-    icon: "camera",
-    color: "#3B82F6",
+    icon: "camera-outline",
   },
   {
     id: "gallery",
     label: "Gallery",
     description: "Choose from your photos",
-    icon: "images",
-    color: "#8B5CF6",
+    icon: "images-outline",
   },
   {
     id: "files",
     label: "Files",
     description: "Select documents or files",
-    icon: "document",
-    color: "#F59E0B",
+    icon: "document-outline",
   },
 ];
 
 const LIGHT_COLORS = {
   text: "#1F2937",
   textSecondary: "#6B7280",
-  border: "#E5E7EB",
-  optionBackground: "#F9FAFB",
-  optionBackgroundPressed: "#E5E7EB",
+  border: "#E8E8E8",
+  optionBackground: "#F5F5F5",
+  optionBackgroundPressed: "#E8E8E8",
+  iconColor: "#6B7280",
+  iconBackground: "#E8E8E8",
   handleIndicator: "#D1D5DB",
   background: "#FFFFFF",
 };
 
 const DARK_COLORS = {
   text: "#F9FAFB",
-  textSecondary: "#9CA3AF",
-  border: "#374151",
-  optionBackground: "#1F2937",
-  optionBackgroundPressed: "#374151",
-  handleIndicator: "#4B5563",
-  background: "#111827",
+  textSecondary: "#8E8E93",
+  border: "#2C2C2E",
+  optionBackground: "#2C2C2E",
+  optionBackgroundPressed: "#3A3A3C",
+  iconColor: "#9CA3AF",
+  iconBackground: "#3A3A3C",
+  handleIndicator: "#48484A",
+  background: "#1C1C1E",
 };
 
 // ============================================================================
@@ -211,10 +211,10 @@ export const AttachmentSheet = forwardRef<
               <View
                 style={[
                   styles.iconContainer,
-                  { backgroundColor: `${option.color}15` },
+                  { backgroundColor: colors.iconBackground },
                 ]}
               >
-                <Ionicons name={option.icon} size={28} color={option.color} />
+                <Ionicons name={option.icon} size={26} color={colors.iconColor} />
               </View>
               <Text
                 style={[styles.optionLabel, { color: colors.text }]}
@@ -236,22 +236,22 @@ export const AttachmentSheet = forwardRef<
 
 const styles = StyleSheet.create({
   sheetBackground: {
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
     ...Platform.select({
       ios: {
         shadowColor: "#000",
         shadowOffset: { width: 0, height: -4 },
-        shadowOpacity: 0.1,
+        shadowOpacity: 0.08,
         shadowRadius: 12,
       },
       android: {
-        elevation: 16,
+        elevation: 12,
       },
     }),
   },
   handleIndicator: {
-    width: 40,
+    width: 36,
     height: 4,
     borderRadius: 2,
   },
@@ -263,32 +263,32 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 17,
     fontWeight: "600",
-    marginBottom: 20,
+    marginBottom: 24,
     textAlign: "center",
   },
   optionsContainer: {
     flexDirection: "row",
     justifyContent: "center",
-    gap: 24,
+    gap: 20,
   },
   optionItem: {
     alignItems: "center",
     paddingVertical: 12,
     paddingHorizontal: 16,
-    borderRadius: 16,
-    minWidth: 90,
+    borderRadius: 12,
+    minWidth: 88,
   },
   iconContainer: {
-    width: 56,
-    height: 56,
-    borderRadius: 16,
+    width: 52,
+    height: 52,
+    borderRadius: 26,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 8,
+    marginBottom: 10,
   },
   optionLabel: {
     fontSize: 13,
-    fontWeight: "600",
+    fontWeight: "500",
     textAlign: "center",
   },
 });

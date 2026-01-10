@@ -25,8 +25,6 @@ export interface AgentOption {
   name: string;
   description?: string;
   icon?: keyof typeof Ionicons.glyphMap;
-  color?: string;
-  badge?: string;
 }
 
 export interface AgentPickerSheetTheme {
@@ -73,51 +71,48 @@ const DEFAULT_AGENTS: AgentOption[] = [
     id: "agent-1",
     name: "Research Agent",
     description: "Deep research and analysis capabilities",
-    icon: "search",
-    color: "#3B82F6",
-    badge: "Pro",
+    icon: "search-outline",
   },
   {
     id: "agent-2",
     name: "Creative Agent",
     description: "Writing, brainstorming, and content creation",
-    icon: "bulb",
-    color: "#8B5CF6",
+    icon: "bulb-outline",
   },
   {
     id: "agent-3",
     name: "Code Agent",
     description: "Programming assistance and debugging",
-    icon: "code-slash",
-    color: "#10B981",
-    badge: "Beta",
+    icon: "code-slash-outline",
   },
 ];
 
 const LIGHT_COLORS = {
   text: "#1F2937",
   textSecondary: "#6B7280",
-  border: "#E5E7EB",
+  border: "#E8E8E8",
   optionBackground: "#FFFFFF",
-  optionBackgroundPressed: "#F3F4F6",
-  selectedBackground: "#EFF6FF",
-  selectedBorder: "#3B82F6",
-  primary: "#3B82F6",
+  optionBackgroundPressed: "#F5F5F5",
+  selectedBackground: "#F5F5F5",
+  selectedBorder: "#1F2937",
+  iconColor: "#6B7280",
+  iconBackground: "#F5F5F5",
   handleIndicator: "#D1D5DB",
   background: "#FFFFFF",
 };
 
 const DARK_COLORS = {
   text: "#F9FAFB",
-  textSecondary: "#9CA3AF",
-  border: "#374151",
-  optionBackground: "#1F2937",
-  optionBackgroundPressed: "#374151",
-  selectedBackground: "#1E3A5F",
-  selectedBorder: "#60A5FA",
-  primary: "#60A5FA",
-  handleIndicator: "#4B5563",
-  background: "#111827",
+  textSecondary: "#8E8E93",
+  border: "#2C2C2E",
+  optionBackground: "#1C1C1E",
+  optionBackgroundPressed: "#2C2C2E",
+  selectedBackground: "#2C2C2E",
+  selectedBorder: "#F9FAFB",
+  iconColor: "#9CA3AF",
+  iconBackground: "#2C2C2E",
+  handleIndicator: "#48484A",
+  background: "#1C1C1E",
 };
 
 // ============================================================================
@@ -212,7 +207,6 @@ export const AgentPickerSheet = forwardRef<
         <View style={styles.optionsContainer}>
           {agents.map((agent) => {
             const isSelected = agent.id === selectedAgentId;
-            const agentColor = agent.color || colors.primary;
 
             return (
               <Pressable
@@ -229,7 +223,6 @@ export const AgentPickerSheet = forwardRef<
                     borderColor: isSelected
                       ? colors.selectedBorder
                       : colors.border,
-                    borderWidth: isSelected ? 2 : 1,
                   },
                 ]}
                 testID={`${testID}-option-${agent.id}`}
@@ -241,34 +234,26 @@ export const AgentPickerSheet = forwardRef<
                 <View
                   style={[
                     styles.iconContainer,
-                    { backgroundColor: `${agentColor}20` },
+                    { backgroundColor: colors.iconBackground },
                   ]}
                 >
                   <Ionicons
-                    name={agent.icon || "person"}
-                    size={22}
-                    color={agentColor}
+                    name={agent.icon || "person-outline"}
+                    size={20}
+                    color={colors.iconColor}
                   />
                 </View>
 
                 <View style={styles.optionTextContainer}>
-                  <View style={styles.nameRow}>
-                    <Text style={[styles.optionLabel, { color: colors.text }]}>
-                      {agent.name}
-                    </Text>
-                    {agent.badge && (
-                      <View
-                        style={[
-                          styles.badge,
-                          { backgroundColor: `${agentColor}20` },
-                        ]}
-                      >
-                        <Text style={[styles.badgeText, { color: agentColor }]}>
-                          {agent.badge}
-                        </Text>
-                      </View>
-                    )}
-                  </View>
+                  <Text
+                    style={[
+                      styles.optionLabel,
+                      { color: colors.text },
+                      isSelected && styles.optionLabelSelected,
+                    ]}
+                  >
+                    {agent.name}
+                  </Text>
                   {agent.description && (
                     <Text
                       style={[
@@ -284,9 +269,9 @@ export const AgentPickerSheet = forwardRef<
 
                 {isSelected && (
                   <Ionicons
-                    name="checkmark-circle"
-                    size={24}
-                    color={colors.selectedBorder}
+                    name="checkmark"
+                    size={20}
+                    color={colors.text}
                   />
                 )}
               </Pressable>
@@ -304,22 +289,22 @@ export const AgentPickerSheet = forwardRef<
 
 const styles = StyleSheet.create({
   sheetBackground: {
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
     ...Platform.select({
       ios: {
         shadowColor: "#000",
         shadowOffset: { width: 0, height: -4 },
-        shadowOpacity: 0.1,
+        shadowOpacity: 0.08,
         shadowRadius: 12,
       },
       android: {
-        elevation: 16,
+        elevation: 12,
       },
     }),
   },
   handleIndicator: {
-    width: 40,
+    width: 36,
     height: 4,
     borderRadius: 2,
   },
@@ -327,57 +312,47 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
     paddingTop: 8,
     paddingBottom: 40,
   },
   title: {
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: "600",
     marginBottom: 20,
     textAlign: "center",
   },
   optionsContainer: {
-    gap: 12,
+    gap: 8,
   },
   optionItem: {
     flexDirection: "row",
     alignItems: "center",
     padding: 14,
-    borderRadius: 16,
+    borderRadius: 12,
+    borderWidth: 1,
     gap: 14,
   },
   iconContainer: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     alignItems: "center",
     justifyContent: "center",
   },
   optionTextContainer: {
     flex: 1,
   },
-  nameRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
   optionLabel: {
     fontSize: 16,
+    fontWeight: "500",
+  },
+  optionLabelSelected: {
     fontWeight: "600",
   },
   optionDescription: {
-    fontSize: 13,
+    fontSize: 14,
     marginTop: 3,
-  },
-  badge: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 6,
-  },
-  badgeText: {
-    fontSize: 11,
-    fontWeight: "600",
   },
 });
 

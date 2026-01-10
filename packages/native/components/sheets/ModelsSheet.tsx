@@ -14,7 +14,7 @@ import {
   BottomSheetScrollView,
   type BottomSheetBackdropProps,
 } from "@gorhom/bottom-sheet";
-import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { Ionicons } from "@expo/vector-icons";
 
 // ============================================================================
 // Types & Interfaces
@@ -30,8 +30,6 @@ export interface ModelOption {
   description?: string;
   tier: ModelTier;
   contextWindow?: string;
-  badge?: string;
-  isNew?: boolean;
 }
 
 export interface ModelsSheetTheme {
@@ -75,24 +73,12 @@ export interface ModelsSheetProps {
 // Constants
 // ============================================================================
 
-const PROVIDER_INFO: Record<
-  ModelProvider,
-  { name: string; color: string; icon: string }
-> = {
-  openai: { name: "OpenAI", color: "#10A37F", icon: "robot" },
-  google: { name: "Google", color: "#4285F4", icon: "google" },
-  anthropic: { name: "Anthropic", color: "#D4A574", icon: "brain" },
-  xai: { name: "xAI", color: "#1DA1F2", icon: "twitter" },
-  meta: { name: "Meta", color: "#0668E1", icon: "facebook" },
-};
-
-const TIER_INFO: Record<
-  ModelTier,
-  { label: string; icon: keyof typeof Ionicons.glyphMap }
-> = {
-  fast: { label: "Fast", icon: "flash" },
-  balanced: { label: "Balanced", icon: "options" },
-  quality: { label: "Quality", icon: "diamond" },
+const PROVIDER_INFO: Record<ModelProvider, { name: string }> = {
+  openai: { name: "OpenAI" },
+  google: { name: "Google" },
+  anthropic: { name: "Anthropic" },
+  xai: { name: "xAI" },
+  meta: { name: "Meta" },
 };
 
 export const DEFAULT_MODELS: ModelOption[] = [
@@ -112,7 +98,6 @@ export const DEFAULT_MODELS: ModelOption[] = [
     description: "Lightning fast responses",
     tier: "fast",
     contextWindow: "1M",
-    isNew: true,
   },
   {
     id: "claude-haiku",
@@ -139,7 +124,6 @@ export const DEFAULT_MODELS: ModelOption[] = [
     description: "Balanced performance and quality",
     tier: "balanced",
     contextWindow: "128K",
-    badge: "Popular",
   },
   {
     id: "gemini-pro",
@@ -174,7 +158,6 @@ export const DEFAULT_MODELS: ModelOption[] = [
     description: "Advanced reasoning capabilities",
     tier: "quality",
     contextWindow: "200K",
-    badge: "Reasoning",
   },
   {
     id: "gemini-ultra",
@@ -199,40 +182,35 @@ export const DEFAULT_MODELS: ModelOption[] = [
     description: "Premium capabilities",
     tier: "quality",
     contextWindow: "128K",
-    isNew: true,
   },
 ];
 
 const LIGHT_COLORS = {
   text: "#1F2937",
   textSecondary: "#6B7280",
-  border: "#E5E7EB",
+  border: "#E8E8E8",
   optionBackground: "#FFFFFF",
-  optionBackgroundPressed: "#F3F4F6",
-  selectedBackground: "#DBEAFE",
-  selectedBorder: "#2563EB",
-  selectedText: "#1E40AF",
-  primary: "#3B82F6",
-  tabActive: "#3B82F6",
-  tabInactive: "#9CA3AF",
+  optionBackgroundPressed: "#F5F5F5",
+  selectedBackground: "#F5F5F5",
+  selectedBorder: "#1F2937",
+  selectedText: "#1F2937",
+  primary: "#1F2937",
   handleIndicator: "#D1D5DB",
   background: "#FFFFFF",
 };
 
 const DARK_COLORS = {
   text: "#F9FAFB",
-  textSecondary: "#9CA3AF",
-  border: "#374151",
-  optionBackground: "#1F2937",
-  optionBackgroundPressed: "#374151",
-  selectedBackground: "#1E3A8A",
-  selectedBorder: "#3B82F6",
-  selectedText: "#93C5FD",
-  primary: "#60A5FA",
-  tabActive: "#60A5FA",
-  tabInactive: "#6B7280",
-  handleIndicator: "#4B5563",
-  background: "#111827",
+  textSecondary: "#8E8E93",
+  border: "#2C2C2E",
+  optionBackground: "#1C1C1E",
+  optionBackgroundPressed: "#2C2C2E",
+  selectedBackground: "#2C2C2E",
+  selectedBorder: "#F9FAFB",
+  selectedText: "#F9FAFB",
+  primary: "#F9FAFB",
+  handleIndicator: "#48484A",
+  background: "#1C1C1E",
 };
 
 // ============================================================================
@@ -344,9 +322,7 @@ export const ModelsSheet = forwardRef<BottomSheetModal, ModelsSheetProps>(
                     borderColor: isSelected
                       ? colors.selectedBorder
                       : colors.border,
-                    borderWidth: isSelected ? 2 : 1,
                   },
-                  isSelected && styles.modelItemSelected,
                 ]}
                 testID={`${testID}-model-${model.id}`}
                 accessibilityRole="button"
@@ -354,71 +330,16 @@ export const ModelsSheet = forwardRef<BottomSheetModal, ModelsSheetProps>(
                 accessibilityHint={model.description}
                 accessibilityState={{ selected: isSelected }}
               >
-                {/* Left accent bar for selected state */}
-                {isSelected && (
-                  <View
-                    style={[
-                      styles.selectedAccent,
-                      { backgroundColor: colors.selectedBorder },
-                    ]}
-                  />
-                )}
-
-                <View
-                  style={[
-                    styles.providerIcon,
-                    {
-                      backgroundColor: isSelected
-                        ? `${providerInfo.color}35`
-                        : `${providerInfo.color}20`,
-                    },
-                  ]}
-                >
-                  <MaterialCommunityIcons
-                    name={
-                      providerInfo.icon as keyof typeof MaterialCommunityIcons.glyphMap
-                    }
-                    size={20}
-                    color={providerInfo.color}
-                  />
-                </View>
-
                 <View style={styles.modelInfo}>
-                  <View style={styles.modelNameRow}>
-                    <Text
-                      style={[
-                        styles.modelName,
-                        {
-                          color: isSelected ? colors.selectedText : colors.text,
-                        },
-                        isSelected && styles.modelNameSelected,
-                      ]}
-                    >
-                      {model.name}
-                    </Text>
-                    {model.isNew && (
-                      <View style={[styles.newBadge]}>
-                        <Text style={styles.newBadgeText}>NEW</Text>
-                      </View>
-                    )}
-                    {model.badge && (
-                      <View
-                        style={[
-                          styles.badge,
-                          { backgroundColor: `${providerInfo.color}20` },
-                        ]}
-                      >
-                        <Text
-                          style={[
-                            styles.badgeText,
-                            { color: providerInfo.color },
-                          ]}
-                        >
-                          {model.badge}
-                        </Text>
-                      </View>
-                    )}
-                  </View>
+                  <Text
+                    style={[
+                      styles.modelName,
+                      { color: isSelected ? colors.selectedText : colors.text },
+                      isSelected && styles.modelNameSelected,
+                    ]}
+                  >
+                    {model.name}
+                  </Text>
 
                   <Text
                     style={[
@@ -434,7 +355,7 @@ export const ModelsSheet = forwardRef<BottomSheetModal, ModelsSheetProps>(
                     <Text
                       style={[
                         styles.providerName,
-                        { color: providerInfo.color },
+                        { color: colors.textSecondary },
                       ]}
                     >
                       {providerInfo.name}
@@ -455,7 +376,7 @@ export const ModelsSheet = forwardRef<BottomSheetModal, ModelsSheetProps>(
                             { color: colors.textSecondary },
                           ]}
                         >
-                          {model.contextWindow} context
+                          {model.contextWindow}
                         </Text>
                       </>
                     )}
@@ -463,13 +384,11 @@ export const ModelsSheet = forwardRef<BottomSheetModal, ModelsSheetProps>(
                 </View>
 
                 {isSelected && (
-                  <View style={styles.checkmarkContainer}>
-                    <Ionicons
-                      name="checkmark-circle"
-                      size={28}
-                      color={colors.selectedBorder}
-                    />
-                  </View>
+                  <Ionicons
+                    name="checkmark"
+                    size={20}
+                    color={colors.selectedText}
+                  />
                 )}
               </Pressable>
             );
@@ -486,32 +405,32 @@ export const ModelsSheet = forwardRef<BottomSheetModal, ModelsSheetProps>(
 
 const styles = StyleSheet.create({
   sheetBackground: {
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
     ...Platform.select({
       ios: {
         shadowColor: "#000",
         shadowOffset: { width: 0, height: -4 },
-        shadowOpacity: 0.1,
+        shadowOpacity: 0.08,
         shadowRadius: 12,
       },
       android: {
-        elevation: 16,
+        elevation: 12,
       },
     }),
   },
   handleIndicator: {
-    width: 40,
+    width: 36,
     height: 4,
     borderRadius: 2,
   },
   headerContainer: {
     paddingHorizontal: 20,
     paddingTop: 8,
-    paddingBottom: 12,
+    paddingBottom: 16,
   },
   title: {
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: "600",
     textAlign: "center",
   },
@@ -519,69 +438,30 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
     paddingBottom: 40,
-    gap: 10,
+    gap: 8,
   },
   modelItem: {
     flexDirection: "row",
     alignItems: "center",
-    padding: 14,
-    borderRadius: 16,
-    gap: 12,
-    overflow: "hidden",
-  },
-  modelItemSelected: {
-    ...Platform.select({
-      ios: {
-        shadowColor: "#3B82F6",
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.3,
-        shadowRadius: 8,
-      },
-      android: {
-        elevation: 6,
-      },
-    }),
-  },
-  selectedAccent: {
-    position: "absolute",
-    left: 0,
-    top: 0,
-    bottom: 0,
-    width: 5,
-    borderTopLeftRadius: 16,
-    borderBottomLeftRadius: 16,
-  },
-  providerIcon: {
-    width: 44,
-    height: 44,
+    padding: 16,
     borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
+    borderWidth: 1,
   },
   modelInfo: {
     flex: 1,
   },
-  modelNameRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    flexWrap: "wrap",
-  },
   modelName: {
-    fontSize: 15,
-    fontWeight: "600",
+    fontSize: 16,
+    fontWeight: "500",
   },
   modelNameSelected: {
-    fontWeight: "700",
-  },
-  checkmarkContainer: {
-    marginLeft: 4,
+    fontWeight: "600",
   },
   modelDescription: {
-    fontSize: 13,
-    marginTop: 2,
+    fontSize: 14,
+    marginTop: 3,
   },
   modelMeta: {
     flexDirection: "row",
@@ -590,34 +470,13 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   providerName: {
-    fontSize: 12,
-    fontWeight: "500",
+    fontSize: 13,
   },
   metaDot: {
-    fontSize: 12,
+    fontSize: 13,
   },
   contextWindow: {
-    fontSize: 12,
-  },
-  newBadge: {
-    backgroundColor: "#22C55E",
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-  newBadgeText: {
-    color: "#FFFFFF",
-    fontSize: 9,
-    fontWeight: "700",
-  },
-  badge: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 6,
-  },
-  badgeText: {
-    fontSize: 11,
-    fontWeight: "600",
+    fontSize: 13,
   },
 });
 

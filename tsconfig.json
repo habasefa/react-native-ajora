@@ -31,6 +31,11 @@
     "lib": ["ES2020"],
     "typeRoots": ["./node_modules/@types", "./@types"]
   },
-  "include": ["src", "./types.d.ts"],
+  "include": [
+    "src",
+    "./types.d.ts",
+    "src/richText/RichText.tsx",
+    "src/richText/markdownStyle.tsx"
+  ],
   "exclude": ["node_modules", "src/__tests__", "example/node_modules", "lib"]
 }

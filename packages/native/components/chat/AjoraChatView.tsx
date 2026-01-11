@@ -479,9 +479,7 @@ function AjoraChatViewInner({
     <View style={[styles.container, style]} {...props}>
       <Animated.View style={[styles.animatedContainer, keyboardAnimatedStyle]}>
         {BoundScrollView}
-        <View
-          style={[styles.bottomContainer, { paddingBottom: insets.bottom }]}
-        >
+        <View style={[styles.bottomContainer]}>
           {BoundSuggestionView}
           {BoundInput}
         </View>
@@ -529,7 +527,8 @@ const styles = StyleSheet.create({
   },
   bottomContainer: {
     backgroundColor: "transparent",
-    paddingHorizontal: 16,
+    paddingHorizontal: 8,
+    marginBottom: 8,
   },
   suggestionList: {
     maxHeight: 60,

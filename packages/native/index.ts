@@ -18,3 +18,4 @@ export * from "./types";
 export * from "./lib/slots";
 export * from "./lib/define-tool-call-renderer";
 export * from "./lib/react-core";
+export * from "./lib/fileSystem";

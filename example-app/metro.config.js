@@ -16,6 +16,7 @@ config.watchFolders = [
   path.resolve(__dirname, "../packages/native"),
   path.resolve(__dirname, "../packages/core"),
   path.resolve(__dirname, "../packages/shared"),
+  path.resolve(__dirname, "../packages/markdown"),
 ];
 
 // Configure module resolution using the same approach as the working example
@@ -36,6 +37,8 @@ config.resolver = {
           return path.resolve(__dirname, "../packages/core");
         } else if (name === "@ajora-ai/native") {
           return path.resolve(__dirname, "../packages/native");
+        } else if (name === "@ajora-ai/markdown") {
+          return path.resolve(__dirname, "../packages/markdown");
         }
 
         return path.join(__dirname, `node_modules/${name}`);

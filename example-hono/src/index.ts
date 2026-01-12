@@ -62,15 +62,6 @@ app.use(
   })
 );
 
-// Health check endpoint
-app.get("/", (c) => {
-  return c.json({
-    message: "CopilotKit Runtime Server",
-    status: "running",
-    endpoint: "/api/copilotkit",
-  });
-});
-
 // Mount the CopilotKit endpoint
 app.route("/", copilotApp);
 

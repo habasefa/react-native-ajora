@@ -17,15 +17,15 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { renderSlot, WithSlots } from "../../lib/slots";
+import { renderSlot, WithSlots } from "@/utils/slots";
 import {
   useAjoraThreadContext,
   Thread,
-} from "../../providers/AjoraThreadProvider";
+} from "@/providers/AjoraThreadProvider";
 import {
   useAjoraChatConfiguration,
   AjoraChatDefaultLabels,
-} from "../../providers/AjoraChatConfigurationProvider";
+} from "@ajora-ai/native";
 
 // ============================================================================
 // Types
@@ -216,9 +216,12 @@ export interface AjoraThreadDrawerItemProps {
   onLongPress?: (thread: Thread) => void;
   onMenuPress?: (thread: Thread) => void;
   onDelete?: (thread: Thread) => void;
+  onRename?: (threadId: string, newName: string) => void;
   showMenuButton?: boolean;
   showSelectedIndicator?: boolean;
   theme?: AjoraThreadDrawerTheme;
+  /** ID of thread currently being edited */
+  editingThreadId?: string | null;
   /** Custom render function for the thread item */
   renderItem?: (props: AjoraThreadDrawerItemProps) => React.ReactElement;
 }
@@ -250,6 +253,7 @@ export interface AjoraThreadDrawerListProps {
   onDeleteThread?: (thread: Thread) => void;
   onLongPressThread?: (thread: Thread) => void;
   onMenuPressThread?: (thread: Thread) => void;
+  onRenameThread?: (threadId: string, newName: string) => void;
   itemTheme?: AjoraThreadDrawerTheme;
   /** Custom render function for each thread item */
   renderItem?: (props: AjoraThreadDrawerItemProps) => React.ReactElement;
@@ -259,6 +263,8 @@ export interface AjoraThreadDrawerListProps {
   sectionTitle?: string;
   /** Search filter text */
   searchFilter?: string;
+  /** ID of thread currently being edited */
+  editingThreadId?: string | null;
 }
 
 export interface AjoraThreadDrawerFooterProps {
@@ -324,10 +330,14 @@ type DrawerRestProps = {
   onLongPressThread?: (thread: Thread) => void;
   /** Callback when thread menu is pressed */
   onMenuPressThread?: (thread: Thread) => void;
+  /** Callback when thread is renamed */
+  onRenameThread?: (threadId: string, newName: string) => void;
   /** Callback when new thread button is pressed */
   onNewThread?: () => void;
   /** Callback when settings is pressed */
   onSettingsPress?: () => void;
+  /** ID of thread currently being edited */
+  editingThreadId?: string | null;
   /** Whether to close drawer when a thread is selected */
   closeOnSelect?: boolean;
   /** Animation duration in ms */
@@ -404,11 +414,13 @@ export function AjoraThreadDrawer({
   onDeleteThread,
   onLongPressThread,
   onMenuPressThread,
+  onRenameThread,
   onNewThread,
   onSettingsPress,
   closeOnSelect = true,
   emptyComponent,
   renderItem,
+  editingThreadId,
   searchBar,
   header,
   list,
@@ -576,10 +588,12 @@ export function AjoraThreadDrawer({
     onDeleteThread: handleDeleteThread,
     onLongPressThread: handleLongPressThread,
     onMenuPressThread: handleMenuPressThread,
+    onRenameThread,
     itemTheme: theme,
     renderItem,
     emptyComponent,
     searchFilter: searchText,
+    editingThreadId,
   });
 
   const BoundFooter = renderSlot(footer, AjoraThreadDrawer.Footer, {
@@ -861,11 +875,41 @@ export namespace AjoraThreadDrawer {
     onLongPress,
     onMenuPress,
     onDelete,
+    onRename,
     showMenuButton = true,
     showSelectedIndicator = true,
     theme = DEFAULT_DRAWER_LIGHT_THEME,
     renderItem,
+    editingThreadId,
   }) => {
+    const [editingName, setEditingName] = useState(thread.name);
+    const isEditing = editingThreadId === thread.id;
+    const textInputRef = React.useRef<TextInput>(null);
+
+    React.useEffect(() => {
+      if (isEditing && textInputRef.current) {
+        // Focus the input when entering edit mode
+        setTimeout(() => {
+          textInputRef.current?.focus();
+          textInputRef.current?.selectAll?.();
+        }, 100);
+      }
+    }, [isEditing]);
+
+    React.useEffect(() => {
+      setEditingName(thread.name);
+    }, [thread.name]);
+
+    const handleSubmit = useCallback(() => {
+      if (editingName.trim() && editingName.trim() !== thread.name) {
+        onRename?.(thread.id, editingName.trim());
+      }
+    }, [editingName, thread.name, thread.id, onRename]);
+
+    const handleBlur = useCallback(() => {
+      handleSubmit();
+    }, [handleSubmit]);
+
     if (renderItem) {
       return renderItem({
         thread,
@@ -877,9 +921,11 @@ export namespace AjoraThreadDrawer {
         onLongPress,
         onMenuPress,
         onDelete,
+        onRename,
         showMenuButton,
         showSelectedIndicator,
         theme,
+        editingThreadId,
       });
     }
 
@@ -890,8 +936,8 @@ export namespace AjoraThreadDrawer {
 
     return (
       <Pressable
-        onPress={() => onPress?.(thread)}
-        onLongPress={() => onLongPress?.(thread)}
+        onPress={() => !isEditing && onPress?.(thread)}
+        onLongPress={() => !isEditing && onLongPress?.(thread)}
         style={({ pressed }) => [
           styles.item,
           {
@@ -921,27 +967,54 @@ export namespace AjoraThreadDrawer {
 
         {/* Thread info */}
         <View style={styles.itemContent}>
-          <Text
-            style={[
-              styles.itemTitle,
-              { color: theme.itemTitleColor },
-              isSelected && styles.itemTitleSelected,
-              titleStyle,
-            ]}
-            numberOfLines={1}
-          >
-            {thread.name}
-          </Text>
-          <Text
-            style={[styles.itemDate, { color: theme.itemDateColor }, dateStyle]}
-            numberOfLines={1}
-          >
-            {formattedDate}
-          </Text>
+          {isEditing ? (
+            <TextInput
+              ref={textInputRef}
+              style={[
+                styles.itemTitleInput,
+                {
+                  color: theme.itemTitleColor,
+                  borderBottomColor:
+                    theme.itemSelectedIndicatorColor || "#007AFF",
+                },
+                titleStyle,
+              ]}
+              value={editingName}
+              onChangeText={setEditingName}
+              onBlur={handleBlur}
+              onSubmitEditing={handleSubmit}
+              selectTextOnFocus
+              autoFocus
+            />
+          ) : (
+            <Text
+              style={[
+                styles.itemTitle,
+                { color: theme.itemTitleColor },
+                isSelected && styles.itemTitleSelected,
+                titleStyle,
+              ]}
+              numberOfLines={1}
+            >
+              {thread.name}
+            </Text>
+          )}
+          {!isEditing && (
+            <Text
+              style={[
+                styles.itemDate,
+                { color: theme.itemDateColor },
+                dateStyle,
+              ]}
+              numberOfLines={1}
+            >
+              {formattedDate}
+            </Text>
+          )}
         </View>
 
         {/* Menu button */}
-        {showMenuButton && (
+        {showMenuButton && !isEditing && (
           <Pressable
             onPress={() => onMenuPress?.(thread)}
             style={({ pressed }) => [
@@ -972,10 +1045,12 @@ export namespace AjoraThreadDrawer {
     onDeleteThread,
     onLongPressThread,
     onMenuPressThread,
+    onRenameThread,
     itemTheme = DEFAULT_DRAWER_LIGHT_THEME,
     renderItem,
     emptyComponent,
     searchFilter,
+    editingThreadId,
   }) => {
     if (threads.length === 0) {
       if (searchFilter && searchFilter.length > 0) {
@@ -1057,9 +1132,11 @@ export namespace AjoraThreadDrawer {
             onLongPress={onLongPressThread}
             onMenuPress={onMenuPressThread}
             onDelete={onDeleteThread}
+            onRename={onRenameThread}
             showMenuButton={true}
             theme={itemTheme}
             renderItem={renderItem}
+            editingThreadId={editingThreadId}
           />
         ))}
       </ScrollView>
@@ -1284,6 +1361,15 @@ const styles = StyleSheet.create({
   itemDate: {
     fontSize: 14,
     letterSpacing: 0,
+  },
+  itemTitleInput: {
+    fontSize: 16,
+    fontWeight: "500",
+    marginBottom: 4,
+    letterSpacing: -0.2,
+    padding: 0,
+    borderBottomWidth: 1,
+    borderBottomColor: "#007AFF",
   },
   menuButton: {
     width: 40,

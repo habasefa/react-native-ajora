@@ -11,12 +11,7 @@ import {
   TextStyle,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { renderSlot, WithSlots } from "../../lib/slots";
-import {
-  useAjoraChatConfiguration,
-  AjoraChatDefaultLabels,
-} from "../../providers/AjoraChatConfigurationProvider";
-import { useAjoraThreadContext } from "../../providers/AjoraThreadProvider";
+import { renderSlot, WithSlots } from "../../utils/slots";
 
 // ============================================================================
 // Types
@@ -167,35 +162,22 @@ export function AjoraChatHeader({
   children,
   ...rest
 }: AjoraChatHeaderProps) {
-  const configuration = useAjoraChatConfiguration();
-  const threadContext = useAjoraThreadContext();
+  // Resolve title from props or default
+  const resolvedTitle = title ?? "Chat";
+  const resolvedSubtitle = subtitle;
 
-  // Resolve title from props, thread context, or default
-  const resolvedTitle =
-    title ??
-    threadContext?.currentThread?.name ??
-    configuration?.labels.chatHeaderTitle ??
-    AjoraChatDefaultLabels.chatHeaderTitle ??
-    "Chat";
-
-  const resolvedSubtitle = subtitle ?? threadContext?.currentThread?.subtitle;
-
-  // Resolve handlers - prefer props, then thread context
+  // Resolve handlers - prefer props
   const handleMenuPress = useCallback(() => {
     if (onMenuPress) {
       onMenuPress();
-    } else if (threadContext) {
-      threadContext.toggleDrawer();
     }
-  }, [onMenuPress, threadContext]);
+  }, [onMenuPress]);
 
   const handleNewThreadPress = useCallback(() => {
     if (onNewThreadPress) {
       onNewThreadPress();
-    } else if (threadContext) {
-      threadContext.createThread();
     }
-  }, [onNewThreadPress, threadContext]);
+  }, [onNewThreadPress]);
 
   const handleTitlePress = useCallback(() => {
     if (onTitlePress) {
@@ -398,6 +380,7 @@ const styles = StyleSheet.create({
     width: 48,
     alignItems: "flex-end",
     justifyContent: "center",
+    paddingHorizontal: 8,
   },
   iconButton: {
     width: 40,

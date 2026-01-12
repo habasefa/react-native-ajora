@@ -108,30 +108,7 @@ export { AjoraPopup, type AjoraPopupProps } from "./AjoraPopup";
 
 export { WildcardToolCallRender } from "./WildcardToolCallRender";
 
-// Chat Header
-export {
-  AjoraChatHeader,
-  type AjoraChatHeaderProps,
-  type AjoraChatHeaderTheme,
-  type AjoraChatHeaderMenuButtonProps,
-  type AjoraChatHeaderTitleProps,
-  type AjoraChatHeaderNewThreadButtonProps,
-  DEFAULT_HEADER_LIGHT_THEME,
-  DEFAULT_HEADER_DARK_THEME,
-} from "./AjoraChatHeader";
 
-// Thread Drawer
-export {
-  AjoraThreadDrawer,
-  type AjoraThreadDrawerProps,
-  type AjoraThreadDrawerTheme,
-  type AjoraThreadDrawerHeaderProps,
-  type AjoraThreadDrawerItemProps,
-  type AjoraThreadDrawerListProps,
-  type AjoraThreadDrawerNewButtonProps,
-  DEFAULT_DRAWER_LIGHT_THEME,
-  DEFAULT_DRAWER_DARK_THEME,
-} from "./AjoraThreadDrawer";
 
 // Chat Empty State
 export {

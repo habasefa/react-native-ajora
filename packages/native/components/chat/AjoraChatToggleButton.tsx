@@ -1,6 +1,14 @@
 // @ts-nocheck
 import * as React from "react";
-import { View, Text, Pressable, StyleSheet, StyleProp, ViewStyle, Animated } from "react-native";
+import {
+  View,
+  Pressable,
+  StyleSheet,
+  StyleProp,
+  ViewStyle,
+  Animated,
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { renderSlot, SlotValue } from "../../lib/slots";
 import {
   AjoraChatDefaultLabels,
@@ -8,13 +16,11 @@ import {
 } from "../../providers/AjoraChatConfigurationProvider";
 
 const DefaultOpenIcon: React.FC = () => (
-   
-  <Text style={styles.iconText}>💬</Text>
+  <Ionicons name="chatbubble-outline" size={24} color="#FFFFFF" />
 );
 
 const DefaultCloseIcon: React.FC = () => (
-   
-  <Text style={styles.iconText}>✕</Text>
+  <Ionicons name="close" size={24} color="#FFFFFF" />
 );
 
 export interface AjoraChatToggleButtonProps {
@@ -28,96 +34,113 @@ export interface AjoraChatToggleButtonProps {
   disabled?: boolean;
 }
 
-export const AjoraChatToggleButton = React.forwardRef<any, AjoraChatToggleButtonProps>(
-  ({ openIcon, closeIcon, style, disabled }, ref) => {
-    const configuration = useAjoraChatConfiguration();
-    const labels = configuration?.labels ?? AjoraChatDefaultLabels;
+export const AjoraChatToggleButton = React.forwardRef<
+  any,
+  AjoraChatToggleButtonProps
+>(({ openIcon, closeIcon, style, disabled }, ref) => {
+  const configuration = useAjoraChatConfiguration();
+  const labels = configuration?.labels ?? AjoraChatDefaultLabels;
 
-    const [fallbackOpen, setFallbackOpen] = React.useState(false);
-    const isOpen = configuration?.isModalOpen ?? fallbackOpen;
-    const setModalOpen = configuration?.setModalOpen ?? setFallbackOpen;
+  const [fallbackOpen, setFallbackOpen] = React.useState(false);
+  const isOpen = configuration?.isModalOpen ?? fallbackOpen;
+  const setModalOpen = configuration?.setModalOpen ?? setFallbackOpen;
 
-    const rotation = React.useRef(new Animated.Value(0)).current;
+  const rotation = React.useRef(new Animated.Value(0)).current;
 
-    React.useEffect(() => {
-      Animated.spring(rotation, {
-        toValue: isOpen ? 1 : 0,
-        useNativeDriver: true,
-        tension: 50,
-        friction: 7,
-      }).start();
-    }, [isOpen]);
+  React.useEffect(() => {
+    Animated.spring(rotation, {
+      toValue: isOpen ? 1 : 0,
+      useNativeDriver: true,
+      tension: 50,
+      friction: 7,
+    }).start();
+  }, [isOpen]);
 
-    const handlePress = () => {
-      if (disabled) return;
-      setModalOpen(!isOpen);
-    };
+  const handlePress = () => {
+    if (disabled) return;
+    setModalOpen(!isOpen);
+  };
 
-    const renderedOpenIcon = renderSlot(openIcon, DefaultOpenIcon, {});
-    const renderedCloseIcon = renderSlot(closeIcon, DefaultCloseIcon, {});
+  const renderedOpenIcon = renderSlot(openIcon, DefaultOpenIcon, {});
+  const renderedCloseIcon = renderSlot(closeIcon, DefaultCloseIcon, {});
 
-    const openIconRotate = rotation.interpolate({
-      inputRange: [0, 1],
-      outputRange: ["0deg", "90deg"],
-    });
+  const openIconRotate = rotation.interpolate({
+    inputRange: [0, 1],
+    outputRange: ["0deg", "90deg"],
+  });
 
-    const closeIconRotate = rotation.interpolate({
-      inputRange: [0, 1],
-      outputRange: ["-90deg", "0deg"],
-    });
+  const closeIconRotate = rotation.interpolate({
+    inputRange: [0, 1],
+    outputRange: ["-90deg", "0deg"],
+  });
 
-    const openIconOpacity = rotation.interpolate({
-      inputRange: [0, 1],
-      outputRange: [1, 0],
-    });
+  const openIconOpacity = rotation.interpolate({
+    inputRange: [0, 1],
+    outputRange: [1, 0],
+  });
 
-    const closeIconOpacity = rotation.interpolate({
-      inputRange: [0, 1],
-      outputRange: [0, 1],
-    });
+  const closeIconOpacity = rotation.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, 1],
+  });
 
-    return (
-       
-      <Pressable
-        ref={ref}
-        onPress={handlePress}
-        disabled={disabled}
-        style={({ pressed }) => [
-          styles.button,
-          pressed && styles.pressed,
-          disabled && styles.disabled,
-          style,
+  return (
+    <Pressable
+      ref={ref}
+      onPress={handlePress}
+      disabled={disabled}
+      style={({ pressed }) => [
+        styles.button,
+        pressed && styles.pressed,
+        disabled && styles.disabled,
+        style,
+      ]}
+      accessibilityLabel={
+        isOpen ? labels.chatToggleCloseLabel : labels.chatToggleOpenLabel
+      }
+    >
+      {/* @ts-ignore */}
+      <Animated.View
+        style={[
+          styles.iconWrapper,
+          {
+            opacity: openIconOpacity,
+            transform: [
+              { rotate: openIconRotate },
+              {
+                scale: openIconOpacity.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [0.75, 1],
+                }),
+              },
+            ],
+          },
         ]}
-        accessibilityLabel={isOpen ? labels.chatToggleCloseLabel : labels.chatToggleOpenLabel}
       >
-        {/* @ts-ignore */}
-        <Animated.View
-          style={[
-            styles.iconWrapper,
-            {
-              opacity: openIconOpacity,
-              transform: [{ rotate: openIconRotate }, { scale: openIconOpacity.interpolate({ inputRange: [0, 1], outputRange: [0.75, 1] }) }],
-            },
-          ]}
-        >
-          {renderedOpenIcon}
-        </Animated.View>
-        {/* @ts-ignore */}
-        <Animated.View
-          style={[
-            styles.iconWrapper,
-            {
-              opacity: closeIconOpacity,
-              transform: [{ rotate: closeIconRotate }, { scale: closeIconOpacity.interpolate({ inputRange: [0, 1], outputRange: [0.75, 1] }) }],
-            },
-          ]}
-        >
-          {renderedCloseIcon}
-        </Animated.View>
-      </Pressable>
-    );
-  }
-);
+        {renderedOpenIcon}
+      </Animated.View>
+      <Animated.View
+        style={[
+          styles.iconWrapper,
+          {
+            opacity: closeIconOpacity,
+            transform: [
+              { rotate: closeIconRotate },
+              {
+                scale: closeIconOpacity.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [0.75, 1],
+                }),
+              },
+            ],
+          },
+        ]}
+      >
+        {renderedCloseIcon}
+      </Animated.View>
+    </Pressable>
+  );
+});
 
 AjoraChatToggleButton.displayName = "AjoraChatToggleButton";
 
@@ -149,10 +172,6 @@ const styles = StyleSheet.create({
     position: "absolute",
     alignItems: "center",
     justifyContent: "center",
-  },
-  iconText: {
-    fontSize: 24,
-    color: "#FFFFFF",
   },
 });
 

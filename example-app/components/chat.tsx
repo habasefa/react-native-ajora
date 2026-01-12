@@ -1,15 +1,19 @@
+import AjoraChatHeader from "./header/AjoraChatHeader";
 import {
-  AjoraChat,
-  AjoraChatHeader,
-  AjoraThreadDrawer,
-  AjoraThreadProvider,
-  useAjoraThreads,
   useAgentContext,
   useConfigureSuggestions,
   useFrontendTool,
   type Suggestion,
+  AjoraChat,
 } from "@ajora-ai/native";
-import { useState } from "react";
+import { AjoraThreadDrawer } from "@/components/thread/AjoraThreadDrawer";
+import {
+  AjoraThreadProvider,
+  useAjoraThreads,
+  type Thread,
+} from "@/providers/AjoraThreadProvider";
+import { ThreadMenuSheet } from "@/components/sheets/ThreadMenuSheet";
+import { useState, useRef } from "react";
 import {
   View,
   Text,
@@ -18,6 +22,7 @@ import {
   Alert,
   ActivityIndicator,
 } from "react-native";
+import { BottomSheetModal } from "@gorhom/bottom-sheet";
 import { z } from "zod";
 import { ToolCallStatus } from "@ajora-ai/core";
 
@@ -144,7 +149,17 @@ const STARTER_SUGGESTIONS: Suggestion[] = [
 
 // Inner Chat component that uses thread context
 function ChatContent() {
-  const { currentThreadId, currentThread } = useAjoraThreads();
+  const {
+    currentThreadId,
+    currentThread,
+    renameThread,
+    deleteThread,
+    toggleDrawer,
+    createThread,
+  } = useAjoraThreads();
+  const threadMenuSheetRef = useRef<BottomSheetModal>(null);
+  const [selectedThread, setSelectedThread] = useState<Thread | null>(null);
+  const [editingThreadId, setEditingThreadId] = useState<string | null>(null);
 
   useConfigureSuggestions({
     instructions: "Suggest follow-up tasks based on the current page content",
@@ -293,7 +308,16 @@ function ChatContent() {
     <View style={styles.container}>
       {/* Chat Header with menu, title, and new thread button */}
       <AjoraChatHeader
+        title={currentThread?.name ?? "Chat"}
         subtitle="AI Assistant"
+        onMenuPress={() => {
+          // Toggle the thread drawer
+          toggleDrawer();
+        }}
+        onNewThreadPress={() => {
+          // Create a new thread
+          createThread();
+        }}
         onTitlePress={() => {
           // Could open a thread picker or rename dialog
           Alert.alert("Thread", currentThread?.name ?? "Unknown thread");
@@ -307,45 +331,52 @@ function ChatContent() {
         showFooter={true}
         userName="Habtamu Asefa"
         searchPlaceholder="Search conversations"
+        editingThreadId={editingThreadId}
         onSettingsPress={() => {
           Alert.alert("Settings", "Settings would open here");
         }}
         onMenuPressThread={(thread) => {
-          Alert.alert("Thread Options", `Options for "${thread.name}"`, [
-            {
-              text: "Rename",
-              onPress: () => {
-                Alert.alert("Rename", "Rename functionality would go here");
-              },
-            },
-            {
-              text: "Delete",
-              style: "destructive",
-              onPress: () => {
-                Alert.alert(
-                  "Delete Thread",
-                  "Are you sure you want to delete this conversation?",
-                  [
-                    { text: "Cancel", style: "cancel" },
-                    {
-                      text: "Delete",
-                      style: "destructive",
-                      onPress: () => {
-                        // Thread deletion is handled by context
-                      },
-                    },
-                  ]
-                );
-              },
-            },
-            {
-              text: "Cancel",
-              style: "cancel",
-            },
-          ]);
+          setSelectedThread(thread);
+          threadMenuSheetRef.current?.present();
         }}
         onLongPressThread={(thread) => {
-          Alert.alert("Thread Options", `Long pressed "${thread.name}"`);
+          setSelectedThread(thread);
+          threadMenuSheetRef.current?.present();
+        }}
+        onRenameThread={(threadId, newName) => {
+          renameThread(threadId, newName);
+          setEditingThreadId(null);
+        }}
+      />
+
+      {/* Thread Menu Bottom Sheet */}
+      <ThreadMenuSheet
+        ref={threadMenuSheetRef}
+        threadName={selectedThread?.name}
+        onRename={() => {
+          if (selectedThread) {
+            setEditingThreadId(selectedThread.id);
+            setSelectedThread(null);
+          }
+        }}
+        onDelete={() => {
+          if (selectedThread) {
+            Alert.alert(
+              "Delete Thread",
+              "Are you sure you want to delete this conversation?",
+              [
+                { text: "Cancel", style: "cancel" },
+                {
+                  text: "Delete",
+                  style: "destructive",
+                  onPress: () => {
+                    deleteThread(selectedThread.id);
+                    setSelectedThread(null);
+                  },
+                },
+              ]
+            );
+          }
         }}
       />
 
@@ -354,14 +385,12 @@ function ChatContent() {
         {currentThreadId && (
           <AjoraChat
             threadId={currentThreadId}
-            starterSuggestions={STARTER_SUGGESTIONS}
             labels={{
               chatEmptyStateTitle: "How can I help you today?",
               chatEmptyStateSubtitle:
                 "I can tell jokes, quiz you, or just chat!",
             }}
-            // Custom empty state component (optional - uses default if not provided)
-            // emptyState={<CustomEmptyState />}
+            starterSuggestions={STARTER_SUGGESTIONS}
           />
         )}
       </View>

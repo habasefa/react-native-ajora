@@ -6,7 +6,10 @@ import React, {
   useState,
   useCallback,
 } from "react";
-import { randomUUID } from "@ajora-ai/shared";
+import uuid from "react-native-uuid";
+
+// Helper to generate UUID
+const randomUUID = (): string => uuid.v4() as string;
 
 // ============================================================================
 // Types

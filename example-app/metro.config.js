@@ -12,7 +12,7 @@ const config = getDefaultConfig(__dirname);
 
 // Add the src and packages directories to watch folders
 config.watchFolders = [
-  path.resolve(__dirname, "../src"),
+  path.resolve(__dirname, "../legacy"),
   path.resolve(__dirname, "../packages/native"),
   path.resolve(__dirname, "../packages/core"),
   path.resolve(__dirname, "../packages/shared"),
@@ -30,7 +30,7 @@ config.resolver = {
           return target[name];
 
         if (name === "react-native-ajora") {
-          return path.resolve(__dirname, "../src");
+          return path.resolve(__dirname, "../legacy");
         } else if (name === "@ajora-ai/shared") {
           return path.resolve(__dirname, "../packages/shared");
         } else if (name === "@ajora-ai/core") {

@@ -10,9 +10,6 @@ export * from "./components/chat";
 // Configuration
 export * from "./providers/AjoraChatConfigurationProvider";
 
-// Thread Management
-export * from "./providers/AjoraThreadProvider";
-
 // Types & Libs
 export * from "./types";
 export * from "./lib/slots";

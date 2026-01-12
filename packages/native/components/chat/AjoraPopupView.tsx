@@ -2,10 +2,9 @@ import React, { useMemo } from "react";
 import { Modal, View, StyleSheet, StyleProp, ViewStyle } from "react-native";
 import AjoraChatView, { AjoraChatViewProps } from "./AjoraChatView";
 import { AjoraModalHeader } from "./AjoraModalHeader";
+import { AjoraChatToggleButton } from "./AjoraChatToggleButton";
 import { renderSlot, SlotValue } from "../../lib/slots";
-import {
-  useAjoraChatConfiguration,
-} from "../../providers/AjoraChatConfigurationProvider";
+import { useAjoraChatConfiguration } from "../../providers/AjoraChatConfigurationProvider";
 
 export type AjoraPopupViewProps = AjoraChatViewProps & {
   header?: SlotValue<typeof AjoraModalHeader>;
@@ -21,24 +20,27 @@ export function AjoraPopupView({
   const isPopupOpen = configuration?.isModalOpen ?? false;
   const setModalOpen = configuration?.setModalOpen;
 
-  const headerElement = useMemo(() => renderSlot(header, AjoraModalHeader, {}), [header]);
+  const headerElement = useMemo(
+    () => renderSlot(header, AjoraModalHeader, {}),
+    [header]
+  );
 
   return (
-    <Modal
-      visible={isPopupOpen}
-      animationType="slide"
-      onRequestClose={() => setModalOpen?.(false)}
-    >
-      <View style={[styles.container, style]}>
-        {headerElement}
-        <View style={styles.chatContainer}>
-          <AjoraChatView
-            {...restProps}
-            style={styles.chatView}
-          />
+    <>
+      <AjoraChatToggleButton />
+      <Modal
+        visible={isPopupOpen}
+        animationType="slide"
+        onRequestClose={() => setModalOpen?.(false)}
+      >
+        <View style={[styles.container, style]}>
+          {headerElement}
+          <View style={styles.chatContainer}>
+            <AjoraChatView {...restProps} style={styles.chatView} />
+          </View>
         </View>
-      </View>
-    </Modal>
+      </Modal>
+    </>
   );
 }
 

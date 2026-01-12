@@ -6,9 +6,7 @@ import {
   useAjora,
 } from "@ajora-ai/native";
 import { useEffect } from "react";
-import Chat from "@/components/v2/chat";
-import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
+import Chat from "@/components/chat";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 const LoggingComponent = () => {
@@ -20,7 +18,7 @@ const LoggingComponent = () => {
     console.log("=== Ajora Messages ===");
     console.log("Agent ID:", agent.agentId);
     console.log("Thread ID:", agent.threadId);
-    console.log("Messages:", JSON.stringify(agent.messages, null, 2));
+    // console.log("Messages:", JSON.stringify(agent.messages, null, 2));
     console.log("Messages Count:", agent.messages.length);
     console.log("Is Running:", agent.isRunning);
     console.log("=====================");
@@ -82,20 +80,16 @@ const Index = () => {
   });
 
   return (
-    <GestureHandlerRootView style={styles.container}>
-      <BottomSheetModalProvider>
-        <AjoraProvider
-          runtimeUrl="http://localhost:4000/api/copilotkit"
-          useSingleEndpoint={true}
-          renderToolCalls={[wildcardRenderer]}
-        >
-          <SafeAreaView style={styles.safeArea}>
-            <LoggingComponent />
-            <Chat />
-          </SafeAreaView>
-        </AjoraProvider>
-      </BottomSheetModalProvider>
-    </GestureHandlerRootView>
+    <AjoraProvider
+      runtimeUrl="http://localhost:4000/api/copilotkit"
+      useSingleEndpoint={true}
+      renderToolCalls={[wildcardRenderer]}
+    >
+      <SafeAreaView style={styles.safeArea}>
+        <LoggingComponent />
+        <Chat />
+      </SafeAreaView>
+    </AjoraProvider>
   );
 };
 

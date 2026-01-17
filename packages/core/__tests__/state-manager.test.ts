@@ -7,7 +7,7 @@ import {
   RunAgentInput,
   EventType,
 } from "@ag-ui/client";
-import { randomUUID } from "@ajora-ai/shared";
+import { randomUUID } from "../../shared";
 
 /**
  * Mock agent that can emit events to test state management

@@ -10,7 +10,7 @@ import {
 } from "react-native";
 import * as Clipboard from "expo-clipboard";
 import { Ionicons } from "@expo/vector-icons";
-import RichText from "@ajora-ai/markdown/RichText";
+import RichText from "../../../markdown/RichText";
 
 // Optional haptics import - gracefully handle if not available
 let Haptics: {

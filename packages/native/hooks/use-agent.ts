@@ -1,11 +1,11 @@
 import { useAjora } from "../providers/AjoraProvider";
 import { useMemo, useEffect, useReducer } from "react";
-import { DEFAULT_AGENT_ID } from "@ajora-ai/shared";
+import { DEFAULT_AGENT_ID } from "../../shared";
 import { AbstractAgent } from "@ag-ui/client";
 import {
   ProxiedAjoraRuntimeAgent,
   AjoraCoreRuntimeConnectionStatus,
-} from "@ajora-ai/core";
+} from "../../core";
 
 export enum UseAgentUpdate {
   OnMessagesChanged = "OnMessagesChanged",

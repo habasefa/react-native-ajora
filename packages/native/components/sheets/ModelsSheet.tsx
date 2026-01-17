@@ -20,16 +20,22 @@ import { Ionicons } from "@expo/vector-icons";
 // Types & Interfaces
 // ============================================================================
 
-export type ModelProvider = "openai" | "google" | "anthropic" | "xai" | "meta";
+export type ModelProvider = string;
 export type ModelTier = "fast" | "balanced" | "quality";
 
 export interface ModelOption {
   id: string;
   name: string;
-  provider: ModelProvider;
+  provider?: ModelProvider;
   description?: string;
-  tier: ModelTier;
+  tier?: ModelTier;
   contextWindow?: string;
+  /** Whether this model is disabled (not selectable) */
+  isDisabled?: boolean;
+  /** Whether this model is new (shows "New" badge) */
+  isNew?: boolean;
+  /** Any additional data for the model */
+  extraData?: any;
 }
 
 export interface ModelsSheetTheme {
@@ -47,6 +53,10 @@ export interface ModelsSheetTheme {
     primary?: string;
     tabActive?: string;
     tabInactive?: string;
+    disabledBackground?: string;
+    disabledText?: string;
+    newBadgeBackground?: string;
+    newBadgeText?: string;
   };
 }
 
@@ -61,7 +71,7 @@ export interface ModelsSheetProps {
   theme?: ModelsSheetTheme;
   /** Whether to use dark mode */
   darkMode?: boolean;
-  /** Custom model options */
+  /** Model options - if not provided, nothing is shown */
   models?: ModelOption[];
   /** Sheet title */
   title?: string;
@@ -72,118 +82,6 @@ export interface ModelsSheetProps {
 // ============================================================================
 // Constants
 // ============================================================================
-
-const PROVIDER_INFO: Record<ModelProvider, { name: string }> = {
-  openai: { name: "OpenAI" },
-  google: { name: "Google" },
-  anthropic: { name: "Anthropic" },
-  xai: { name: "xAI" },
-  meta: { name: "Meta" },
-};
-
-export const DEFAULT_MODELS: ModelOption[] = [
-  // Fast tier models
-  {
-    id: "gpt-4o-mini",
-    name: "GPT-4o Mini",
-    provider: "openai",
-    description: "Fast and efficient for everyday tasks",
-    tier: "fast",
-    contextWindow: "128K",
-  },
-  {
-    id: "gemini-flash",
-    name: "Gemini 2.0 Flash",
-    provider: "google",
-    description: "Lightning fast responses",
-    tier: "fast",
-    contextWindow: "1M",
-  },
-  {
-    id: "claude-haiku",
-    name: "Claude 3.5 Haiku",
-    provider: "anthropic",
-    description: "Quick and capable",
-    tier: "fast",
-    contextWindow: "200K",
-  },
-  {
-    id: "grok-fast",
-    name: "Grok Fast",
-    provider: "xai",
-    description: "Rapid responses with wit",
-    tier: "fast",
-    contextWindow: "32K",
-  },
-
-  // Balanced tier models
-  {
-    id: "gpt-4o",
-    name: "GPT-4o",
-    provider: "openai",
-    description: "Balanced performance and quality",
-    tier: "balanced",
-    contextWindow: "128K",
-  },
-  {
-    id: "gemini-pro",
-    name: "Gemini 1.5 Pro",
-    provider: "google",
-    description: "Excellent all-around performance",
-    tier: "balanced",
-    contextWindow: "2M",
-  },
-  {
-    id: "claude-sonnet",
-    name: "Claude 3.5 Sonnet",
-    provider: "anthropic",
-    description: "Smart and reliable",
-    tier: "balanced",
-    contextWindow: "200K",
-  },
-  {
-    id: "llama-3",
-    name: "Llama 3.1 70B",
-    provider: "meta",
-    description: "Open source excellence",
-    tier: "balanced",
-    contextWindow: "128K",
-  },
-
-  // Quality tier models
-  {
-    id: "o1",
-    name: "o1",
-    provider: "openai",
-    description: "Advanced reasoning capabilities",
-    tier: "quality",
-    contextWindow: "200K",
-  },
-  {
-    id: "gemini-ultra",
-    name: "Gemini Ultra",
-    provider: "google",
-    description: "Most capable Google model",
-    tier: "quality",
-    contextWindow: "2M",
-  },
-  {
-    id: "claude-opus",
-    name: "Claude 3 Opus",
-    provider: "anthropic",
-    description: "Highest quality responses",
-    tier: "quality",
-    contextWindow: "200K",
-  },
-  {
-    id: "grok-2",
-    name: "Grok 2",
-    provider: "xai",
-    description: "Premium capabilities",
-    tier: "quality",
-    contextWindow: "128K",
-  },
-];
 
 const LIGHT_COLORS = {
   text: "#1F2937",
@@ -197,6 +95,10 @@ const LIGHT_COLORS = {
   primary: "#1F2937",
   handleIndicator: "#D1D5DB",
   background: "#FFFFFF",
+  disabledBackground: "#F3F4F6",
+  disabledText: "#9CA3AF",
+  newBadgeBackground: "#10B981",
+  newBadgeText: "#FFFFFF",
 };
 
 const DARK_COLORS = {
@@ -211,6 +113,10 @@ const DARK_COLORS = {
   primary: "#F9FAFB",
   handleIndicator: "#48484A",
   background: "#1C1C1E",
+  disabledBackground: "#2C2C2E",
+  disabledText: "#6B7280",
+  newBadgeBackground: "#10B981",
+  newBadgeText: "#FFFFFF",
 };
 
 // ============================================================================
@@ -225,7 +131,7 @@ export const ModelsSheet = forwardRef<BottomSheetModal, ModelsSheetProps>(
       onClose,
       theme,
       darkMode = false,
-      models = DEFAULT_MODELS,
+      models,
       title = "Select Model",
       testID = "models-sheet",
     },
@@ -248,6 +154,7 @@ export const ModelsSheet = forwardRef<BottomSheetModal, ModelsSheetProps>(
 
     const handleSelect = useCallback(
       (model: ModelOption) => {
+        if (model.isDisabled) return;
         onSelect?.(model);
         // @ts-expect-error - ref type issue
         ref?.current?.dismiss();
@@ -270,6 +177,39 @@ export const ModelsSheet = forwardRef<BottomSheetModal, ModelsSheetProps>(
       ),
       []
     );
+
+    // If no models provided, render empty sheet
+    if (!models || models.length === 0) {
+      return (
+        <BottomSheetModal
+          ref={ref}
+          snapPoints={["30%"]}
+          enableDynamicSizing={false}
+          enablePanDownToClose={true}
+          onDismiss={handleDismiss}
+          backdropComponent={renderBackdrop}
+          handleIndicatorStyle={[
+            styles.handleIndicator,
+            { backgroundColor: colors.handleIndicator },
+          ]}
+          backgroundStyle={[
+            styles.sheetBackground,
+            { backgroundColor: colors.background },
+          ]}
+        >
+          <View style={styles.emptyContainer}>
+            <Ionicons
+              name="cloud-offline-outline"
+              size={48}
+              color={colors.textSecondary}
+            />
+            <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
+              No models available
+            </Text>
+          </View>
+        </BottomSheetModal>
+      );
+    }
 
     // ========================================================================
     // Render
@@ -305,89 +245,143 @@ export const ModelsSheet = forwardRef<BottomSheetModal, ModelsSheetProps>(
         >
           {models.map((model) => {
             const isSelected = model.id === selectedModelId;
-            const providerInfo = PROVIDER_INFO[model.provider];
+            const isDisabled = model.isDisabled === true;
 
             return (
               <Pressable
                 key={model.id}
                 onPress={() => handleSelect(model)}
+                disabled={isDisabled}
                 style={({ pressed }) => [
                   styles.modelItem,
                   {
-                    backgroundColor: isSelected
-                      ? colors.selectedBackground
-                      : pressed
-                        ? colors.optionBackgroundPressed
-                        : colors.optionBackground,
+                    backgroundColor: isDisabled
+                      ? colors.disabledBackground
+                      : isSelected
+                        ? colors.selectedBackground
+                        : pressed
+                          ? colors.optionBackgroundPressed
+                          : colors.optionBackground,
                     borderColor: isSelected
                       ? colors.selectedBorder
                       : colors.border,
+                    opacity: isDisabled ? 0.6 : 1,
                   },
                 ]}
                 testID={`${testID}-model-${model.id}`}
                 accessibilityRole="button"
-                accessibilityLabel={`${model.name} by ${providerInfo.name}`}
+                accessibilityLabel={model.name}
                 accessibilityHint={model.description}
-                accessibilityState={{ selected: isSelected }}
+                accessibilityState={{
+                  selected: isSelected,
+                  disabled: isDisabled,
+                }}
               >
                 <View style={styles.modelInfo}>
-                  <Text
-                    style={[
-                      styles.modelName,
-                      { color: isSelected ? colors.selectedText : colors.text },
-                      isSelected && styles.modelNameSelected,
-                    ]}
-                  >
-                    {model.name}
-                  </Text>
-
-                  <Text
-                    style={[
-                      styles.modelDescription,
-                      { color: colors.textSecondary },
-                    ]}
-                    numberOfLines={1}
-                  >
-                    {model.description}
-                  </Text>
-
-                  <View style={styles.modelMeta}>
+                  <View style={styles.modelNameRow}>
                     <Text
                       style={[
-                        styles.providerName,
-                        { color: colors.textSecondary },
+                        styles.modelName,
+                        {
+                          color: isDisabled
+                            ? colors.disabledText
+                            : isSelected
+                              ? colors.selectedText
+                              : colors.text,
+                        },
+                        isSelected && styles.modelNameSelected,
                       ]}
                     >
-                      {providerInfo.name}
+                      {model.name}
                     </Text>
-                    {model.contextWindow && (
-                      <>
+
+                    {/* New Badge */}
+                    {model.isNew && (
+                      <View
+                        style={[
+                          styles.newBadge,
+                          { backgroundColor: colors.newBadgeBackground },
+                        ]}
+                      >
                         <Text
                           style={[
-                            styles.metaDot,
-                            { color: colors.textSecondary },
+                            styles.newBadgeText,
+                            { color: colors.newBadgeText },
                           ]}
                         >
-                          •
+                          New
                         </Text>
-                        <Text
-                          style={[
-                            styles.contextWindow,
-                            { color: colors.textSecondary },
-                          ]}
-                        >
-                          {model.contextWindow}
-                        </Text>
-                      </>
+                      </View>
                     )}
                   </View>
+
+                  {model.description && (
+                    <Text
+                      style={[
+                        styles.modelDescription,
+                        {
+                          color: isDisabled
+                            ? colors.disabledText
+                            : colors.textSecondary,
+                        },
+                      ]}
+                      numberOfLines={1}
+                    >
+                      {model.description}
+                    </Text>
+                  )}
+
+                  {model.provider && (
+                    <View style={styles.modelMeta}>
+                      <Text
+                        style={[
+                          styles.providerName,
+                          {
+                            color: isDisabled
+                              ? colors.disabledText
+                              : colors.textSecondary,
+                          },
+                        ]}
+                      >
+                        {model.provider}
+                      </Text>
+                      {model.contextWindow && (
+                        <>
+                          <Text
+                            style={[
+                              styles.metaDot,
+                              { color: colors.textSecondary },
+                            ]}
+                          >
+                            •
+                          </Text>
+                          <Text
+                            style={[
+                              styles.contextWindow,
+                              { color: colors.textSecondary },
+                            ]}
+                          >
+                            {model.contextWindow}
+                          </Text>
+                        </>
+                      )}
+                    </View>
+                  )}
                 </View>
 
-                {isSelected && (
+                {isSelected && !isDisabled && (
                   <Ionicons
                     name="checkmark"
                     size={20}
                     color={colors.selectedText}
+                  />
+                )}
+
+                {isDisabled && (
+                  <Ionicons
+                    name="lock-closed-outline"
+                    size={18}
+                    color={colors.disabledText}
                   />
                 )}
               </Pressable>
@@ -452,6 +446,11 @@ const styles = StyleSheet.create({
   modelInfo: {
     flex: 1,
   },
+  modelNameRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
   modelName: {
     fontSize: 16,
     fontWeight: "500",
@@ -477,6 +476,26 @@ const styles = StyleSheet.create({
   },
   contextWindow: {
     fontSize: 13,
+  },
+  newBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  newBadgeText: {
+    fontSize: 10,
+    fontWeight: "700",
+    textTransform: "uppercase",
+  },
+  emptyContainer: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 40,
+  },
+  emptyText: {
+    fontSize: 16,
+    marginTop: 12,
   },
 });
 

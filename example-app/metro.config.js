@@ -30,15 +30,7 @@ config.resolver = {
           return target[name];
 
         if (name === "react-native-ajora") {
-          return path.resolve(__dirname, "../legacy");
-        } else if (name === "@ajora-ai/shared") {
-          return path.resolve(__dirname, "../packages/shared");
-        } else if (name === "@ajora-ai/core") {
-          return path.resolve(__dirname, "../packages/core");
-        } else if (name === "@ajora-ai/native") {
           return path.resolve(__dirname, "../packages/native");
-        } else if (name === "@ajora-ai/markdown") {
-          return path.resolve(__dirname, "../packages/markdown");
         }
 
         return path.join(__dirname, `node_modules/${name}`);

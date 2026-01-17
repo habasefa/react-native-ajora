@@ -6,7 +6,7 @@ import {
   RunAgentResult,
   Tool,
 } from "@ag-ui/client";
-import { randomUUID, logger } from "@ajora-ai/shared";
+import { randomUUID, logger } from "../../shared";
 import { zodToJsonSchema } from "zod-to-json-schema";
 import type { AjoraCore } from "./core";
 import { AjoraCoreErrorCode, AjoraCoreFriendsAccess } from "./core-types";

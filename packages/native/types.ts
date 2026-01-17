@@ -1,6 +1,6 @@
 import React from "react";
 import { z } from "zod";
-import { FrontendTool, ToolCallStatus } from "@ajora-ai/core";
+import { FrontendTool, ToolCallStatus } from "../core";
 import { AbstractAgent } from "@ag-ui/client";
 
 export interface ReactToolCallRenderer<T> {

@@ -16,7 +16,7 @@ import {
 } from "../../providers/AjoraChatConfigurationProvider";
 import { UserMessage } from "@ag-ui/core";
 import { renderSlot, WithSlots } from "../../lib/slots";
-import RichText from "@ajora-ai/markdown/RichText";
+import RichText from "../../../markdown/RichText";
 
 function flattenUserMessageContent(content?: UserMessage["content"]): string {
   if (!content) {

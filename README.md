@@ -15,7 +15,7 @@ _Build beautiful, intelligent chat interfaces with AI agents in React Native_
 
 > [!NOTE]
 > **Port of CopilotKit**
-> 
+>
 > This library is a React Native port of [CopilotKit](https://docs.copilotkit.ai/). Most concepts, hooks, and patterns from CopilotKit apply here as well. You can refer to the [CopilotKit Documentation](https://docs.copilotkit.ai/) for more in-depth conceptual references and runtime configuration details.
 
 ---
@@ -46,7 +46,7 @@ yarn add react-native-ajora
 Make sure you have these peer dependencies installed:
 
 ```bash
-npm install expo @expo/vector-icons react-native-reanimated react-native-keyboard-controller react-native-svg react-native-gesture-handler @gorhom/bottom-sheet
+npm install expo @expo/vector-icons react-native-reanimated react-native-keyboard-controller react-native-svg react-native-gesture-handler @gorhom/bottom-sheet  expo-document-picker
 ```
 
 ### Basic Usage
@@ -66,7 +66,8 @@ const App = () => {
         <AjoraChat
           labels={{
             chatEmptyStateTitle: "Hello there! 👋",
-            chatEmptyStateSubtitle: "I'm your AI assistant. How can I help you today?",
+            chatEmptyStateSubtitle:
+              "I'm your AI assistant. How can I help you today?",
           }}
         />
       </SafeAreaView>
@@ -82,13 +83,16 @@ export default App;
 ### Components
 
 #### Core Components
+
 - **`AjoraProvider`**: The root provider component. Handles connection to the CopilotKit runtime and manages global agent state.
 - **`AjoraChat`**: The main chat interface component. Includes message list, input area, and suggestions.
 - **`AjoraPopup`**: A pre-built popup wrapper for the chat interface, useful for "chat bubble" implementations.
 - **`AjoraSidebar`**: A sidebar wrapper for the chat interface.
 
 #### UI Building Blocks
+
 Can be used individually or passed as custom slots to `AjoraChat`.
+
 - **`AjoraChatInput`**: The text input component with support for attachments and audio recording.
 - **`AjoraChatView`**: The container view for the chat interface.
 - **`AjoraChatMessageView`**: Renders a single message bubble (user or assistant).
@@ -103,6 +107,7 @@ Can be used individually or passed as custom slots to `AjoraChat`.
 ### Hooks
 
 #### Agent Interaction
+
 - **`useAgent`**: Hook to interact with a specific agent instance. Returns the agent object and its state.
 - **`useAgentContext`**: Provides application context to the agent (e.g., current screen, user data).
 - **`useFrontendTool`**: Defines a client-side tool that the agent can call.
@@ -111,6 +116,7 @@ Can be used individually or passed as custom slots to `AjoraChat`.
 - **`useHumanInTheLoop`**: Hook to handle human-in-the-loop interactions, allowing the AI to ask for user input or confirmation.
 
 #### UI & Presentation
+
 - **`useConfigureSuggestions`**: Configures what kind of suggestions should be generated for the user.
 - **`useSuggestions`**: Hook to fetch and manage suggestions.
 - **`useRenderToolCall`**: Customizes how specific tool calls are rendered in the chat stream.
@@ -122,24 +128,24 @@ Can be used individually or passed as custom slots to `AjoraChat`.
 
 #### AjoraProvider Props
 
-| Prop | Type | Description |
-|------|------|-------------|
-| `runtimeUrl` | `string` | The URL of your CopilotKit runtime API. |
-| `useSingleEndpoint` | `boolean` | Whether to use a single endpoint for all operations (default: `false`). |
-| `headers` | `Record<string, string>` | Custom headers for API requests. |
-| `renderToolCalls` | `ToolCallRenderer[]` | Custom renderers for tool calls. |
-| `agentId` | `string` | helper for the default agentID to use |
+| Prop                | Type                     | Description                                                             |
+| ------------------- | ------------------------ | ----------------------------------------------------------------------- |
+| `runtimeUrl`        | `string`                 | The URL of your CopilotKit runtime API.                                 |
+| `useSingleEndpoint` | `boolean`                | Whether to use a single endpoint for all operations (default: `false`). |
+| `headers`           | `Record<string, string>` | Custom headers for API requests.                                        |
+| `renderToolCalls`   | `ToolCallRenderer[]`     | Custom renderers for tool calls.                                        |
+| `agentId`           | `string`                 | helper for the default agentID to use                                   |
 
 #### AjoraChat Props
 
-| Prop | Type | Description |
-|------|------|-------------|
-| `agentId` | `string` | The ID of the agent to use. |
-| `threadId` | `string` | The ID of the conversation thread. |
-| `labels` | `object` | Custom labels for UI elements (empty state, etc.). |
-| `starterSuggestions` | `Suggestion[]` | Suggestions to show when the chat is empty. |
-| `chatView` | `Component` | Slot to replace the entire chat view. |
-| `isLoading` | `boolean` | helper for if the chat is loading. |
+| Prop                 | Type           | Description                                        |
+| -------------------- | -------------- | -------------------------------------------------- |
+| `agentId`            | `string`       | The ID of the agent to use.                        |
+| `threadId`           | `string`       | The ID of the conversation thread.                 |
+| `labels`             | `object`       | Custom labels for UI elements (empty state, etc.). |
+| `starterSuggestions` | `Suggestion[]` | Suggestions to show when the chat is empty.        |
+| `chatView`           | `Component`    | Slot to replace the entire chat view.              |
+| `isLoading`          | `boolean`      | helper for if the chat is loading.                 |
 
 ## 🤝 Contributing
 

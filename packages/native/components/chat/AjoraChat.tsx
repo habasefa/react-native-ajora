@@ -8,8 +8,8 @@ import {
   AjoraChatLabels,
   useAjoraChatConfiguration,
 } from "../../providers/AjoraChatConfigurationProvider";
-import { DEFAULT_AGENT_ID, randomUUID } from "@ajora-ai/shared";
-import { Suggestion } from "@ajora-ai/core";
+import { DEFAULT_AGENT_ID, randomUUID } from "../../../shared";
+import { Suggestion } from "../../../core";
 import React, { useCallback, useEffect, useMemo } from "react";
 import { merge } from "ts-deepmerge";
 import { useAjora } from "../../providers/AjoraProvider";

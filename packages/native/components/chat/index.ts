@@ -125,7 +125,7 @@ export {
 } from "./AjoraChatEmptyState";
 
 // Re-export core types for convenience
-export type { Suggestion, IconFamily, IconName } from "@ajora-ai/core";
+export type { Suggestion, IconFamily, IconName } from "../../../core";
 
 // Chat Loading State
 export {

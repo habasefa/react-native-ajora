@@ -5,6 +5,8 @@ import {
   useFrontendTool,
   type Suggestion,
   AjoraChat,
+  type ModelOption,
+  type AgentOption,
 } from "@ajora-ai/native";
 import { AjoraThreadDrawer } from "@/components/thread/AjoraThreadDrawer";
 import {
@@ -13,7 +15,7 @@ import {
   type Thread,
 } from "@/providers/AjoraThreadProvider";
 import { ThreadMenuSheet } from "@/components/sheets/ThreadMenuSheet";
-import { useState, useRef } from "react";
+import { useState, useRef, useCallback } from "react";
 import {
   View,
   Text,
@@ -147,6 +149,77 @@ const STARTER_SUGGESTIONS: Suggestion[] = [
   },
 ];
 
+// Demo models showcasing isDisabled and isNew fields
+const DEMO_MODELS: ModelOption[] = [
+  {
+    id: "gpt-4o",
+    name: "GPT-4o",
+    provider: "openai",
+    description: "Most capable model",
+    isNew: true,
+  },
+  {
+    id: "claude-sonnet",
+    name: "Claude 3.5 Sonnet",
+    provider: "anthropic",
+    description: "Great for analysis",
+  },
+  {
+    id: "gemini-pro",
+    name: "Gemini 2.0 Flash",
+    provider: "google",
+    description: "Fast responses",
+  },
+  {
+    id: "o1-preview",
+    name: "o1 Preview",
+    provider: "openai",
+    description: "Advanced reasoning",
+    isDisabled: true,
+    extraData: { reason: "Coming soon" },
+  },
+  {
+    id: "claude-opus",
+    name: "Claude 3 Opus",
+    provider: "anthropic",
+    description: "Premium model",
+    isDisabled: true,
+    isNew: true,
+    extraData: { subscriptionRequired: "pro" },
+  },
+];
+
+// Demo agents showcasing isDisabled and isNew fields
+const DEMO_AGENTS: AgentOption[] = [
+  {
+    id: "general",
+    name: "General Assistant",
+    description: "All-purpose AI assistant",
+    icon: "chatbubble-outline",
+  },
+  {
+    id: "researcher",
+    name: "Research Agent",
+    description: "Deep research and analysis",
+    icon: "search-outline",
+    isNew: true,
+  },
+  {
+    id: "coder",
+    name: "Code Agent",
+    description: "Programming assistance",
+    icon: "code-slash-outline",
+  },
+  {
+    id: "creative",
+    name: "Creative Agent",
+    description: "Coming soon - Premium feature",
+    icon: "bulb-outline",
+    isDisabled: true,
+    extraData: { tier: "premium" },
+  },
+];
+
 // Inner Chat component that uses thread context
 function ChatContent() {
   const {
@@ -160,6 +233,24 @@ function ChatContent() {
   const threadMenuSheetRef = useRef<BottomSheetModal>(null);
   const [selectedThread, setSelectedThread] = useState<Thread | null>(null);
   const [editingThreadId, setEditingThreadId] = useState<string | null>(null);
+
+  // Model and Agent selection state
+  const [selectedModelId, setSelectedModelId] = useState<string>(
+    DEMO_MODELS[0].id
+  );
+  const [selectedAgentId, setSelectedAgentId] = useState<string>(
+    DEMO_AGENTS[0].id
+  );
+
+  const handleModelSelect = useCallback((model: ModelOption) => {
+    setSelectedModelId(model.id);
+    console.log("Model selected:", model.name, model.extraData);
+  }, []);
+
+  const handleAgentSelect = useCallback((agent: AgentOption) => {
+    setSelectedAgentId(agent.id);
+    console.log("Agent selected:", agent.name, agent.extraData);
+  }, []);
 
   useConfigureSuggestions({
     instructions: "Suggest follow-up tasks based on the current page content",
@@ -391,6 +482,14 @@ function ChatContent() {
                 "I can tell jokes, quiz you, or just chat!",
             }}
             starterSuggestions={STARTER_SUGGESTIONS}
+            inputProps={{
+              models: DEMO_MODELS,
+              selectedModelId,
+              onModelSelect: handleModelSelect,
+              agents: DEMO_AGENTS,
+              selectedAgentId,
+              onAgentSelect: handleAgentSelect,
+            }}
           />
         )}
       </View>

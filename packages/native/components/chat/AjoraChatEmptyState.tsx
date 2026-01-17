@@ -30,7 +30,7 @@ import {
   useAjoraChatConfiguration,
   AjoraChatDefaultLabels,
 } from "../../providers/AjoraChatConfigurationProvider";
-import { Suggestion } from "@ajora-ai/core";
+import { Suggestion } from "../../../core";
 
 // ============================================================================
 // Types

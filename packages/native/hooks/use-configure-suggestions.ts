@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import { useAjora } from "../providers/AjoraProvider";
 import { useAjoraChatConfiguration } from "../providers/AjoraChatConfigurationProvider";
-import { DEFAULT_AGENT_ID } from "@ajora-ai/shared";
+import { DEFAULT_AGENT_ID } from "../../shared";
 import {
   DynamicSuggestionsConfig,
   StaticSuggestionsConfig,
   SuggestionsConfig,
   Suggestion,
-} from "@ajora-ai/core";
+} from "../../core";
 
 export type StaticSuggestionInput = Omit<Suggestion, "isLoading"> &
   Partial<Pick<Suggestion, "isLoading">>;

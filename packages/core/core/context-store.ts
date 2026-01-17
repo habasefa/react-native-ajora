@@ -1,5 +1,5 @@
 import { Context } from "@ag-ui/client";
-import { randomUUID } from "@ajora-ai/shared";
+import { randomUUID } from "../../shared";
 import type { AjoraCore } from "./core";
 import { AjoraCoreFriendsAccess } from "./core-types";
 

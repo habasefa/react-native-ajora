@@ -1,9 +1,9 @@
 import React, { useCallback, useMemo, useEffect, useReducer } from "react";
 import { ToolCall, ToolMessage } from "@ag-ui/core";
-import { ToolCallStatus } from "@ajora-ai/core";
+import { ToolCallStatus } from "../../core";
 import { useAjora } from "../providers/AjoraProvider";
 import { useAjoraChatConfiguration } from "../providers/AjoraChatConfigurationProvider";
-import { DEFAULT_AGENT_ID, partialJSONParse } from "@ajora-ai/shared";
+import { DEFAULT_AGENT_ID, partialJSONParse } from "../../shared";
 import { ReactToolCallRenderer } from "../types";
 
 export interface UseRenderToolCallProps {

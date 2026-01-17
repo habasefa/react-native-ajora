@@ -9,7 +9,7 @@ import React, {
   useState,
 } from "react";
 import { z } from "zod";
-import { FrontendTool } from "@ajora-ai/core";
+import { FrontendTool } from "../../core";
 import { AbstractAgent } from "@ag-ui/client";
 import { AjoraCoreReact } from "../lib/react-core";
 import {

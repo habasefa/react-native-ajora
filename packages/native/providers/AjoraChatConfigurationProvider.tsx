@@ -5,7 +5,7 @@ import React, {
   useMemo,
   useState,
 } from "react";
-import { DEFAULT_AGENT_ID, randomUUID } from "@ajora-ai/shared";
+import { DEFAULT_AGENT_ID, randomUUID } from "../../shared";
 
 // Default labels
 export const AjoraChatDefaultLabels = {

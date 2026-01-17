@@ -43,7 +43,6 @@ import {
   type AgentOption,
   ModelsSheet,
   type ModelOption,
-  DEFAULT_MODELS,
 } from "../sheets";
 
 // ============================================================================
@@ -795,7 +794,7 @@ const AjoraChatInputComponent = forwardRef<
     selectedAgentType ?? agentTypes?.[0]?.id
   );
   // Default to the first model if no selectedModelId provided
-  const defaultModelId = models?.[0]?.id ?? DEFAULT_MODELS[0].id;
+  const defaultModelId = models?.[0]?.id ?? "";
   const [internalModelId, setInternalModelId] = useState<string>(
     selectedModelId ?? defaultModelId
   );
@@ -832,7 +831,7 @@ const AjoraChatInputComponent = forwardRef<
   const currentAgentType = selectedAgentType ?? internalAgentType;
 
   // Model selection - single source of truth
-  const modelsList: ModelOption[] = models ?? DEFAULT_MODELS;
+  const modelsList: ModelOption[] = models ?? [];
   const resolvedModelId = isModelControlled ? selectedModelId : internalModelId;
   const selectedModel = useMemo(() => {
     if (!resolvedModelId || modelsList.length === 0) return null;
@@ -856,6 +855,7 @@ const AjoraChatInputComponent = forwardRef<
       }, 100);
       return () => clearTimeout(timer);
     }
+    return undefined;
   }, [autoFocus, mode]);
 
   useEffect(() => {
@@ -1220,11 +1220,14 @@ const AjoraChatInputComponent = forwardRef<
             {/* Left Side: Add & Settings Buttons */}
             <View style={computedStyles.toolbarContainer}>
               {showAddButton && addButtonElement}
-              {showSettingsButton && settingsButtonElement}
+              {showSettingsButton &&
+                agents &&
+                agents.length > 0 &&
+                settingsButtonElement}
             </View>
 
-            {/* Center: Agent Type Selector */}
-            {showAgentSelector && (
+            {/* Center: Model Selector */}
+            {showAgentSelector && modelsList.length > 0 && (
               <View style={styles.centerContainer}>{agentSelectorElement}</View>
             )}
 

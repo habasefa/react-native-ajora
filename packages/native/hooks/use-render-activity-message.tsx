@@ -1,5 +1,5 @@
 import { ActivityMessage } from "@ag-ui/core";
-import { DEFAULT_AGENT_ID } from "@ajora-ai/shared";
+import { DEFAULT_AGENT_ID } from "../../shared";
 import { useAjora } from "../providers/AjoraProvider";
 import { useAjoraChatConfiguration } from "../providers/AjoraChatConfigurationProvider";
 import React, { useCallback } from "react";

@@ -23,5 +23,4 @@ export {
   type ModelOption,
   type ModelProvider,
   type ModelTier,
-  DEFAULT_MODELS,
 } from "./ModelsSheet";

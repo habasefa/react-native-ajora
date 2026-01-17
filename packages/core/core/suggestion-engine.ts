@@ -1,5 +1,5 @@
 import { AbstractAgent, Message, Tool, Context } from "@ag-ui/client";
-import { randomUUID, partialJSONParse } from "@ajora-ai/shared";
+import { randomUUID, partialJSONParse } from "../../shared";
 import type { AjoraCore } from "./core";
 import { AjoraCoreFriendsAccess } from "./core-types";
 import {

@@ -33,9 +33,18 @@
   },
   "include": [
     "legacy",
+    "packages",
     "./types.d.ts",
     "legacy/richText/RichText.tsx",
     "legacy/richText/markdownStyle.tsx"
   ],
-  "exclude": ["node_modules", "legacy/__tests__", "example/node_modules", "lib"]
+  "exclude": ["node_modules", "legacy/__tests__", "example/node_modules", "lib"],
+  "compilerOptions": {
+    "paths": {
+      "@ajora-ai/core": ["./packages/core/index.ts"],
+      "@ajora-ai/shared": ["./packages/shared/index.ts"],
+      "@ajora-ai/native": ["./packages/native/index.ts"],
+      "@ajora-ai/agent": ["./packages/agent/index.ts"]
+    }
+  }
 }

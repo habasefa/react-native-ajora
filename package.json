@@ -1,6 +1,6 @@
 {
   "name": "react-native-ajora",
-  "version": "0.0.33",
+  "version": "0.1.0-beta.6",
   "description": "The most complete AI agent UI for React Native",
   "keywords": [
     "android",
@@ -25,21 +25,23 @@
   "type": "module",
   "main": "lib/index.js",
   "module": "lib/index.js",
-  "react-native": "legacy/index.ts",
+  "react-native": "packages/native/index.ts",
   "exports": {
     ".": {
-      "types": "./lib/index.d.ts",
-      "react-native": "./legacy/index.ts",
+      "types": "./packages/native/index.ts",
+      "react-native": "./packages/native/index.ts",
       "default": "./lib/index.js"
     }
   },
-  "types": "lib/index.d.ts",
+  "types": "packages/native/index.ts",
   "files": [
     "legacy",
+    "packages",
     "lib"
   ],
   "scripts": {
     "build": "tsc --noEmitOnError false && echo '\n✅ Build completed successfully with no TypeScript errors.\n' || (echo '\n⚠️  Build completed with TypeScript errors. JS output was still generated.\n' && exit 1)",
+    "pack": "npm pack",
     "lint": "eslint legacy",
     "lint:fix": "eslint --cache --fix",
     "prepublishOnly": "echo 'Skipping build and test for publish'",

@@ -1,5 +1,5 @@
 import { AbstractAgent, HttpAgent } from "@ag-ui/client";
-import { logger, RuntimeInfo, AgentDescription } from "@ajora-ai/shared";
+import { logger, RuntimeInfo, AgentDescription } from "../../shared";
 import { ProxiedAjoraRuntimeAgent } from "../agent";
 import type { AjoraCore } from "./core";
 import {

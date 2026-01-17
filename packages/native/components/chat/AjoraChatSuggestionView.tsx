@@ -7,7 +7,7 @@ import {
   StyleProp,
   ViewStyle,
 } from "react-native";
-import { Suggestion } from "@ajora-ai/core";
+import { Suggestion } from "../../../core";
 import { renderSlot, WithSlots } from "../../lib/slots";
 import AjoraChatSuggestionPill, {
   AjoraChatSuggestionPillProps,

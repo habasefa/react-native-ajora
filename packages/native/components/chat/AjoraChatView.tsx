@@ -26,7 +26,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { WithSlots, renderSlot } from "../../lib/slots";
 import AjoraChatInput, { AjoraChatInputProps } from "./AjoraChatInput";
-import { Suggestion } from "@ajora-ai/core";
+import { Suggestion } from "../../../core";
 import { AssistantMessage, Message } from "@ag-ui/core";
 import AjoraChatSuggestionView, {
   AjoraChatSuggestionViewProps,
@@ -163,7 +163,7 @@ function useAutoScroll({
       const atBottom = checkIfAtBottom();
       setIsAtBottom(atBottom);
     },
-    [checkIfAtBottom]
+    [checkIfAtBottom],
   );
 
   // Handle content size changes (triggered when content updates)
@@ -180,7 +180,7 @@ function useAutoScroll({
         });
       }
     },
-    [enabled, isAtBottom, scrollToBottom]
+    [enabled, isAtBottom, scrollToBottom],
   );
 
   // Handle layout changes
@@ -379,7 +379,7 @@ function AjoraChatViewInner({
     () => ({
       transform: [{ translateY: keyboard.height.value }],
     }),
-    [keyboard]
+    [keyboard],
   );
 
   // Determine if content is actively streaming
@@ -460,6 +460,7 @@ function AjoraChatViewInner({
         {BoundEmptyState}
         {/* Only show messages when not in loading/empty state */}
         {!shouldShowLoading && !shouldShowEmpty && BoundMessageView}
+        {BoundSuggestionView}
       </View>
     ),
   });
@@ -479,10 +480,7 @@ function AjoraChatViewInner({
     <View style={[styles.container, style]} {...props}>
       <Animated.View style={[styles.animatedContainer, keyboardAnimatedStyle]}>
         {BoundScrollView}
-        <View style={[styles.bottomContainer]}>
-          {BoundSuggestionView}
-          {BoundInput}
-        </View>
+        <View style={[styles.bottomContainer]}>{BoundInput}</View>
       </Animated.View>
     </View>
   );

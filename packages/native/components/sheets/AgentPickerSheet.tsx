@@ -25,6 +25,12 @@ export interface AgentOption {
   name: string;
   description?: string;
   icon?: keyof typeof Ionicons.glyphMap;
+  /** Whether this agent is disabled (not selectable) */
+  isDisabled?: boolean;
+  /** Whether this agent is new (shows "New" badge) */
+  isNew?: boolean;
+  /** Any additional data for the agent */
+  extraData?: any;
 }
 
 export interface AgentPickerSheetTheme {
@@ -40,6 +46,10 @@ export interface AgentPickerSheetTheme {
     selectedBackground?: string;
     selectedBorder?: string;
     primary?: string;
+    disabledBackground?: string;
+    disabledText?: string;
+    newBadgeBackground?: string;
+    newBadgeText?: string;
   };
 }
 
@@ -54,7 +64,7 @@ export interface AgentPickerSheetProps {
   theme?: AgentPickerSheetTheme;
   /** Whether to use dark mode */
   darkMode?: boolean;
-  /** Custom agent options */
+  /** Agent options - if not provided, nothing is shown */
   agents?: AgentOption[];
   /** Sheet title */
   title?: string;
@@ -65,27 +75,6 @@ export interface AgentPickerSheetProps {
 // ============================================================================
 // Constants
 // ============================================================================
-
-const DEFAULT_AGENTS: AgentOption[] = [
-  {
-    id: "agent-1",
-    name: "Research Agent",
-    description: "Deep research and analysis capabilities",
-    icon: "search-outline",
-  },
-  {
-    id: "agent-2",
-    name: "Creative Agent",
-    description: "Writing, brainstorming, and content creation",
-    icon: "bulb-outline",
-  },
-  {
-    id: "agent-3",
-    name: "Code Agent",
-    description: "Programming assistance and debugging",
-    icon: "code-slash-outline",
-  },
-];
 
 const LIGHT_COLORS = {
   text: "#1F2937",
@@ -99,6 +88,10 @@ const LIGHT_COLORS = {
   iconBackground: "#F5F5F5",
   handleIndicator: "#D1D5DB",
   background: "#FFFFFF",
+  disabledBackground: "#F3F4F6",
+  disabledText: "#9CA3AF",
+  newBadgeBackground: "#10B981",
+  newBadgeText: "#FFFFFF",
 };
 
 const DARK_COLORS = {
@@ -113,6 +106,10 @@ const DARK_COLORS = {
   iconBackground: "#2C2C2E",
   handleIndicator: "#48484A",
   background: "#1C1C1E",
+  disabledBackground: "#2C2C2E",
+  disabledText: "#6B7280",
+  newBadgeBackground: "#10B981",
+  newBadgeText: "#FFFFFF",
 };
 
 // ============================================================================
@@ -129,7 +126,7 @@ export const AgentPickerSheet = forwardRef<
     onClose,
     theme,
     darkMode = false,
-    agents = DEFAULT_AGENTS,
+    agents,
     title = "Select Agent",
     testID = "agent-picker-sheet",
   },
@@ -152,6 +149,7 @@ export const AgentPickerSheet = forwardRef<
 
   const handleSelect = useCallback(
     (agent: AgentOption) => {
+      if (agent.isDisabled) return;
       onSelect?.(agent);
       // @ts-expect-error - ref type issue
       ref?.current?.dismiss();
@@ -174,6 +172,39 @@ export const AgentPickerSheet = forwardRef<
     ),
     []
   );
+
+  // If no agents provided, render empty sheet
+  if (!agents || agents.length === 0) {
+    return (
+      <BottomSheetModal
+        ref={ref}
+        snapPoints={["30%"]}
+        enableDynamicSizing={false}
+        enablePanDownToClose={true}
+        onDismiss={handleDismiss}
+        backdropComponent={renderBackdrop}
+        handleIndicatorStyle={[
+          styles.handleIndicator,
+          { backgroundColor: colors.handleIndicator },
+        ]}
+        backgroundStyle={[
+          styles.sheetBackground,
+          { backgroundColor: colors.background },
+        ]}
+      >
+        <View style={styles.emptyContainer}>
+          <Ionicons
+            name="people-outline"
+            size={48}
+            color={colors.textSecondary}
+          />
+          <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
+            No agents available
+          </Text>
+        </View>
+      </BottomSheetModal>
+    );
+  }
 
   // ========================================================================
   // Render
@@ -207,29 +238,37 @@ export const AgentPickerSheet = forwardRef<
         <View style={styles.optionsContainer}>
           {agents.map((agent) => {
             const isSelected = agent.id === selectedAgentId;
+            const isDisabled = agent.isDisabled === true;
 
             return (
               <Pressable
                 key={agent.id}
                 onPress={() => handleSelect(agent)}
+                disabled={isDisabled}
                 style={({ pressed }) => [
                   styles.optionItem,
                   {
-                    backgroundColor: isSelected
-                      ? colors.selectedBackground
-                      : pressed
-                        ? colors.optionBackgroundPressed
-                        : colors.optionBackground,
+                    backgroundColor: isDisabled
+                      ? colors.disabledBackground
+                      : isSelected
+                        ? colors.selectedBackground
+                        : pressed
+                          ? colors.optionBackgroundPressed
+                          : colors.optionBackground,
                     borderColor: isSelected
                       ? colors.selectedBorder
                       : colors.border,
+                    opacity: isDisabled ? 0.6 : 1,
                   },
                 ]}
                 testID={`${testID}-option-${agent.id}`}
                 accessibilityRole="button"
                 accessibilityLabel={agent.name}
                 accessibilityHint={agent.description}
-                accessibilityState={{ selected: isSelected }}
+                accessibilityState={{
+                  selected: isSelected,
+                  disabled: isDisabled,
+                }}
               >
                 <View
                   style={[
@@ -240,25 +279,53 @@ export const AgentPickerSheet = forwardRef<
                   <Ionicons
                     name={agent.icon || "person-outline"}
                     size={20}
-                    color={colors.iconColor}
+                    color={isDisabled ? colors.disabledText : colors.iconColor}
                   />
                 </View>
 
                 <View style={styles.optionTextContainer}>
-                  <Text
-                    style={[
-                      styles.optionLabel,
-                      { color: colors.text },
-                      isSelected && styles.optionLabelSelected,
-                    ]}
-                  >
-                    {agent.name}
-                  </Text>
+                  <View style={styles.optionLabelRow}>
+                    <Text
+                      style={[
+                        styles.optionLabel,
+                        {
+                          color: isDisabled ? colors.disabledText : colors.text,
+                        },
+                        isSelected && styles.optionLabelSelected,
+                      ]}
+                    >
+                      {agent.name}
+                    </Text>
+
+                    {/* New Badge */}
+                    {agent.isNew && (
+                      <View
+                        style={[
+                          styles.newBadge,
+                          { backgroundColor: colors.newBadgeBackground },
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.newBadgeText,
+                            { color: colors.newBadgeText },
+                          ]}
+                        >
+                          New
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+
                   {agent.description && (
                     <Text
                       style={[
                         styles.optionDescription,
-                        { color: colors.textSecondary },
+                        {
+                          color: isDisabled
+                            ? colors.disabledText
+                            : colors.textSecondary,
+                        },
                       ]}
                       numberOfLines={1}
                     >
@@ -267,11 +334,15 @@ export const AgentPickerSheet = forwardRef<
                   )}
                 </View>
 
-                {isSelected && (
+                {isSelected && !isDisabled && (
+                  <Ionicons name="checkmark" size={20} color={colors.text} />
+                )}
+
+                {isDisabled && (
                   <Ionicons
-                    name="checkmark"
-                    size={20}
-                    color={colors.text}
+                    name="lock-closed-outline"
+                    size={18}
+                    color={colors.disabledText}
                   />
                 )}
               </Pressable>
@@ -343,6 +414,11 @@ const styles = StyleSheet.create({
   optionTextContainer: {
     flex: 1,
   },
+  optionLabelRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
   optionLabel: {
     fontSize: 16,
     fontWeight: "500",
@@ -353,6 +429,26 @@ const styles = StyleSheet.create({
   optionDescription: {
     fontSize: 14,
     marginTop: 3,
+  },
+  newBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  newBadgeText: {
+    fontSize: 10,
+    fontWeight: "700",
+    textTransform: "uppercase",
+  },
+  emptyContainer: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 40,
+  },
+  emptyText: {
+    fontSize: 16,
+    marginTop: 12,
   },
 });
 

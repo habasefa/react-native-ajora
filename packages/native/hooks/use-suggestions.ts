@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Suggestion } from "@ajora-ai/core";
+import { Suggestion } from "../../core";
 import { useAjora } from "../providers/AjoraProvider";
 import { useAjoraChatConfiguration } from "../providers/AjoraChatConfigurationProvider";
-import { DEFAULT_AGENT_ID } from "@ajora-ai/shared";
+import { DEFAULT_AGENT_ID } from "../../shared";
 
 export interface UseSuggestionsOptions {
   agentId?: string;

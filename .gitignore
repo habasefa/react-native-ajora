@@ -7,7 +7,7 @@ TODO.md
 .vscode
 Exponent-*.app
 *.log
-lib/
+/lib/
 coverage/
 web-build/
 .eslintcache
@@ -26,9 +26,11 @@ example_bare/**/build
 example_bare/ios/Pods
 example_bare/android/.gradle
 
+.env
 **/.env
 **/.env.*
 **/.env.local
 example-server/.env
+
 *.db
-example-server/db/ajora.db
+**/*.db

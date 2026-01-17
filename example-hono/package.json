@@ -1,0 +1,21 @@
+{
+  "name": "example-hono",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "@copilotkitnext/agent": "^0.0.33",
+    "@copilotkitnext/runtime": "^0.0.33",
+    "@hono/node-server": "^1.19.8",
+    "dotenv": "^17.2.3",
+    "hono": "^4.11.3"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.17",
+    "tsx": "^4.7.1",
+    "typescript": "^5.8.3"
+  }
+}

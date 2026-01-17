@@ -1,7 +1,5 @@
 ## 🚧 Experimental
 
-Work is currently underway to extract the thread list, header, API client, and full AG-UI support.
-These updates are expected to be ready by January 20.
 # 🤖 React Native Ajora
 
 <div align="center">

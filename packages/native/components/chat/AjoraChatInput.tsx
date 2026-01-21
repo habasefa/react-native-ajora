@@ -6,6 +6,7 @@ import React, {
   useMemo,
   forwardRef,
   useImperativeHandle,
+  FC,
 } from "react";
 import {
   View,
@@ -52,6 +53,15 @@ import {
   type AttachmentUploadState,
   handleAttachmentSelection,
 } from "../../lib/fileSystem";
+import {
+  SuggestionsProvidedProps,
+  TriggersConfig,
+  useMentions,
+} from "react-native-controlled-mentions";
+import {
+  AjoraMentionSuggestions,
+  MentionSuggestion,
+} from "./AjoraMentionSuggestions";
 
 // ============================================================================
 // Types & Interfaces
@@ -157,6 +167,10 @@ export interface AjoraChatInputProps {
   onAgentTypeChange?: (agentType: AgentTypeOption) => void;
   /** Show agent type selector */
   showAgentSelector?: boolean;
+  /** List of suggestions for mentions */
+  mentionSuggestions?: MentionSuggestion[];
+  /** Callback when a mention suggestion is selected */
+  onMentionSelect?: (suggestion: MentionSuggestion) => void;
   /** Show add button */
   showAddButton?: boolean;
   /** Callback when add button is pressed */
@@ -294,6 +308,8 @@ export interface AjoraChatTextInputProps extends Omit<TextInputProps, "style"> {
   style?: StyleProp<TextStyle>;
   testID?: string;
   colors?: AjoraChatInputTheme["colors"];
+  mentionSuggestions?: MentionSuggestion[];
+  onMentionSelect?: (suggestion: MentionSuggestion) => void;
 }
 
 export interface AjoraChatIconButtonProps {
@@ -328,27 +344,64 @@ export interface AgentSelectorProps {
  */
 const AjoraChatTextInput = forwardRef<RNTextInput, AjoraChatTextInputProps>(
   function AjoraChatTextInput(
-    { style, placeholder = "Ask Ajora...", testID, colors, ...props },
+    {
+      style,
+      placeholder = "Ask Ajora...",
+      testID,
+      colors,
+      mentionSuggestions,
+      onMentionSelect,
+      value,
+      onChangeText,
+      ...props
+    },
     ref,
   ) {
+    const triggersConfig: TriggersConfig<"mention"> = {
+      mention: {
+        trigger: "@",
+        textStyle: { fontWeight: "bold", color: colors?.primary || "blue" },
+      },
+    };
+
+    const { textInputProps, triggers } = useMentions({
+      value: value ?? "",
+      onChange: onChangeText || (() => {}),
+      triggersConfig,
+    });
+
     return (
-      <RNTextInput
-        ref={ref}
-        style={[styles.textInput, { color: colors?.text }, style]}
-        placeholder={placeholder}
-        placeholderTextColor={colors?.placeholder}
-        multiline
-        textAlignVertical="top"
-        blurOnSubmit={false}
-        autoCorrect
-        autoCapitalize="sentences"
-        keyboardType="default"
-        scrollEnabled
-        testID={testID}
-        accessibilityLabel={placeholder}
-        accessibilityHint="Enter your message here"
-        {...props}
-      />
+      <>
+        <AjoraMentionSuggestions
+          {...triggers.mention}
+          suggestions={mentionSuggestions}
+          onSelect={(suggestion) => {
+            if (triggers.mention.onSelect) {
+              triggers.mention.onSelect(suggestion);
+            }
+            onMentionSelect?.(suggestion);
+          }}
+        />
+
+        <RNTextInput
+          ref={ref}
+          style={[styles.textInput, { color: colors?.text }, style]}
+          placeholder={placeholder}
+          placeholderTextColor={colors?.placeholder}
+          multiline
+          textAlignVertical="top"
+          blurOnSubmit={false}
+          autoCorrect
+          autoCapitalize="sentences"
+          keyboardType="default"
+          scrollEnabled
+          testID={testID}
+          accessibilityLabel={placeholder}
+          accessibilityHint="Enter your message here"
+          {...props}
+          {...textInputProps}
+        />
+      </>
     );
   },
 );
@@ -807,6 +860,8 @@ const AjoraChatInputComponent = forwardRef<
     onRemoveAttachment,
     onAttachmentPreview,
     icons,
+    mentionSuggestions,
+    onMentionSelect,
   },
   ref,
 ) {
@@ -1181,6 +1236,8 @@ const AjoraChatInputComponent = forwardRef<
       style={computedStyles.textInput}
       colors={colors}
       testID={`${testID}-text-input`}
+      mentionSuggestions={mentionSuggestions}
+      onMentionSelect={onMentionSelect}
     />
   );
 

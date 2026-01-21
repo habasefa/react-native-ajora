@@ -1,0 +1,24 @@
+{
+  "extends": "expo/tsconfig.base",
+  "compilerOptions": {
+    "strict": true,
+    "jsx": "react-jsx",
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./*"],
+      "@ajora-ai/native": ["../packages/native/index"],
+      "@ajora-ai/core": ["../packages/core/index"],
+      "@ajora-ai/shared": ["../packages/shared/index"]
+    }
+  },
+  "include": [
+    "**/*.ts",
+    "**/*.tsx",
+    ".expo/types/**/*.ts",
+    "expo-env.d.ts",
+    "../src/nativeTools/ConfirmTool.tsx",
+    "../src/nativeTools/DocSearchTool.tsx",
+    "../src/nativeTools/TodoListTool.tsx",
+    "../src/nativeTools/WebSearchTool.tsx"
+  ]
+}

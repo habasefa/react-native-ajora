@@ -10,11 +10,7 @@ export {
   type AjoraChatIconButtonProps,
   type AgentSelectorProps,
   type AgentTypeOption,
-  type AttachmentUploadState,
   type AttachmentPreviewItem,
-  DEFAULT_AGENT_TYPES,
-  DEFAULT_DARK_COLORS,
-  DEFAULT_LIGHT_COLORS,
 } from "./AjoraChatInput";
 
 // Re-export sheet components and types
@@ -108,20 +104,16 @@ export { AjoraPopup, type AjoraPopupProps } from "./AjoraPopup";
 
 export { WildcardToolCallRender } from "./WildcardToolCallRender";
 
-
-
 // Chat Empty State
 export {
   AjoraChatEmptyState,
   type AjoraChatEmptyStateProps,
-  type AjoraChatEmptyStateTheme,
+  type AjoraChatEmptyStateColors,
   type AjoraChatEmptyStateIconProps,
   type AjoraChatEmptyStateTitleProps,
   type AjoraChatEmptyStateSubtitleProps,
   type AjoraChatEmptyStateSuggestionProps,
   type AjoraChatEmptyStateSuggestionsProps,
-  DEFAULT_EMPTY_STATE_LIGHT_THEME,
-  DEFAULT_EMPTY_STATE_DARK_THEME,
 } from "./AjoraChatEmptyState";
 
 // Re-export core types for convenience

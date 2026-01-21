@@ -1,6 +1,33 @@
 // @ts-nocheck
 import * as React from "react";
-import { Text, Pressable, StyleSheet, ActivityIndicator, ViewStyle, TextStyle, StyleProp } from "react-native";
+import {
+  Text,
+  Pressable,
+  StyleSheet,
+  ActivityIndicator,
+  ViewStyle,
+  TextStyle,
+  StyleProp,
+} from "react-native";
+import { useAjoraTheme } from "../../providers/AjoraThemeProvider";
+
+export interface AjoraChatSuggestionPillColorsOverride {
+  background?: string;
+  border?: string;
+  text?: string;
+  icon?: string;
+  pressedBackground?: string;
+  loader?: string;
+}
+
+interface AjoraChatSuggestionPillColors {
+  background: string;
+  border: string;
+  text: string;
+  icon: string;
+  pressedBackground: string;
+  loader: string;
+}
 
 export interface AjoraChatSuggestionPillProps {
   /** The content to display inside the pill. */
@@ -17,42 +44,76 @@ export interface AjoraChatSuggestionPillProps {
   textStyle?: StyleProp<TextStyle>;
   /** Whether the button is disabled. */
   disabled?: boolean;
+  /** Custom colors override */
+  colors?: AjoraChatSuggestionPillColorsOverride;
 }
 
-export const AjoraChatSuggestionPill = React.forwardRef<any, AjoraChatSuggestionPillProps>(
-  (props, ref) => {
-    const { children, isLoading, icon, onPress, style, textStyle, disabled } = props;
+export const AjoraChatSuggestionPill = React.forwardRef<
+  any,
+  AjoraChatSuggestionPillProps
+>((props, ref) => {
+  const {
+    children,
+    isLoading,
+    icon,
+    onPress,
+    style,
+    textStyle,
+    disabled,
+    colors: colorOverrides,
+  } = props;
 
-    const showIcon = !isLoading && icon;
+  const theme = useAjoraTheme();
 
-    return (
-       
-      <Pressable
-        ref={ref}
-        onPress={onPress}
-        disabled={isLoading || disabled}
-        style={({ pressed }) => [
-          styles.button,
-          pressed && styles.pressed,
-          (isLoading || disabled) && styles.disabled,
-          style,
-        ]}
-      >
-        {isLoading ? (
-           
-          <ActivityIndicator size="small" color="#8E8E93" style={styles.loader} />
-        ) : (
-          showIcon && (
-             
-            <Text style={styles.icon}>{icon}</Text>
-          )
-        )}
-        {/* @ts-ignore */}
-        <Text style={[styles.label, textStyle]}>{children}</Text>
-      </Pressable>
-    );
-  }
-);
+  const colors: AjoraChatSuggestionPillColors = React.useMemo(
+    () => ({
+      background: colorOverrides?.background ?? theme.colors.surface,
+      border: colorOverrides?.border ?? theme.colors.border,
+      text: colorOverrides?.text ?? theme.colors.text,
+      icon: colorOverrides?.icon ?? theme.colors.textSecondary,
+      pressedBackground:
+        colorOverrides?.pressedBackground ?? theme.colors.itemSelected,
+      loader: colorOverrides?.loader ?? theme.colors.textSecondary,
+    }),
+    [theme, colorOverrides],
+  );
+
+  const showIcon = !isLoading && icon;
+
+  return (
+    <Pressable
+      ref={ref}
+      onPress={onPress}
+      disabled={isLoading || disabled}
+      style={({ pressed }) => [
+        styles.button,
+        {
+          backgroundColor: colors.background,
+          borderColor: colors.border,
+        },
+        pressed && { backgroundColor: colors.pressedBackground },
+        (isLoading || disabled) && styles.disabled,
+        style,
+      ]}
+    >
+      {isLoading ? (
+        <ActivityIndicator
+          size="small"
+          color={colors.loader}
+          style={styles.loader}
+        />
+      ) : (
+        showIcon && (
+          <Text style={[styles.icon, { color: colors.icon }]}>{icon}</Text>
+        )
+      )}
+      {/* @ts-ignore */}
+      <Text style={[styles.label, { color: colors.text }, textStyle]}>
+        {children}
+      </Text>
+    </Pressable>
+  );
+});
 
 AjoraChatSuggestionPill.displayName = "AjoraChatSuggestionPill";
 
@@ -60,33 +121,27 @@ const styles = StyleSheet.create({
   button: {
     flexDirection: "row",
     alignItems: "center",
-    height: 32,
-    paddingHorizontal: 12,
-    borderRadius: 16,
+    height: 40,
+    paddingHorizontal: 16,
+    borderRadius: 20,
     borderWidth: 1,
-    borderColor: "#E5E5E7",
-    backgroundColor: "#FFFFFF",
     marginRight: 8,
     marginBottom: 8,
-  },
-  pressed: {
-    backgroundColor: "#F2F2F7",
   },
   disabled: {
     opacity: 0.6,
   },
   loader: {
-    marginRight: 6,
-    transform: [{ scale: 0.8 }],
+    marginRight: 8,
+    transform: [{ scale: 0.9 }],
   },
   icon: {
-    marginRight: 6,
-    fontSize: 14,
+    marginRight: 8,
+    fontSize: 16,
   },
   label: {
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: "500",
-    color: "#1C1C1E",
   },
 });
 

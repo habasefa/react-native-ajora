@@ -1,4 +1,3 @@
-// @ts-nocheck
 import * as React from "react";
 import {
   View,
@@ -30,6 +29,7 @@ import {
   useAjoraChatConfiguration,
   AjoraChatDefaultLabels,
 } from "../../providers/AjoraChatConfigurationProvider";
+import { useAjoraTheme } from "../../providers/AjoraThemeProvider";
 import { Suggestion } from "../../../core";
 
 // ============================================================================
@@ -37,70 +37,32 @@ import { Suggestion } from "../../../core";
 // ============================================================================
 
 /**
- * Theme configuration for the empty state
+ * Color overrides for the empty state component
  */
-export interface AjoraChatEmptyStateTheme {
-  /** Background color */
-  backgroundColor?: string;
+export interface AjoraChatEmptyStateColors {
   /** Icon color */
-  iconColor?: string;
+  icon?: string;
   /** Title text color */
-  titleColor?: string;
+  title?: string;
   /** Subtitle text color */
-  subtitleColor?: string;
+  subtitle?: string;
   /** Suggestion card background color */
-  suggestionBackgroundColor?: string;
+  suggestionBackground?: string;
   /** Suggestion card text color */
-  suggestionTextColor?: string;
+  suggestionText?: string;
   /** Suggestion card subtitle/description color */
-  suggestionSubtitleColor?: string;
+  suggestionSubtitle?: string;
   /** Suggestion card border color */
-  suggestionBorderColor?: string;
+  suggestionBorder?: string;
   /** Suggestion card icon color */
-  suggestionIconColor?: string;
+  suggestionIcon?: string;
   /** Suggestion card icon background color */
-  suggestionIconBackgroundColor?: string;
+  suggestionIconBackground?: string;
   /** Suggestion card arrow color */
-  suggestionArrowColor?: string;
-  /** Icon size */
-  iconSize?: number;
+  suggestionArrow?: string;
+  /** Background color */
+  background?: string;
 }
-
-/**
- * Default light theme - uses consistent project colors
- */
-export const DEFAULT_EMPTY_STATE_LIGHT_THEME: AjoraChatEmptyStateTheme = {
-  backgroundColor: "transparent",
-  iconColor: "#3B82F6", // primary
-  titleColor: "#1F2937", // text
-  subtitleColor: "#6B7280", // textSecondary
-  suggestionBackgroundColor: "#FFFFFF", // background
-  suggestionTextColor: "#1F2937", // text
-  suggestionSubtitleColor: "#6B7280", // textSecondary
-  suggestionBorderColor: "#E5E7EB", // border
-  suggestionIconColor: "#3B82F6", // primary
-  suggestionIconBackgroundColor: "#EFF6FF", // primary light (selectedBackground)
-  suggestionArrowColor: "#9CA3AF", // placeholder
-  iconSize: 56,
-};
-
-/**
- * Default dark theme - uses consistent project colors
- */
-export const DEFAULT_EMPTY_STATE_DARK_THEME: AjoraChatEmptyStateTheme = {
-  backgroundColor: "transparent",
-  iconColor: "#60A5FA", // primary dark
-  titleColor: "#F9FAFB", // text
-  subtitleColor: "#9CA3AF", // textSecondary
-  suggestionBackgroundColor: "#1F2937", // optionBackground
-  suggestionTextColor: "#F9FAFB", // text
-  suggestionSubtitleColor: "#9CA3AF", // textSecondary
-  suggestionBorderColor: "#374151", // border
-  suggestionIconColor: "#60A5FA", // primary dark
-  suggestionIconBackgroundColor: "#1E3A5F", // selectedBackground
-  suggestionArrowColor: "#6B7280", // iconDefault
-  iconSize: 56,
-};
 
 // ============================================================================
 // Icon Types & Components
@@ -158,7 +120,7 @@ function renderIcon(
   name: string,
   family: IconFamily = DEFAULT_ICON_FAMILY,
   size: number = 20,
-  color: string = "#3B82F6"
+  color: string = "#3B82F6",
 ): React.ReactNode {
   const IconComponent = ICON_COMPONENTS[family] || Ionicons;
   return <IconComponent name={name} size={size} color={color} />;
@@ -190,7 +152,7 @@ export interface AjoraChatEmptyStateSuggestionProps {
   onPress?: (suggestion: Suggestion) => void;
   style?: StyleProp<ViewStyle>;
   textStyle?: StyleProp<TextStyle>;
-  theme?: AjoraChatEmptyStateTheme;
+  colors?: AjoraChatEmptyStateColors;
   /** Override icon name for this suggestion */
   icon?: string;
   /** Override icon family for this suggestion */
@@ -203,7 +165,7 @@ export interface AjoraChatEmptyStateSuggestionsProps {
   suggestions?: Suggestion[];
   onSelectSuggestion?: (suggestion: Suggestion) => void;
   style?: StyleProp<ViewStyle>;
-  theme?: AjoraChatEmptyStateTheme;
+  colors?: AjoraChatEmptyStateColors;
 }
 
 // ============================================================================
@@ -228,8 +190,10 @@ type EmptyStateRestProps = {
   suggestions?: Suggestion[];
   /** Callback when a suggestion is selected */
   onSelectSuggestion?: (suggestion: Suggestion) => void;
-  /** Theme configuration */
-  theme?: AjoraChatEmptyStateTheme;
+  /** Color overrides */
+  colors?: AjoraChatEmptyStateColors;
+  /** Icon size */
+  iconSize?: number;
   /** Container style */
   style?: StyleProp<ViewStyle>;
 };
@@ -249,7 +213,8 @@ export function AjoraChatEmptyState({
   subtitle,
   suggestions,
   onSelectSuggestion,
-  theme = DEFAULT_EMPTY_STATE_LIGHT_THEME,
+  colors: colorOverrides,
+  iconSize = 56,
   style,
   icon,
   title: titleSlot,
@@ -259,6 +224,33 @@ export function AjoraChatEmptyState({
   ...rest
 }: AjoraChatEmptyStateProps) {
   const configuration = useAjoraChatConfiguration();
+  const theme = useAjoraTheme();
+
+  // ========================================================================
+  // Theme - Priority: colorOverrides > global theme (user custom > default)
+  // ========================================================================
+
+  const colors = React.useMemo(
+    () => ({
+      icon: colorOverrides?.icon ?? theme.colors.primary,
+      title: colorOverrides?.title ?? theme.colors.text,
+      subtitle: colorOverrides?.subtitle ?? theme.colors.textSecondary,
+      suggestionBackground:
+        colorOverrides?.suggestionBackground ?? theme.colors.surface,
+      suggestionText: colorOverrides?.suggestionText ?? theme.colors.text,
+      suggestionSubtitle:
+        colorOverrides?.suggestionSubtitle ?? theme.colors.textSecondary,
+      suggestionBorder: colorOverrides?.suggestionBorder ?? theme.colors.border,
+      suggestionIcon: colorOverrides?.suggestionIcon ?? theme.colors.primary,
+      suggestionIconBackground:
+        colorOverrides?.suggestionIconBackground ??
+        theme.colors.assistantBubble,
+      suggestionArrow:
+        colorOverrides?.suggestionArrow ?? theme.colors.textSecondary,
+      background: colorOverrides?.background ?? "transparent",
+    }),
+    [theme, colorOverrides],
+  );
 
   // Resolve labels
   const resolvedTitle =
@@ -275,19 +267,19 @@ export function AjoraChatEmptyState({
   // Render slots
   const BoundIcon = renderSlot(icon, AjoraChatEmptyState.Icon, {
     name: iconName,
-    size: theme.iconSize,
-    color: theme.iconColor,
+    size: iconSize,
+    color: colors.icon,
   });
 
   const BoundTitle = renderSlot(titleSlot, AjoraChatEmptyState.Title, {
     children: resolvedTitle,
-    style: { color: theme.titleColor },
+    style: { color: colors.title },
   });
 
   const BoundSubtitle = resolvedSubtitle
     ? renderSlot(subtitleSlot, AjoraChatEmptyState.Subtitle, {
         children: resolvedSubtitle,
-        style: { color: theme.subtitleColor },
+        style: { color: colors.subtitle },
       })
     : null;
 
@@ -296,7 +288,7 @@ export function AjoraChatEmptyState({
     ? renderSlot(suggestionsSlot, AjoraChatEmptyState.Suggestions, {
         suggestions,
         onSelectSuggestion,
-        theme,
+        colors,
       })
     : null;
 
@@ -317,11 +309,7 @@ export function AjoraChatEmptyState({
 
   return (
     <View
-      style={[
-        styles.container,
-        { backgroundColor: theme.backgroundColor },
-        style,
-      ]}
+      style={[styles.container, { backgroundColor: colors.background }, style]}
       {...rest}
     >
       {BoundIcon}
@@ -371,7 +359,7 @@ export namespace AjoraChatEmptyState {
     onPress,
     style,
     textStyle,
-    theme = DEFAULT_EMPTY_STATE_LIGHT_THEME,
+    colors,
     icon,
     iconFamily,
     showDescription = true,
@@ -389,8 +377,8 @@ export namespace AjoraChatEmptyState {
         style={({ pressed }) => [
           styles.suggestionCard,
           {
-            backgroundColor: theme.suggestionBackgroundColor,
-            borderColor: theme.suggestionBorderColor,
+            backgroundColor: colors?.suggestionBackground,
+            borderColor: colors?.suggestionBorder,
           },
           pressed && styles.suggestionCardPressed,
           style,
@@ -402,14 +390,14 @@ export namespace AjoraChatEmptyState {
         <View
           style={[
             styles.suggestionIconWrapper,
-            { backgroundColor: theme.suggestionIconBackgroundColor },
+            { backgroundColor: colors?.suggestionIconBackground },
           ]}
         >
           {renderIcon(
             resolvedIcon,
             resolvedIconFamily,
             20,
-            theme.suggestionIconColor
+            colors?.suggestionIcon,
           )}
         </View>
 
@@ -418,7 +406,7 @@ export namespace AjoraChatEmptyState {
           <Text
             style={[
               styles.suggestionTitle,
-              { color: theme.suggestionTextColor },
+              { color: colors?.suggestionText },
               textStyle,
             ]}
             numberOfLines={1}
@@ -429,7 +417,7 @@ export namespace AjoraChatEmptyState {
             <Text
               style={[
                 styles.suggestionDescription,
-                { color: theme.suggestionSubtitleColor },
+                { color: colors?.suggestionSubtitle },
               ]}
               numberOfLines={1}
             >
@@ -443,7 +431,7 @@ export namespace AjoraChatEmptyState {
           <Ionicons
             name="chevron-forward"
             size={18}
-            color={theme.suggestionArrowColor}
+            color={colors?.suggestionArrow}
           />
         </View>
       </Pressable>
@@ -454,7 +442,7 @@ export namespace AjoraChatEmptyState {
     suggestions = [],
     onSelectSuggestion,
     style,
-    theme = DEFAULT_EMPTY_STATE_LIGHT_THEME,
+    colors,
   }) => {
     if (suggestions.length === 0) return null;
 
@@ -465,7 +453,7 @@ export namespace AjoraChatEmptyState {
             key={suggestion.id ?? `suggestion-${index}`}
             suggestion={suggestion}
             onPress={onSelectSuggestion}
-            theme={theme}
+            colors={colors}
           />
         ))}
       </View>
@@ -528,37 +516,38 @@ const styles = StyleSheet.create({
   suggestionCard: {
     flexDirection: "row",
     alignItems: "center",
-    padding: 16,
-    borderRadius: 14,
+    padding: 18,
+    borderRadius: 16,
     borderWidth: 1,
+    minHeight: 72,
   },
   suggestionCardPressed: {
     opacity: 0.85,
     transform: [{ scale: 0.99 }],
   },
   suggestionIconWrapper: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
+    width: 44,
+    height: 44,
+    borderRadius: 14,
     alignItems: "center",
     justifyContent: "center",
-    marginRight: 14,
+    marginRight: 16,
   },
   suggestionTextContainer: {
     flex: 1,
     justifyContent: "center",
   },
   suggestionTitle: {
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: "600",
     letterSpacing: -0.2,
   },
   suggestionDescription: {
-    fontSize: 13,
-    marginTop: 2,
+    fontSize: 14,
+    marginTop: 3,
   },
   suggestionArrow: {
-    marginLeft: 8,
+    marginLeft: 10,
     opacity: 0.6,
   },
 });

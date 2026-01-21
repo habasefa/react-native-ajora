@@ -7,6 +7,9 @@ import {
   AjoraChat,
   type ModelOption,
   type AgentOption,
+  // New theming imports
+  AjoraThemeProvider,
+  themePresets,
 } from "@ajora-ai/native";
 import { AjoraThreadDrawer } from "@/components/thread/AjoraThreadDrawer";
 import {
@@ -156,7 +159,7 @@ const DEMO_MODELS: ModelOption[] = [
     name: "GPT-4o",
     provider: "openai",
     description: "Most capable model",
-    isNew: true,
+    badge: "New",
   },
   {
     id: "claude-sonnet",
@@ -184,7 +187,7 @@ const DEMO_MODELS: ModelOption[] = [
     provider: "anthropic",
     description: "Premium model",
     isDisabled: true,
-    isNew: true,
+    badge: "Pro",
     extraData: { subscriptionRequired: "pro" },
   },
 ];
@@ -202,7 +205,7 @@ const DEMO_AGENTS: AgentOption[] = [
     name: "Research Agent",
     description: "Deep research and analysis",
     icon: "search-outline",
-    isNew: true,
+    badge: "New",
   },
   {
     id: "coder",
@@ -236,10 +239,10 @@ function ChatContent() {
 
   // Model and Agent selection state
   const [selectedModelId, setSelectedModelId] = useState<string>(
-    DEMO_MODELS[0].id
+    DEMO_MODELS[0].id,
   );
   const [selectedAgentId, setSelectedAgentId] = useState<string>(
-    DEMO_AGENTS[0].id
+    DEMO_AGENTS[0].id,
   );
 
   const handleModelSelect = useCallback((model: ModelOption) => {
@@ -250,6 +253,21 @@ function ChatContent() {
   const handleAgentSelect = useCallback((agent: AgentOption) => {
     setSelectedAgentId(agent.id);
     console.log("Agent selected:", agent.name, agent.extraData);
+  }, []);
+
+  const handleAttachmentPreview = useCallback((file: any, callbacks: any) => {
+    console.log("Attachment selected:", file.displayName);
+    // Simulate upload for demo purposes
+    let progress = 0;
+    const interval = setInterval(() => {
+      progress += 20;
+      callbacks.onProgress(progress);
+
+      if (progress >= 100) {
+        clearInterval(interval);
+        callbacks.onComplete(); // Mark as uploaded
+      }
+    }, 500);
   }, []);
 
   useConfigureSuggestions({
@@ -465,7 +483,7 @@ function ChatContent() {
                     setSelectedThread(null);
                   },
                 },
-              ]
+              ],
             );
           }
         }}
@@ -489,6 +507,7 @@ function ChatContent() {
               agents: DEMO_AGENTS,
               selectedAgentId,
               onAgentSelect: handleAgentSelect,
+              onAttachmentPreview: handleAttachmentPreview,
             }}
           />
         )}
@@ -497,24 +516,27 @@ function ChatContent() {
   );
 }
 
-// Main Chat component wrapped with Thread Provider
+// Main Chat component wrapped with Thread Provider and Theme Provider
 export default function Chat() {
   return (
-    <AjoraThreadProvider
-      autoCreateThread={true}
-      generateThreadName={(index) => `Conversation ${index}`}
-      onThreadChange={(thread) => {
-        console.log("Thread changed:", thread?.name);
-      }}
-      onThreadCreate={(thread) => {
-        console.log("Thread created:", thread.name);
-      }}
-      onThreadDelete={(threadId) => {
-        console.log("Thread deleted:", threadId);
-      }}
-    >
-      <ChatContent />
-    </AjoraThreadProvider>
+    // Custom dark theme with Ajora branding
+    <AjoraThemeProvider>
+      <AjoraThreadProvider
+        autoCreateThread={true}
+        generateThreadName={(index) => `Conversation ${index}`}
+        onThreadChange={(thread) => {
+          console.log("Thread changed:", thread?.name);
+        }}
+        onThreadCreate={(thread) => {
+          console.log("Thread created:", thread.name);
+        }}
+        onThreadDelete={(threadId) => {
+          console.log("Thread deleted:", threadId);
+        }}
+      >
+        <ChatContent />
+      </AjoraThreadProvider>
+    </AjoraThemeProvider>
   );
 }
 

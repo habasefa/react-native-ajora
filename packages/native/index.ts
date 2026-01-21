@@ -10,6 +10,11 @@ export * from "./components/chat";
 // Configuration
 export * from "./providers/AjoraChatConfigurationProvider";
 
+// Theme System
+export * from "./providers/AjoraThemeProvider";
+export * from "./themes";
+export * from "./config";
+
 // Types & Libs
 export * from "./types";
 export * from "./lib/slots";

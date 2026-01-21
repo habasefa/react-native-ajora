@@ -17,6 +17,7 @@ import {
 import { UserMessage } from "@ag-ui/core";
 import { renderSlot, WithSlots } from "../../lib/slots";
 import RichText from "../../../markdown/RichText";
+import { useAjoraTheme } from "../../providers/AjoraThemeProvider";
 
 function flattenUserMessageContent(content?: UserMessage["content"]): string {
   if (!content) {
@@ -54,6 +55,18 @@ export interface AjoraChatUserMessageOnSwitchToBranchProps {
   numberOfBranches: number;
 }
 
+export interface AjoraChatUserMessageColorsOverride {
+  bubbleBackground?: string;
+  text?: string;
+  iconColor?: string;
+}
+
+interface AjoraChatUserMessageColors {
+  bubbleBackground: string;
+  text: string;
+  iconColor: string;
+}
+
 export type AjoraChatUserMessageProps = WithSlots<
   {
     messageRenderer: typeof AjoraChatUserMessage.MessageRenderer;
@@ -65,12 +78,15 @@ export type AjoraChatUserMessageProps = WithSlots<
   {
     onEditMessage?: (props: AjoraChatUserMessageOnEditMessageProps) => void;
     onSwitchToBranch?: (
-      props: AjoraChatUserMessageOnSwitchToBranchProps
+      props: AjoraChatUserMessageOnSwitchToBranchProps,
     ) => void;
     message: UserMessage;
     branchIndex?: number;
     numberOfBranches?: number;
     additionalToolbarItems?: React.ReactNode;
+    additionalToolbarItems?: React.ReactNode;
+    colors?: AjoraChatUserMessageColorsOverride;
+    onLongPress?: (props: { message: UserMessage }) => void;
     style?: StyleProp<ViewStyle>;
   }
 >;
@@ -82,6 +98,9 @@ export function AjoraChatUserMessage({
   numberOfBranches,
   onSwitchToBranch,
   additionalToolbarItems,
+
+  colors: colorOverrides,
+  onLongPress,
   messageRenderer,
   toolbar,
   copyButton,
@@ -93,7 +112,19 @@ export function AjoraChatUserMessage({
 }: AjoraChatUserMessageProps) {
   const flattenedContent = useMemo(
     () => flattenUserMessageContent(message.content),
-    [message.content]
+    [message.content],
+  );
+
+  const theme = useAjoraTheme();
+
+  const colors: AjoraChatUserMessageColors = useMemo(
+    () => ({
+      bubbleBackground:
+        colorOverrides?.bubbleBackground ?? theme.colors.userBubble,
+      text: colorOverrides?.text ?? theme.colors.userBubbleText,
+      iconColor: colorOverrides?.iconColor ?? theme.colors.textSecondary,
+    }),
+    [theme, colorOverrides],
   );
 
   const BoundMessageRenderer = renderSlot(
@@ -101,7 +132,9 @@ export function AjoraChatUserMessage({
     AjoraChatUserMessage.MessageRenderer,
     {
       content: flattenedContent,
-    }
+      colors,
+      onLongPress: () => onLongPress?.({ message }),
+    },
   );
 
   const BoundCopyButton = renderSlot(
@@ -111,7 +144,8 @@ export function AjoraChatUserMessage({
       onClick: async () => {
         console.log("Copy clicked (TODO: implement native clipboard)");
       },
-    }
+      colors,
+    },
   );
 
   const BoundEditButton = renderSlot(
@@ -119,7 +153,8 @@ export function AjoraChatUserMessage({
     AjoraChatUserMessage.EditButton,
     {
       onClick: () => onEditMessage?.({ message }),
-    }
+      colors,
+    },
   );
 
   const BoundBranchNavigation = renderSlot(
@@ -130,7 +165,8 @@ export function AjoraChatUserMessage({
       numberOfBranches,
       onSwitchToBranch,
       message,
-    }
+      colors,
+    },
   );
 
   const showBranchNavigation =
@@ -140,7 +176,6 @@ export function AjoraChatUserMessage({
     children: (
       <View style={styles.toolbarInner}>
         {additionalToolbarItems}
-        {BoundCopyButton}
         {onEditMessage && BoundEditButton}
         {showBranchNavigation && BoundBranchNavigation}
       </View>
@@ -190,21 +225,35 @@ export namespace AjoraChatUserMessage {
     textColor?: string;
     fontSize?: number;
     lineHeight?: number;
+
+    colors?: AjoraChatUserMessageColors;
+    onLongPress?: () => void;
   }> = ({
     content,
     style,
-    textColor = "#FFFFFF",
+    colors,
+    textColor,
     fontSize = 16,
     lineHeight = 22,
+    onLongPress,
   }) => (
-    <View style={[styles.messageBubble, style]}>
+    <Pressable
+      onLongPress={onLongPress}
+      delayLongPress={500}
+      style={({ pressed }) => [
+        styles.messageBubble,
+        { backgroundColor: colors?.bubbleBackground ?? "#007AFF" },
+        style,
+        pressed && { opacity: 0.8 },
+      ]}
+    >
       <RichText
         text={content}
-        textColor={textColor}
+        textColor={textColor ?? colors?.text ?? "#FFFFFF"}
         fontSize={fontSize}
         lineHeight={lineHeight}
       />
-    </View>
+    </Pressable>
   );
 
   export const Toolbar: React.FC<{
@@ -240,7 +289,8 @@ export namespace AjoraChatUserMessage {
   export const CopyButton: React.FC<{
     onClick?: () => void;
     style?: StyleProp<ViewStyle>;
-  }> = ({ style, onClick, ...props }) => {
+    colors: AjoraChatUserMessageColors;
+  }> = ({ style, onClick, colors, ...props }) => {
     const config = useAjoraChatConfiguration();
     const labels = config?.labels ?? AjoraChatDefaultLabels;
     const [copied, setCopied] = useState(false);
@@ -260,7 +310,9 @@ export namespace AjoraChatUserMessage {
         style={style}
         {...props}
       >
-        <Text style={styles.buttonText}>{copied ? "✓" : "Copy"}</Text>
+        <Text style={[styles.buttonText, { color: colors.iconColor }]}>
+          {copied ? "✓" : "Copy"}
+        </Text>
       </ToolbarButton>
     );
   };
@@ -268,7 +320,8 @@ export namespace AjoraChatUserMessage {
   export const EditButton: React.FC<{
     onClick?: () => void;
     style?: StyleProp<ViewStyle>;
-  }> = ({ style, onClick, ...props }) => {
+    colors: AjoraChatUserMessageColors;
+  }> = ({ style, onClick, colors, ...props }) => {
     const config = useAjoraChatConfiguration();
     const labels = config?.labels ?? AjoraChatDefaultLabels;
     return (
@@ -278,7 +331,9 @@ export namespace AjoraChatUserMessage {
         style={style}
         {...props}
       >
-        <Text style={styles.buttonText}>Edit</Text>
+        <Text style={[styles.buttonText, { color: colors.iconColor }]}>
+          Edit
+        </Text>
       </ToolbarButton>
     );
   };
@@ -287,16 +342,18 @@ export namespace AjoraChatUserMessage {
     currentBranch?: number;
     numberOfBranches?: number;
     onSwitchToBranch?: (
-      props: AjoraChatUserMessageOnSwitchToBranchProps
+      props: AjoraChatUserMessageOnSwitchToBranchProps,
     ) => void;
     message: UserMessage;
     style?: StyleProp<ViewStyle>;
+    colors: AjoraChatUserMessageColors;
   }> = ({
     style,
     currentBranch = 0,
     numberOfBranches = 1,
     onSwitchToBranch,
     message,
+    colors,
     ...props
   }) => {
     if (!numberOfBranches || numberOfBranches <= 1 || !onSwitchToBranch) {
@@ -323,9 +380,13 @@ export namespace AjoraChatUserMessage {
             pressed && styles.pressed,
           ]}
         >
-          <Text style={styles.navButtonText}>{"<"}</Text>
+          <Text
+            style={[styles.navButtonText, { color: colors.bubbleBackground }]}
+          >
+            {"<"}
+          </Text>
         </Pressable>
-        <Text style={styles.branchText}>
+        <Text style={[styles.branchText, { color: colors.iconColor }]}>
           {currentBranch + 1}/{numberOfBranches}
         </Text>
 
@@ -344,7 +405,11 @@ export namespace AjoraChatUserMessage {
             pressed && styles.pressed,
           ]}
         >
-          <Text style={styles.navButtonText}>{">"}</Text>
+          <Text
+            style={[styles.navButtonText, { color: colors.bubbleBackground }]}
+          >
+            {">"}
+          </Text>
         </Pressable>
       </View>
     );
@@ -358,14 +423,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
   },
   messageBubble: {
-    backgroundColor: "#007AFF",
     maxWidth: "85%",
     borderRadius: 18,
     paddingHorizontal: 12,
     paddingVertical: 8,
   },
   messageText: {
-    color: "#FFFFFF",
     fontSize: 16,
     lineHeight: 22,
   },
@@ -385,7 +448,6 @@ const styles = StyleSheet.create({
   },
   buttonText: {
     fontSize: 12,
-    color: "#666",
   },
   pressed: {
     opacity: 0.5,
@@ -401,11 +463,9 @@ const styles = StyleSheet.create({
   },
   navButtonText: {
     fontSize: 14,
-    color: "#007AFF",
   },
   branchText: {
     fontSize: 12,
-    color: "#666",
     minWidth: 30,
     textAlign: "center",
   },

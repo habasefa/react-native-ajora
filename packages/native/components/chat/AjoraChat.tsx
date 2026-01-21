@@ -15,6 +15,10 @@ import { merge } from "ts-deepmerge";
 import { useAjora } from "../../providers/AjoraProvider";
 import { AbstractAgent } from "@ag-ui/client";
 import { renderSlot, SlotValue } from "../../lib/slots";
+import UserMessageActionSheet from "../sheets/UserMessageActionSheet";
+import { BottomSheetModal } from "@gorhom/bottom-sheet";
+import * as Clipboard from "expo-clipboard";
+import { UserMessage } from "@ag-ui/core";
 
 export type AjoraChatProps = Omit<
   AjoraChatViewProps,
@@ -33,6 +37,38 @@ export type AjoraChatProps = Omit<
   isLoading?: boolean;
   /** Starter suggestions to show in the empty state */
   starterSuggestions?: Suggestion[];
+
+  // ========================================================================
+  // Behavior Callbacks
+  // ========================================================================
+
+  /** Called when a message is long pressed */
+  onMessageLongPress?: (message: any) => void;
+  /** Called when an action is performed on a message (copy, edit, etc.) */
+  onMessageAction?: (
+    action: "copy" | "edit" | "delete" | "regenerate",
+    message: any,
+  ) => void;
+  /** Called when user starts typing */
+  onTypingStart?: () => void;
+  /** Called when user stops typing (debounced) */
+  onTypingEnd?: () => void;
+  /** Called when user scrolls to the top of the chat */
+  onScrollToTop?: () => void;
+  /** Called when user scrolls to the bottom of the chat */
+  onScrollToBottom?: () => void;
+  /** Called when an attachment is added */
+  onAttachmentAdd?: (attachment: {
+    uri: string;
+    type: string;
+    name?: string;
+  }) => void;
+  /** Called when an attachment is removed */
+  onAttachmentRemove?: (attachmentId: string) => void;
+  /** Called when message send fails */
+  onSendError?: (error: Error) => void;
+  /** Called when a message is successfully sent */
+  onSendSuccess?: (message: any) => void;
 };
 export function AjoraChat({
   agentId,
@@ -52,7 +88,7 @@ export function AjoraChat({
     agentId ?? existingConfig?.agentId ?? DEFAULT_AGENT_ID;
   const resolvedThreadId = useMemo(
     () => threadId ?? existingConfig?.threadId ?? randomUUID(),
-    [threadId, existingConfig?.threadId]
+    [threadId, existingConfig?.threadId],
   );
   const { agent } = useAgent({ agentId: resolvedAgentId });
   const { ajora } = useAjora();
@@ -68,6 +104,12 @@ export function AjoraChat({
     ...restProps
   } = props;
 
+  // Sheet ref
+  const userMessageSheetRef = React.useRef<BottomSheetModal>(null);
+  const [selectedUserMessage, setSelectedUserMessage] = React.useState<
+    UserMessage | undefined
+  >();
+
   useEffect(() => {
     const connect = async (agent: AbstractAgent) => {
       try {
@@ -82,11 +124,12 @@ export function AjoraChat({
   }, [resolvedThreadId, agent, ajora, resolvedAgentId]);
 
   const onSubmitInput = useCallback(
-    async (value: string) => {
+    async (value: string, attachments?: any[]) => {
       agent.addMessage({
         id: randomUUID(),
         role: "user",
         content: value,
+        attachments,
       });
       try {
         await ajora.runAgent({ agent });
@@ -94,7 +137,7 @@ export function AjoraChat({
         console.error("AjoraChat: runAgent failed", error);
       }
     },
-    [agent, ajora]
+    [agent, ajora],
   );
 
   const handleSelectSuggestion = useCallback(
@@ -110,11 +153,11 @@ export function AjoraChat({
       } catch (error) {
         console.error(
           "AjoraChat: runAgent failed after selecting suggestion",
-          error
+          error,
         );
       }
     },
-    [agent, ajora]
+    [agent, ajora],
   );
 
   const stopCurrentRun = useCallback(() => {
@@ -134,7 +177,7 @@ export function AjoraChat({
     async (messageToRegenerate: { id: string }) => {
       // Find the index of the message to regenerate
       const messageIndex = agent.messages.findIndex(
-        (m) => m.id === messageToRegenerate.id
+        (m) => m.id === messageToRegenerate.id,
       );
 
       if (messageIndex === -1) {
@@ -157,7 +200,29 @@ export function AjoraChat({
         console.error("AjoraChat: regenerate failed", error);
       }
     },
-    [agent, ajora]
+    [agent, ajora],
+  );
+
+  const handleMessageLongPress = useCallback((message: any) => {
+    if (message.role === "user") {
+      setSelectedUserMessage(message as UserMessage);
+      userMessageSheetRef.current?.present();
+    }
+  }, []);
+
+  const handleCopyMessage = useCallback(async (message: UserMessage) => {
+    if (typeof message.content === "string") {
+      await Clipboard.setStringAsync(message.content);
+    }
+    userMessageSheetRef.current?.dismiss();
+  }, []);
+
+  const handleActionRegenerate = useCallback(
+    (message: UserMessage) => {
+      handleRegenerate(message);
+      userMessageSheetRef.current?.dismiss();
+    },
+    [handleRegenerate],
   );
 
   const mergedProps = merge(
@@ -168,7 +233,9 @@ export function AjoraChat({
       starterSuggestions,
       onSelectSuggestion: handleSelectSuggestion,
       suggestionView: providedSuggestionView,
+
       onRegenerate: handleRegenerate,
+      onMessageLongPress: handleMessageLongPress,
     },
     {
       ...restProps,
@@ -177,7 +244,7 @@ export function AjoraChat({
       ...(providedMessageView !== undefined
         ? { messageView: providedMessageView }
         : {}),
-    }
+    },
   );
 
   const providedStopHandler = providedInputProps?.onStop;
@@ -217,6 +284,12 @@ export function AjoraChat({
       isModalDefaultOpen={isModalDefaultOpen}
     >
       {RenderedChatView}
+      <UserMessageActionSheet
+        ref={userMessageSheetRef}
+        message={selectedUserMessage}
+        onRegenerate={handleActionRegenerate}
+        onCopy={handleCopyMessage}
+      />
     </AjoraChatConfigurationProvider>
   );
 }

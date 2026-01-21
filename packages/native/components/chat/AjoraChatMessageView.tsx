@@ -59,10 +59,10 @@ const MemoizedAssistantMessage = React.memo(
       const toolCallIds = new Set(prevToolCalls.map((tc) => tc.id));
 
       const prevToolResults = prevProps.messages.filter(
-        (m) => m.role === "tool" && toolCallIds.has((m as any).toolCallId)
+        (m) => m.role === "tool" && toolCallIds.has((m as any).toolCallId),
       );
       const nextToolResults = nextProps.messages.filter(
-        (m) => m.role === "tool" && toolCallIds.has((m as any).toolCallId)
+        (m) => m.role === "tool" && toolCallIds.has((m as any).toolCallId),
       );
 
       if (prevToolResults.length !== nextToolResults.length) return false;
@@ -89,18 +89,25 @@ const MemoizedAssistantMessage = React.memo(
       return false;
 
     return true;
-  }
+  },
 );
 
 const MemoizedUserMessage = React.memo(
   function MemoizedUserMessage({
     message,
     UserMessageComponent,
+    onLongPress,
   }: {
     message: UserMessage;
     UserMessageComponent: typeof AjoraChatUserMessage;
+    onLongPress?: (message: UserMessage) => void;
   }) {
-    return <UserMessageComponent message={message} />;
+    return (
+      <UserMessageComponent
+        message={message}
+        onLongPress={onLongPress ? () => onLongPress(message) : undefined}
+      />
+    );
   },
   (prevProps, nextProps) => {
     if (prevProps.message.id !== nextProps.message.id) return false;
@@ -108,7 +115,7 @@ const MemoizedUserMessage = React.memo(
     if (prevProps.UserMessageComponent !== nextProps.UserMessageComponent)
       return false;
     return true;
-  }
+  },
 );
 
 const MemoizedActivityMessage = React.memo(
@@ -118,7 +125,7 @@ const MemoizedActivityMessage = React.memo(
   }: {
     message: ActivityMessage;
     renderActivityMessage: (
-      message: ActivityMessage
+      message: ActivityMessage,
     ) => React.ReactElement | null;
   }) {
     return renderActivityMessage(message);
@@ -133,7 +140,7 @@ const MemoizedActivityMessage = React.memo(
     )
       return false;
     return true;
-  }
+  },
 );
 
 const MemoizedCustomMessage = React.memo(
@@ -157,7 +164,7 @@ const MemoizedCustomMessage = React.memo(
     if (prevProps.message.content !== nextProps.message.content) return false;
     if (prevProps.message.role !== nextProps.message.role) return false;
     return true;
-  }
+  },
 );
 
 export type AjoraChatMessageViewProps = Omit<
@@ -171,6 +178,7 @@ export type AjoraChatMessageViewProps = Omit<
       isRunning?: boolean;
       messages?: Message[];
       onRegenerate?: (message: AssistantMessage) => void;
+      onMessageLongPress?: (message: Message) => void;
       /** Whether to show the thinking indicator when isRunning is true */
       showThinkingIndicator?: boolean;
       style?: StyleProp<ViewStyle>;
@@ -193,7 +201,9 @@ export function AjoraChatMessageView({
   thinkingIndicator,
   isRunning = false,
   showThinkingIndicator = true,
+
   onRegenerate,
+  onMessageLongPress,
   children,
   style,
   ...props
@@ -228,7 +238,7 @@ export function AjoraChatMessageView({
             message={message}
             position="before"
             renderCustomMessage={renderCustomMessage}
-          />
+          />,
         );
       }
 
@@ -247,7 +257,7 @@ export function AjoraChatMessageView({
             isRunning={isRunning}
             onRegenerate={onRegenerate}
             AssistantMessageComponent={AssistantComponent}
-          />
+          />,
         );
       } else if (message.role === "user") {
         const UserComponent = (
@@ -259,7 +269,8 @@ export function AjoraChatMessageView({
             key={message.id}
             message={message as UserMessage}
             UserMessageComponent={UserComponent}
-          />
+            onLongPress={onMessageLongPress}
+          />,
         );
       } else if (message.role === "activity") {
         elements.push(
@@ -267,7 +278,7 @@ export function AjoraChatMessageView({
             key={message.id}
             message={message as ActivityMessage}
             renderActivityMessage={renderActivityMessage}
-          />
+          />,
         );
       }
 
@@ -278,7 +289,7 @@ export function AjoraChatMessageView({
             message={message}
             position="after"
             renderCustomMessage={renderCustomMessage}
-          />
+          />,
         );
       }
 

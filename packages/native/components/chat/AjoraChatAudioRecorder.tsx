@@ -27,7 +27,6 @@ export function AjoraChatAudioRecorder({
   };
 
   return (
-     
     <View style={styles.container}>
       {/* @ts-ignore */}
       <Pressable
@@ -40,10 +39,7 @@ export function AjoraChatAudioRecorder({
           {isRecording ? "Stop Recording" : "Start Voice Input"}
         </Text>
       </Pressable>
-      {isRecording && (
-         
-        <Text style={styles.statusText}>Recording...</Text>
-      )}
+      {isRecording && <Text style={styles.statusText}>Recording...</Text>}
       {/* @ts-ignore */}
       <Text style={styles.todoText}>
         [TODO: Integrate with native audio recording library]

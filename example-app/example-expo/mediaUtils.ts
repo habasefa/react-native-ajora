@@ -8,7 +8,7 @@ import { IMessage } from "../../src/Ajora";
 import { Alert } from "react-native";
 
 export default async function getPermissionAsync(
-  permission: "camera" | "mediaLibrary" | "location"
+  permission: "camera" | "mediaLibrary" | "location",
 ) {
   let status = "granted";
 
@@ -41,7 +41,7 @@ export default async function getPermissionAsync(
         },
         { text: "Nevermind", onPress: () => {}, style: "cancel" },
       ],
-      { cancelable: true }
+      { cancelable: true },
     );
 
     return false;

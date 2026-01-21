@@ -24,8 +24,7 @@ export const AjoraChatDefaultLabels = {
   assistantMessageToolbarRegenerateLabel: "Regenerate",
   userMessageToolbarCopyMessageLabel: "Copy",
   userMessageToolbarEditMessageLabel: "Edit",
-  chatDisclaimerText:
-    "AI can make mistakes. Please verify important information.",
+  chatDisclaimerText: "Powered by Ajora",
   chatToggleOpenLabel: "Open chat",
   chatToggleCloseLabel: "Close chat",
   modalHeaderTitle: "Ajora Chat",
@@ -89,7 +88,7 @@ export const AjoraChatConfigurationProvider: React.FC<
       ...(parentConfig?.labels ?? {}),
       ...(labels ?? {}),
     }),
-    [labels, parentConfig?.labels]
+    [labels, parentConfig?.labels],
   );
 
   const resolvedAgentId = agentId ?? parentConfig?.agentId ?? DEFAULT_AGENT_ID;
@@ -108,7 +107,7 @@ export const AjoraChatConfigurationProvider: React.FC<
     isModalDefaultOpen ?? parentConfig?.isModalDefaultOpen ?? true;
 
   const [internalModalOpen, setInternalModalOpen] = useState<boolean>(
-    parentConfig?.isModalOpen ?? resolvedDefaultOpen
+    parentConfig?.isModalOpen ?? resolvedDefaultOpen,
   );
 
   const resolvedIsModalOpen = parentConfig?.isModalOpen ?? internalModalOpen;
@@ -131,7 +130,7 @@ export const AjoraChatConfigurationProvider: React.FC<
       resolvedIsModalOpen,
       resolvedSetModalOpen,
       resolvedDefaultOpen,
-    ]
+    ],
   );
 
   return (

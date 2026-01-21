@@ -22,7 +22,6 @@ import {
   KeyboardProvider,
   useReanimatedKeyboardAnimation,
 } from "react-native-keyboard-controller";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { WithSlots, renderSlot } from "../../lib/slots";
 import AjoraChatInput, { AjoraChatInputProps } from "./AjoraChatInput";
@@ -35,6 +34,7 @@ import AjoraChatMessageView from "./AjoraChatMessageView";
 import AjoraChatThinkingIndicator from "./AjoraChatThinkingIndicator";
 import AjoraChatEmptyState from "./AjoraChatEmptyState";
 import AjoraChatLoadingState from "./AjoraChatLoadingState";
+import { useAjoraTheme } from "../../providers/AjoraThemeProvider";
 
 // ============================================================================
 // Types
@@ -71,7 +71,57 @@ export type AjoraChatViewProps = WithSlots<
     suggestionLoadingIndexes?: ReadonlyArray<number>;
     onSelectSuggestion?: (suggestion: Suggestion, index: number) => void;
     onRegenerate?: (message: AssistantMessage) => void;
+
+    onMessageLongPress?: (message: Message) => void;
     style?: StyleProp<ViewStyle>;
+
+    // ========================================================================
+    // Style Props for Direct Customization
+    // ========================================================================
+
+    /** Style override for the main container */
+    containerStyle?: StyleProp<ViewStyle>;
+    /** Style override for the message list area */
+    messageListStyle?: StyleProp<ViewStyle>;
+    /** Style override for the input container at the bottom */
+    inputContainerStyle?: StyleProp<ViewStyle>;
+    /** Style override for user message bubbles */
+    userBubbleStyle?: StyleProp<ViewStyle>;
+    /** Style override for assistant message bubbles */
+    assistantBubbleStyle?: StyleProp<ViewStyle>;
+    /** Style override for the suggestions container */
+    suggestionContainerStyle?: StyleProp<ViewStyle>;
+    /** Style override for the scroll view content */
+    scrollContentStyle?: StyleProp<ViewStyle>;
+
+    // ========================================================================
+    // Component Override Props
+    // ========================================================================
+
+    /** Custom message component */
+    Message?: (props: { message: Message; index: number }) => React.ReactNode;
+    /** Custom bubble wrapper component */
+    Bubble?: (props: {
+      message: Message;
+      isUser: boolean;
+      children: React.ReactNode;
+    }) => React.ReactNode;
+    /** Custom avatar component */
+    Avatar?: (props: {
+      role: "user" | "assistant";
+      size?: number;
+    }) => React.ReactNode;
+    /** Custom empty state component */
+    EmptyState?: () => React.ReactNode;
+    /** Custom loading state component */
+    LoadingState?: () => React.ReactNode;
+    /** Custom thinking indicator component */
+    ThinkingIndicator?: () => React.ReactNode;
+    /** Custom suggestion component */
+    Suggestion?: (props: {
+      suggestion: Suggestion;
+      onPress: () => void;
+    }) => React.ReactNode;
   }
 >;
 
@@ -244,16 +294,29 @@ export function AjoraChatScrollToBottomButton({
   visible,
   style,
 }: AjoraChatScrollToBottomButtonProps) {
+  const theme = useAjoraTheme();
+
   if (!visible) return null;
 
   return (
     <Pressable
       onPress={onPress}
-      style={[styles.scrollToBottomButton, style]}
+      style={[
+        styles.scrollToBottomButton,
+        {
+          backgroundColor: theme.colors.surface,
+          borderColor: theme.colors.border,
+        },
+        style,
+      ]}
       accessibilityLabel="Scroll to bottom"
       accessibilityRole="button"
     >
-      <Ionicons name="chevron-down" size={20} color="#6B7280" />
+      <Ionicons
+        name="chevron-down"
+        size={20}
+        color={theme.colors.iconDefault}
+      />
     </Pressable>
   );
 }
@@ -363,13 +426,15 @@ function AjoraChatViewInner({
   suggestions,
   suggestionLoadingIndexes,
   onSelectSuggestion,
+
   onRegenerate,
+  onMessageLongPress,
   children,
   style,
   ...props
 }: AjoraChatViewProps) {
-  // Safe area insets for bottom padding
-  const insets = useSafeAreaInsets();
+  // Get theme colors
+  const theme = useAjoraTheme();
 
   // Keyboard animation using react-native-keyboard-controller
   const keyboard = useReanimatedKeyboardAnimation();
@@ -419,7 +484,9 @@ function AjoraChatViewInner({
     isRunning,
     showThinkingIndicator,
     thinkingIndicator,
+
     onRegenerate,
+    onMessageLongPress,
   });
 
   const BoundInput = renderSlot(input, AjoraChatInput, {
@@ -477,7 +544,14 @@ function AjoraChatViewInner({
   }
 
   return (
-    <View style={[styles.container, style]} {...props}>
+    <View
+      style={[
+        styles.container,
+        { backgroundColor: theme.colors.background },
+        style,
+      ]}
+      {...props}
+    >
       <Animated.View style={[styles.animatedContainer, keyboardAnimatedStyle]}>
         {BoundScrollView}
         <View style={[styles.bottomContainer]}>{BoundInput}</View>
@@ -538,11 +612,10 @@ const styles = StyleSheet.create({
   scrollToBottomButton: {
     position: "absolute",
     bottom: 16,
-    alignSelf: "center",
+    right: 16,
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: "#FFFFFF",
     alignItems: "center",
     justifyContent: "center",
     shadowColor: "#000",
@@ -551,7 +624,6 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 4,
     borderWidth: 1,
-    borderColor: "#E5E7EB",
   },
 });
 

@@ -6,6 +6,7 @@ import {
   Pressable,
   StyleProp,
   ViewStyle,
+  TextStyle,
   Platform,
 } from "react-native";
 import {
@@ -15,49 +16,33 @@ import {
   type BottomSheetBackdropProps,
 } from "@gorhom/bottom-sheet";
 import { Ionicons } from "@expo/vector-icons";
+import { useAjoraTheme } from "../../providers/AjoraThemeProvider";
 
 // ============================================================================
 // Types & Interfaces
 // ============================================================================
 
-export type ModelProvider = string;
-export type ModelTier = "fast" | "balanced" | "quality";
-
 export interface ModelOption {
   id: string;
   name: string;
-  provider?: ModelProvider;
+  provider?: string;
   description?: string;
-  tier?: ModelTier;
+  tier?: string;
   contextWindow?: string;
   /** Whether this model is disabled (not selectable) */
   isDisabled?: boolean;
-  /** Whether this model is new (shows "New" badge) */
-  isNew?: boolean;
+  /** Badge (e.g. "New" badge) */
+  badge?: string;
   /** Any additional data for the model */
   extraData?: any;
 }
 
-export interface ModelsSheetTheme {
-  container?: StyleProp<ViewStyle>;
-  handleIndicator?: string;
-  background?: string;
-  colors?: {
-    text?: string;
-    textSecondary?: string;
-    border?: string;
-    optionBackground?: string;
-    optionBackgroundPressed?: string;
-    selectedBackground?: string;
-    selectedBorder?: string;
-    primary?: string;
-    tabActive?: string;
-    tabInactive?: string;
-    disabledBackground?: string;
-    disabledText?: string;
-    newBadgeBackground?: string;
-    newBadgeText?: string;
-  };
+export interface ModelsSheetIcons {
+  back?: React.ReactNode;
+  close?: React.ReactNode;
+  check?: React.ReactNode;
+  lock?: React.ReactNode;
+  empty?: React.ReactNode;
 }
 
 export interface ModelsSheetProps {
@@ -67,57 +52,76 @@ export interface ModelsSheetProps {
   onSelect?: (model: ModelOption) => void;
   /** Callback when the sheet is closed */
   onClose?: () => void;
-  /** Custom theme overrides */
-  theme?: ModelsSheetTheme;
-  /** Whether to use dark mode */
-  darkMode?: boolean;
   /** Model options - if not provided, nothing is shown */
   models?: ModelOption[];
   /** Sheet title */
   title?: string;
+
+  /** Sheet description */
+  description?: string;
+
   /** Test ID for testing */
   testID?: string;
+
+  /** Custom icons */
+  icons?: ModelsSheetIcons;
+
+  // --- Style Overrides ---
+  /** Style for the sheet container (top-level) */
+  containerStyle?: StyleProp<ViewStyle>;
+  /** Style for the sheet content background */
+  sheetContentStyle?: StyleProp<ViewStyle>;
+  /** Style for the sheet header */
+  sheetHeaderStyle?: StyleProp<ViewStyle>;
+  /** Style for the sheet title text */
+  sheetTitleStyle?: StyleProp<TextStyle>;
+  /** Style for the scroll view content container */
+  listContentStyle?: StyleProp<ViewStyle>;
+
+  /** Style for each item container */
+  itemStyle?: StyleProp<ViewStyle>;
+  /** Style for item text (name) */
+  itemTextStyle?: StyleProp<TextStyle>;
+  /** Style for active/selected item container */
+  activeItemStyle?: StyleProp<ViewStyle>;
+  /** Style for active/selected item text */
+  activeItemTextStyle?: StyleProp<TextStyle>;
+
+  // --- Component Overrides ---
+  /** Custom render function for each model item */
+  renderItem?: (props: {
+    item: ModelOption;
+    isSelected: boolean;
+    isDisabled: boolean;
+    onPress: () => void;
+    theme: any; // Using explicit theme typing if preferred
+  }) => React.ReactNode;
+
+  /** Custom render function for header */
+  renderHeader?: (props: {
+    title: string;
+    onClose?: () => void;
+  }) => React.ReactNode;
+
+  /** Custom colors override (highest priority) */
+  colors?: {
+    text?: string;
+    textSecondary?: string;
+    border?: string;
+    optionBackground?: string;
+    optionBackgroundPressed?: string;
+    selectedBackground?: string;
+    selectedBorder?: string;
+    selectedText?: string;
+    iconColor?: string;
+    handleIndicator?: string;
+    background?: string;
+    disabledBackground?: string;
+    disabledText?: string;
+    badgeBackground?: string;
+    badgeText?: string;
+  };
 }
-
-// ============================================================================
-// Constants
-// ============================================================================
-
-const LIGHT_COLORS = {
-  text: "#1F2937",
-  textSecondary: "#6B7280",
-  border: "#E8E8E8",
-  optionBackground: "#FFFFFF",
-  optionBackgroundPressed: "#F5F5F5",
-  selectedBackground: "#F5F5F5",
-  selectedBorder: "#1F2937",
-  selectedText: "#1F2937",
-  primary: "#1F2937",
-  handleIndicator: "#D1D5DB",
-  background: "#FFFFFF",
-  disabledBackground: "#F3F4F6",
-  disabledText: "#9CA3AF",
-  newBadgeBackground: "#10B981",
-  newBadgeText: "#FFFFFF",
-};
-
-const DARK_COLORS = {
-  text: "#F9FAFB",
-  textSecondary: "#8E8E93",
-  border: "#2C2C2E",
-  optionBackground: "#1C1C1E",
-  optionBackgroundPressed: "#2C2C2E",
-  selectedBackground: "#2C2C2E",
-  selectedBorder: "#F9FAFB",
-  selectedText: "#F9FAFB",
-  primary: "#F9FAFB",
-  handleIndicator: "#48484A",
-  background: "#1C1C1E",
-  disabledBackground: "#2C2C2E",
-  disabledText: "#6B7280",
-  newBadgeBackground: "#10B981",
-  newBadgeText: "#FFFFFF",
-};
 
 // ============================================================================
 // Component
@@ -129,22 +133,62 @@ export const ModelsSheet = forwardRef<BottomSheetModal, ModelsSheetProps>(
       selectedModelId,
       onSelect,
       onClose,
-      theme,
-      darkMode = false,
       models,
       title = "Select Model",
       testID = "models-sheet",
+      icons: customIcons,
+      containerStyle,
+      sheetContentStyle,
+      sheetHeaderStyle,
+      sheetTitleStyle,
+      listContentStyle,
+      itemStyle,
+      itemTextStyle,
+      activeItemStyle,
+      activeItemTextStyle,
+      renderItem,
+      renderHeader,
+      colors: colorOverrides,
     },
-    ref
+    ref,
   ) {
     // ========================================================================
-    // Theme
+    // Theme - Priority: colorOverrides > global theme (user custom > default)
     // ========================================================================
 
-    const colors = useMemo(() => {
-      const baseColors = darkMode ? DARK_COLORS : LIGHT_COLORS;
-      return { ...baseColors, ...theme?.colors };
-    }, [darkMode, theme?.colors]);
+    const theme = useAjoraTheme();
+
+    const colors = useMemo(
+      () => ({
+        text: colorOverrides?.text ?? theme.colors.text,
+        textSecondary:
+          colorOverrides?.textSecondary ?? theme.colors.textSecondary,
+        border: colorOverrides?.border ?? theme.colors.border,
+        optionBackground:
+          colorOverrides?.optionBackground ?? theme.colors.surface,
+        optionBackgroundPressed:
+          colorOverrides?.optionBackgroundPressed ??
+          theme.colors.assistantBubble,
+        selectedBackground:
+          colorOverrides?.selectedBackground ?? theme.colors.assistantBubble,
+        selectedBorder: colorOverrides?.selectedBorder ?? theme.colors.border,
+        selectedText: colorOverrides?.selectedText ?? theme.colors.text,
+        handleIndicator: colorOverrides?.handleIndicator ?? theme.colors.border,
+        background: colorOverrides?.background ?? theme.colors.surface,
+        disabledBackground:
+          colorOverrides?.disabledBackground ?? theme.colors.surface,
+        disabledText:
+          colorOverrides?.disabledText ?? theme.colors.textSecondary,
+        badgeBackground:
+          colorOverrides?.badgeBackground ?? theme.colors.primary,
+        badgeText:
+          colorOverrides?.badgeText ??
+          (theme.name === "dark"
+            ? theme.colors.background
+            : theme.colors.background),
+      }),
+      [theme, colorOverrides],
+    );
 
     const snapPoints = useMemo(() => ["65%", "90%"], []);
 
@@ -159,7 +203,7 @@ export const ModelsSheet = forwardRef<BottomSheetModal, ModelsSheetProps>(
         // @ts-expect-error - ref type issue
         ref?.current?.dismiss();
       },
-      [onSelect, ref]
+      [onSelect, ref],
     );
 
     const handleDismiss = useCallback(() => {
@@ -175,8 +219,162 @@ export const ModelsSheet = forwardRef<BottomSheetModal, ModelsSheetProps>(
           opacity={0.5}
         />
       ),
-      []
+      [],
     );
+
+    // ========================================================================
+    // Default Renders
+    // ========================================================================
+
+    const defaultRenderHeader = () => (
+      <View style={[styles.headerContainer, sheetHeaderStyle]} testID={testID}>
+        <Text style={[styles.title, { color: colors.text }, sheetTitleStyle]}>
+          {title}
+        </Text>
+      </View>
+    );
+
+    const defaultRenderItem = (model: ModelOption) => {
+      const isSelected = model.id === selectedModelId;
+      const isDisabled = model.isDisabled === true;
+
+      return (
+        <Pressable
+          key={model.id}
+          onPress={() => handleSelect(model)}
+          disabled={isDisabled}
+          style={({ pressed }) => [
+            styles.modelItem,
+            {
+              backgroundColor: isDisabled
+                ? colors.disabledBackground
+                : isSelected
+                  ? colors.selectedBackground
+                  : pressed
+                    ? colors.optionBackgroundPressed
+                    : colors.optionBackground,
+              borderColor: isSelected ? colors.selectedBorder : "transparent", // Cleaner look for default state
+              opacity: isDisabled ? 0.6 : 1,
+            },
+            itemStyle,
+            isSelected && activeItemStyle,
+          ]}
+          testID={`${testID}-model-${model.id}`}
+          accessibilityRole="button"
+          accessibilityLabel={model.name}
+          accessibilityHint={model.description}
+          accessibilityState={{
+            selected: isSelected,
+            disabled: isDisabled,
+          }}
+        >
+          <View style={styles.modelInfo}>
+            <View style={styles.modelNameRow}>
+              <Text
+                style={[
+                  styles.modelName,
+                  {
+                    color: isDisabled
+                      ? colors.disabledText
+                      : isSelected
+                        ? colors.selectedText
+                        : colors.text,
+                  },
+                  isSelected && styles.modelNameSelected,
+                  itemTextStyle,
+                  isSelected && activeItemTextStyle,
+                ]}
+              >
+                {model.name}
+              </Text>
+
+              {/* Badge */}
+              {model.badge && (
+                <View
+                  style={[
+                    styles.badge,
+                    { backgroundColor: colors.badgeBackground },
+                  ]}
+                >
+                  <Text style={[styles.badgeText, { color: colors.badgeText }]}>
+                    {model.badge}
+                  </Text>
+                </View>
+              )}
+            </View>
+
+            {model.description && (
+              <Text
+                style={[
+                  styles.modelDescription,
+                  {
+                    color: isDisabled
+                      ? colors.disabledText
+                      : colors.textSecondary,
+                  },
+                ]}
+                numberOfLines={1}
+              >
+                {model.description}
+              </Text>
+            )}
+
+            {model.provider && (
+              <View style={styles.modelMeta}>
+                <Text
+                  style={[
+                    styles.providerName,
+                    {
+                      color: isDisabled
+                        ? colors.disabledText
+                        : colors.textSecondary,
+                    },
+                  ]}
+                >
+                  {model.provider}
+                </Text>
+                {model.contextWindow && (
+                  <>
+                    <Text
+                      style={[styles.metaDot, { color: colors.textSecondary }]}
+                    >
+                      •
+                    </Text>
+                    <Text
+                      style={[
+                        styles.contextWindow,
+                        { color: colors.textSecondary },
+                      ]}
+                    >
+                      {model.contextWindow}
+                    </Text>
+                  </>
+                )}
+              </View>
+            )}
+          </View>
+
+          {isSelected &&
+            !isDisabled &&
+            (customIcons?.check ?? (
+              <Ionicons
+                name="checkmark"
+                size={20}
+                color={colors.selectedText}
+              />
+            ))}
+
+          {isDisabled &&
+            (customIcons?.lock ?? (
+              <Ionicons
+                name="lock-closed-outline"
+                size={18}
+                color={colors.disabledText}
+              />
+            ))}
+        </Pressable>
+      );
+    };
 
     // If no models provided, render empty sheet
     if (!models || models.length === 0) {
@@ -195,14 +393,17 @@ export const ModelsSheet = forwardRef<BottomSheetModal, ModelsSheetProps>(
           backgroundStyle={[
             styles.sheetBackground,
             { backgroundColor: colors.background },
+            sheetContentStyle,
           ]}
         >
           <View style={styles.emptyContainer}>
-            <Ionicons
-              name="cloud-offline-outline"
-              size={48}
-              color={colors.textSecondary}
-            />
+            {customIcons?.empty ?? (
+              <Ionicons
+                name="cloud-offline-outline"
+                size={48}
+                color={colors.textSecondary}
+              />
+            )}
             <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
               No models available
             </Text>
@@ -230,167 +431,34 @@ export const ModelsSheet = forwardRef<BottomSheetModal, ModelsSheetProps>(
         backgroundStyle={[
           styles.sheetBackground,
           { backgroundColor: colors.background },
+          sheetContentStyle,
         ]}
+        style={containerStyle}
       >
-        <View
-          style={[styles.headerContainer, theme?.container]}
-          testID={testID}
-        >
-          <Text style={[styles.title, { color: colors.text }]}>{title}</Text>
-        </View>
+        {renderHeader
+          ? renderHeader({ title, onClose: handleDismiss })
+          : defaultRenderHeader()}
 
         <BottomSheetScrollView
           style={styles.scrollView}
-          contentContainerStyle={styles.scrollContent}
+          contentContainerStyle={[styles.scrollContent, listContentStyle]}
         >
           {models.map((model) => {
-            const isSelected = model.id === selectedModelId;
-            const isDisabled = model.isDisabled === true;
-
-            return (
-              <Pressable
-                key={model.id}
-                onPress={() => handleSelect(model)}
-                disabled={isDisabled}
-                style={({ pressed }) => [
-                  styles.modelItem,
-                  {
-                    backgroundColor: isDisabled
-                      ? colors.disabledBackground
-                      : isSelected
-                        ? colors.selectedBackground
-                        : pressed
-                          ? colors.optionBackgroundPressed
-                          : colors.optionBackground,
-                    borderColor: isSelected
-                      ? colors.selectedBorder
-                      : colors.border,
-                    opacity: isDisabled ? 0.6 : 1,
-                  },
-                ]}
-                testID={`${testID}-model-${model.id}`}
-                accessibilityRole="button"
-                accessibilityLabel={model.name}
-                accessibilityHint={model.description}
-                accessibilityState={{
-                  selected: isSelected,
-                  disabled: isDisabled,
-                }}
-              >
-                <View style={styles.modelInfo}>
-                  <View style={styles.modelNameRow}>
-                    <Text
-                      style={[
-                        styles.modelName,
-                        {
-                          color: isDisabled
-                            ? colors.disabledText
-                            : isSelected
-                              ? colors.selectedText
-                              : colors.text,
-                        },
-                        isSelected && styles.modelNameSelected,
-                      ]}
-                    >
-                      {model.name}
-                    </Text>
-
-                    {/* New Badge */}
-                    {model.isNew && (
-                      <View
-                        style={[
-                          styles.newBadge,
-                          { backgroundColor: colors.newBadgeBackground },
-                        ]}
-                      >
-                        <Text
-                          style={[
-                            styles.newBadgeText,
-                            { color: colors.newBadgeText },
-                          ]}
-                        >
-                          New
-                        </Text>
-                      </View>
-                    )}
-                  </View>
-
-                  {model.description && (
-                    <Text
-                      style={[
-                        styles.modelDescription,
-                        {
-                          color: isDisabled
-                            ? colors.disabledText
-                            : colors.textSecondary,
-                        },
-                      ]}
-                      numberOfLines={1}
-                    >
-                      {model.description}
-                    </Text>
-                  )}
-
-                  {model.provider && (
-                    <View style={styles.modelMeta}>
-                      <Text
-                        style={[
-                          styles.providerName,
-                          {
-                            color: isDisabled
-                              ? colors.disabledText
-                              : colors.textSecondary,
-                          },
-                        ]}
-                      >
-                        {model.provider}
-                      </Text>
-                      {model.contextWindow && (
-                        <>
-                          <Text
-                            style={[
-                              styles.metaDot,
-                              { color: colors.textSecondary },
-                            ]}
-                          >
-                            •
-                          </Text>
-                          <Text
-                            style={[
-                              styles.contextWindow,
-                              { color: colors.textSecondary },
-                            ]}
-                          >
-                            {model.contextWindow}
-                          </Text>
-                        </>
-                      )}
-                    </View>
-                  )}
-                </View>
-
-                {isSelected && !isDisabled && (
-                  <Ionicons
-                    name="checkmark"
-                    size={20}
-                    color={colors.selectedText}
-                  />
-                )}
-
-                {isDisabled && (
-                  <Ionicons
-                    name="lock-closed-outline"
-                    size={18}
-                    color={colors.disabledText}
-                  />
-                )}
-              </Pressable>
-            );
+            if (renderItem) {
+              return renderItem({
+                item: model,
+                isSelected: model.id === selectedModelId,
+                isDisabled: !!model.isDisabled,
+                onPress: () => handleSelect(model),
+                theme: { colors },
+              });
+            }
+            return defaultRenderItem(model);
           })}
         </BottomSheetScrollView>
       </BottomSheetModal>
     );
-  }
+  },
 );
 
 // ============================================================================
@@ -442,6 +510,7 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 12,
     borderWidth: 1,
+    borderColor: "transparent",
   },
   modelInfo: {
     flex: 1,
@@ -477,12 +546,12 @@ const styles = StyleSheet.create({
   contextWindow: {
     fontSize: 13,
   },
-  newBadge: {
+  badge: {
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 4,
   },
-  newBadgeText: {
+  badgeText: {
     fontSize: 10,
     fontWeight: "700",
     textTransform: "uppercase",

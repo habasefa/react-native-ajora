@@ -8,6 +8,7 @@ import Animated, {
   withSequence,
   interpolate,
 } from "react-native-reanimated";
+import { useAjoraTheme } from "../../providers/AjoraThemeProvider";
 
 // ============================================================================
 // Types
@@ -24,6 +25,11 @@ export interface AjoraChatThinkingIndicatorProps {
   gap?: number;
   /** Container style override */
   style?: StyleProp<ViewStyle>;
+  /** Custom colors override */
+  colors?: {
+    background?: string;
+    dotDefault?: string;
+  };
 }
 
 // ============================================================================
@@ -47,7 +53,7 @@ interface LoadingDotsProps {
 }
 
 const LoadingDots: React.FC<LoadingDotsProps> = ({
-  dotColor = COLORS.dotDefault,
+  dotColor,
   dotSize = 6,
   gap = 6,
   style,
@@ -60,17 +66,17 @@ const LoadingDots: React.FC<LoadingDotsProps> = ({
     const animateDots = () => {
       dot1.value = withSequence(
         withTiming(1, { duration: 200 }),
-        withTiming(0, { duration: 200 })
+        withTiming(0, { duration: 200 }),
       );
       dot2.value = withSequence(
         withTiming(0, { duration: 200 }),
         withTiming(1, { duration: 200 }),
-        withTiming(0, { duration: 200 })
+        withTiming(0, { duration: 200 }),
       );
       dot3.value = withSequence(
         withTiming(0, { duration: 400 }),
         withTiming(1, { duration: 200 }),
-        withTiming(0, { duration: 200 })
+        withTiming(0, { duration: 200 }),
       );
     };
 
@@ -123,11 +129,20 @@ const LoadingDots: React.FC<LoadingDotsProps> = ({
 
 export function AjoraChatThinkingIndicator({
   isThinking = false,
-  dotColor = COLORS.dotDefault,
+  dotColor,
   dotSize = 6,
   gap = 6,
   style,
+  colors: colorOverrides,
 }: AjoraChatThinkingIndicatorProps) {
+  const theme = useAjoraTheme();
+
+  const colors = {
+    background: colorOverrides?.background ?? theme.colors.assistantBubble,
+    dotDefault: colorOverrides?.dotDefault ?? theme.colors.textSecondary,
+  };
+
+  const resolvedDotColor = dotColor ?? colors.dotDefault;
   const yCoords = useSharedValue(200);
   const heightScale = useSharedValue(0);
   const marginScale = useSharedValue(0);
@@ -144,7 +159,7 @@ export function AjoraChatThinkingIndicator({
       height: heightScale.value,
       marginBottom: marginScale.value,
     }),
-    [yCoords, heightScale, marginScale]
+    [yCoords, heightScale, marginScale],
   );
 
   const slideIn = useCallback(() => {
@@ -184,9 +199,16 @@ export function AjoraChatThinkingIndicator({
   if (!isVisible) return null;
 
   return (
-    <Animated.View style={[styles.container, containerStyle, style]}>
+    <Animated.View
+      style={[
+        styles.container,
+        { backgroundColor: colors.background },
+        containerStyle,
+        style,
+      ]}
+    >
       <LoadingDots
-        dotColor={dotColor}
+        dotColor={resolvedDotColor}
         dotSize={dotSize}
         gap={gap}
         style={styles.dots}
@@ -204,7 +226,7 @@ const styles = StyleSheet.create({
     marginLeft: 12,
     width: 52,
     borderRadius: 18,
-    backgroundColor: COLORS.background,
+    // backgroundColor: COLORS.background, // Set via inline style
     paddingHorizontal: 12,
     paddingVertical: 8,
     overflow: "hidden",

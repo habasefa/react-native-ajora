@@ -33,6 +33,7 @@ import {
 } from "../../providers/AjoraChatConfigurationProvider";
 import { renderSlot, WithSlots } from "../../lib/slots";
 import AjoraChatToolCallsView from "./AjoraChatToolCallsView";
+import { useAjoraTheme } from "../../providers/AjoraThemeProvider";
 
 // ============================================================================
 // Types & Interfaces
@@ -62,6 +63,9 @@ export type AjoraChatAssistantMessageProps = WithSlots<
     isRunning?: boolean;
     additionalToolbarItems?: React.ReactNode;
     toolbarVisible?: boolean;
+
+    /** Custom colors override (highest priority) */
+    colors?: AjoraChatAssistantMessageColorsOverride;
     showCopyButton?: boolean;
     showThumbsButtons?: boolean;
     showReadAloudButton?: boolean;
@@ -74,20 +78,39 @@ export type AjoraChatAssistantMessageProps = WithSlots<
 // Theme Colors
 // ============================================================================
 
-const COLORS = {
-  background: "#FFFFFF",
-  text: "#1F2937",
-  textSecondary: "#6B7280",
-  border: "#E5E7EB",
-  buttonBackground: "#F3F4F6",
-  buttonBackgroundHover: "#E5E7EB",
-  buttonBackgroundActive: "#DBEAFE",
-  accent: "#3B82F6",
-  success: "#10B981",
-  error: "#EF4444",
-  thumbsUp: "#10B981",
-  thumbsDown: "#EF4444",
-};
+// ============================================================================
+// Theme Colors Interface
+// ============================================================================
+
+export interface AjoraChatAssistantMessageColorsOverride {
+  text?: string;
+  textSecondary?: string;
+  border?: string;
+  buttonBackground?: string;
+  buttonBackgroundHover?: string;
+  buttonBackgroundActive?: string;
+  accent?: string;
+  success?: string;
+  error?: string;
+  thumbsUp?: string;
+  thumbsDown?: string;
+  iconColor?: string;
+}
+
+interface AjoraChatAssistantMessageColors {
+  text: string;
+  textSecondary: string;
+  border: string;
+  buttonBackground: string;
+  buttonBackgroundHover: string;
+  buttonBackgroundActive: string;
+  accent: string;
+  success: string;
+  error: string;
+  thumbsUp: string;
+  thumbsDown: string;
+  iconColor: string;
+}
 
 // ============================================================================
 // Sub-Components
@@ -101,6 +124,7 @@ interface ToolbarButtonProps {
   icon: keyof typeof Ionicons.glyphMap;
   label: string;
   style?: StyleProp<ViewStyle>;
+  colors: AjoraChatAssistantMessageColors;
 }
 
 const ToolbarButton: React.FC<ToolbarButtonProps> = ({
@@ -111,6 +135,7 @@ const ToolbarButton: React.FC<ToolbarButtonProps> = ({
   icon,
   label,
   style,
+  colors,
 }) => {
   const handlePress = useCallback(() => {
     if (
@@ -124,8 +149,8 @@ const ToolbarButton: React.FC<ToolbarButtonProps> = ({
   }, [onPress]);
 
   const iconColor = isActive
-    ? (activeColor ?? COLORS.accent)
-    : COLORS.textSecondary;
+    ? (activeColor ?? colors.accent)
+    : colors.textSecondary;
 
   return (
     <Pressable
@@ -133,8 +158,10 @@ const ToolbarButton: React.FC<ToolbarButtonProps> = ({
       disabled={disabled}
       style={({ pressed }) => [
         styles.toolbarButton,
-        isActive && styles.toolbarButtonActive,
-        pressed && !disabled && styles.toolbarButtonPressed,
+        { backgroundColor: colors.buttonBackground },
+        isActive && { backgroundColor: colors.buttonBackgroundActive },
+        pressed &&
+          !disabled && { backgroundColor: colors.buttonBackgroundHover },
         disabled && styles.toolbarButtonDisabled,
         style,
       ]}
@@ -161,6 +188,7 @@ export function AjoraChatAssistantMessage({
   onRegenerate,
   onCopy,
   additionalToolbarItems,
+  colors: colorOverrides,
   toolbarVisible = true,
   showCopyButton = true,
   showThumbsButtons = true,
@@ -191,6 +219,34 @@ export function AjoraChatAssistantMessage({
 
   const config = useAjoraChatConfiguration();
   const labels = config?.labels ?? AjoraChatDefaultLabels;
+
+  // ========================================================================
+  // Theme
+  // ========================================================================
+
+  const theme = useAjoraTheme();
+
+  const colors: AjoraChatAssistantMessageColors = React.useMemo(
+    () => ({
+      text: colorOverrides?.text ?? theme.colors.text,
+      textSecondary:
+        colorOverrides?.textSecondary ?? theme.colors.textSecondary,
+      border: colorOverrides?.border ?? theme.colors.border,
+      buttonBackground:
+        colorOverrides?.buttonBackground ?? theme.colors.surface,
+      buttonBackgroundHover:
+        colorOverrides?.buttonBackgroundHover ?? theme.colors.border,
+      buttonBackgroundActive:
+        colorOverrides?.buttonBackgroundActive ?? theme.colors.itemSelected,
+      accent: colorOverrides?.accent ?? theme.colors.primary,
+      success: colorOverrides?.success ?? theme.colors.success,
+      error: colorOverrides?.error ?? theme.colors.error,
+      thumbsUp: colorOverrides?.thumbsUp ?? theme.colors.success,
+      thumbsDown: colorOverrides?.thumbsDown ?? theme.colors.error,
+      iconColor: colorOverrides?.iconColor ?? theme.colors.iconDefault,
+    }),
+    [theme, colorOverrides],
+  );
 
   // ========================================================================
   // Derived State
@@ -288,7 +344,8 @@ export function AjoraChatAssistantMessage({
     AjoraChatAssistantMessage.MarkdownRenderer,
     {
       content: message.content || "",
-    }
+      colors,
+    },
   );
 
   const boundCopyButton = renderSlot(
@@ -297,7 +354,8 @@ export function AjoraChatAssistantMessage({
     {
       onClick: handleCopy,
       copied,
-    }
+      colors,
+    },
   );
 
   const boundThumbsUpButton = renderSlot(
@@ -306,7 +364,8 @@ export function AjoraChatAssistantMessage({
     {
       onClick: handleThumbsUp,
       isActive: feedback === "thumbsUp",
-    }
+      colors,
+    },
   );
 
   const boundThumbsDownButton = renderSlot(
@@ -315,7 +374,8 @@ export function AjoraChatAssistantMessage({
     {
       onClick: handleThumbsDown,
       isActive: feedback === "thumbsDown",
-    }
+      colors,
+    },
   );
 
   const boundReadAloudButton = renderSlot(
@@ -323,7 +383,8 @@ export function AjoraChatAssistantMessage({
     AjoraChatAssistantMessage.ReadAloudButton,
     {
       onClick: handleReadAloud,
-    }
+      colors,
+    },
   );
 
   const boundRegenerateButton = renderSlot(
@@ -331,7 +392,8 @@ export function AjoraChatAssistantMessage({
     AjoraChatAssistantMessage.RegenerateButton,
     {
       onClick: handleRegenerate,
-    }
+      colors,
+    },
   );
 
   const boundToolbar = renderSlot(toolbar, AjoraChatAssistantMessage.Toolbar, {
@@ -412,17 +474,19 @@ export namespace AjoraChatAssistantMessage {
     textColor?: string;
     fontSize?: number;
     lineHeight?: number;
+    colors?: AjoraChatAssistantMessageColors;
   }> = ({
     content,
     style,
-    textColor = COLORS.text,
+    colors,
+    textColor,
     fontSize = 16,
     lineHeight = 24,
   }) => (
     <View style={[styles.markdownContainer, style]}>
       <RichText
         text={content}
-        textColor={textColor}
+        textColor={textColor ?? colors?.text}
         fontSize={fontSize}
         lineHeight={lineHeight}
       />
@@ -442,7 +506,8 @@ export namespace AjoraChatAssistantMessage {
     onClick?: () => void;
     copied?: boolean;
     style?: StyleProp<ViewStyle>;
-  }> = ({ onClick, copied = false, style }) => {
+    colors: AjoraChatAssistantMessageColors;
+  }> = ({ onClick, copied = false, style, colors }) => {
     const config = useAjoraChatConfiguration();
     const labels = config?.labels ?? AjoraChatDefaultLabels;
 
@@ -456,8 +521,9 @@ export namespace AjoraChatAssistantMessage {
             : (labels.assistantMessageToolbarCopyMessageLabel ?? "Copy")
         }
         isActive={copied}
-        activeColor={COLORS.success}
+        activeColor={colors.success}
         style={style}
+        colors={colors}
       />
     );
   };
@@ -466,7 +532,8 @@ export namespace AjoraChatAssistantMessage {
     onClick?: () => void;
     isActive?: boolean;
     style?: StyleProp<ViewStyle>;
-  }> = ({ onClick, isActive = false, style }) => {
+    colors: AjoraChatAssistantMessageColors;
+  }> = ({ onClick, isActive = false, style, colors }) => {
     const config = useAjoraChatConfiguration();
     const labels = config?.labels ?? AjoraChatDefaultLabels;
 
@@ -476,8 +543,9 @@ export namespace AjoraChatAssistantMessage {
         icon={isActive ? "thumbs-up" : "thumbs-up-outline"}
         label={labels.assistantMessageToolbarThumbsUpLabel ?? "Like"}
         isActive={isActive}
-        activeColor={COLORS.thumbsUp}
+        activeColor={colors.thumbsUp}
         style={style}
+        colors={colors}
       />
     );
   };
@@ -486,7 +554,8 @@ export namespace AjoraChatAssistantMessage {
     onClick?: () => void;
     isActive?: boolean;
     style?: StyleProp<ViewStyle>;
-  }> = ({ onClick, isActive = false, style }) => {
+    colors: AjoraChatAssistantMessageColors;
+  }> = ({ onClick, isActive = false, style, colors }) => {
     const config = useAjoraChatConfiguration();
     const labels = config?.labels ?? AjoraChatDefaultLabels;
 
@@ -496,8 +565,9 @@ export namespace AjoraChatAssistantMessage {
         icon={isActive ? "thumbs-down" : "thumbs-down-outline"}
         label={labels.assistantMessageToolbarThumbsDownLabel ?? "Dislike"}
         isActive={isActive}
-        activeColor={COLORS.thumbsDown}
+        activeColor={colors.thumbsDown}
         style={style}
+        colors={colors}
       />
     );
   };
@@ -505,7 +575,8 @@ export namespace AjoraChatAssistantMessage {
   export const ReadAloudButton: React.FC<{
     onClick?: () => void;
     style?: StyleProp<ViewStyle>;
-  }> = ({ onClick, style }) => {
+    colors: AjoraChatAssistantMessageColors;
+  }> = ({ onClick, style, colors }) => {
     const config = useAjoraChatConfiguration();
     const labels = config?.labels ?? AjoraChatDefaultLabels;
 
@@ -515,6 +586,7 @@ export namespace AjoraChatAssistantMessage {
         icon="volume-high-outline"
         label={labels.assistantMessageToolbarReadAloudLabel ?? "Read aloud"}
         style={style}
+        colors={colors}
       />
     );
   };
@@ -522,7 +594,8 @@ export namespace AjoraChatAssistantMessage {
   export const RegenerateButton: React.FC<{
     onClick?: () => void;
     style?: StyleProp<ViewStyle>;
-  }> = ({ onClick, style }) => {
+    colors: AjoraChatAssistantMessageColors;
+  }> = ({ onClick, style, colors }) => {
     const config = useAjoraChatConfiguration();
     const labels = config?.labels ?? AjoraChatDefaultLabels;
 
@@ -532,6 +605,7 @@ export namespace AjoraChatAssistantMessage {
         icon="reload-outline"
         label={labels.assistantMessageToolbarRegenerateLabel ?? "Regenerate"}
         style={style}
+        colors={colors}
       />
     );
   };
@@ -562,15 +636,15 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 8,
-    backgroundColor: COLORS.buttonBackground,
+    // backgroundColor: COLORS.buttonBackground, // Set via inline style
     alignItems: "center",
     justifyContent: "center",
   },
   toolbarButtonActive: {
-    backgroundColor: COLORS.buttonBackgroundActive,
+    // backgroundColor: COLORS.buttonBackgroundActive, // Set via inline style
   },
   toolbarButtonPressed: {
-    backgroundColor: COLORS.buttonBackgroundHover,
+    // backgroundColor: COLORS.buttonBackgroundHover, // Set via inline style
     transform: [{ scale: 0.95 }],
   },
   toolbarButtonDisabled: {

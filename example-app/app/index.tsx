@@ -38,7 +38,7 @@ const LoggingComponent = () => {
         const state = ajora.getStateByRun(
           agent.agentId!,
           agent.threadId,
-          runId
+          runId,
         );
         console.log(`State for Run ${runId}:`, JSON.stringify(state, null, 2));
       });
@@ -81,14 +81,12 @@ const Index = () => {
 
   return (
     <AjoraProvider
-      runtimeUrl="http://localhost:4000/api/copilotkit"
+      runtimeUrl="http://localhost:3000/api/copilotkit"
       useSingleEndpoint={true}
       renderToolCalls={[wildcardRenderer]}
     >
-      <SafeAreaView style={styles.safeArea}>
-        <LoggingComponent />
-        <Chat />
-      </SafeAreaView>
+      <LoggingComponent />
+      <Chat />
     </AjoraProvider>
   );
 };

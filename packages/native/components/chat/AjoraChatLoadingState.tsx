@@ -16,6 +16,7 @@ import {
   useAjoraChatConfiguration,
   AjoraChatDefaultLabels,
 } from "../../providers/AjoraChatConfigurationProvider";
+import { useAjoraTheme } from "../../providers/AjoraThemeProvider";
 
 // ============================================================================
 // Types
@@ -37,6 +38,7 @@ export interface AjoraChatLoadingStateTheme {
 
 /**
  * Default light theme - uses consistent project colors
+ * @deprecated Use useAjoraTheme() instead
  */
 export const DEFAULT_LOADING_STATE_LIGHT_THEME: AjoraChatLoadingStateTheme = {
   backgroundColor: "transparent",
@@ -47,6 +49,7 @@ export const DEFAULT_LOADING_STATE_LIGHT_THEME: AjoraChatLoadingStateTheme = {
 
 /**
  * Default dark theme - uses consistent project colors
+ * @deprecated Use useAjoraTheme() instead
  */
 export const DEFAULT_LOADING_STATE_DARK_THEME: AjoraChatLoadingStateTheme = {
   backgroundColor: "transparent",
@@ -139,7 +142,7 @@ function AnimatedDots({
             easing: Easing.ease,
             useNativeDriver: true,
           }),
-        ])
+        ]),
       );
     };
 
@@ -235,7 +238,7 @@ export function AjoraChatLoadingState({
   type = "connecting",
   text,
   showText = true,
-  theme = DEFAULT_LOADING_STATE_LIGHT_THEME,
+  theme: customTheme,
   style,
   layout = "vertical",
   dots,
@@ -244,6 +247,17 @@ export function AjoraChatLoadingState({
   ...rest
 }: AjoraChatLoadingStateProps) {
   const configuration = useAjoraChatConfiguration();
+  const globalTheme = useAjoraTheme();
+
+  const theme: AjoraChatLoadingStateTheme = React.useMemo(
+    () => ({
+      backgroundColor: customTheme?.backgroundColor ?? "transparent",
+      spinnerColor: customTheme?.spinnerColor ?? globalTheme.colors.primary,
+      textColor: customTheme?.textColor ?? globalTheme.colors.textSecondary,
+      dotSize: customTheme?.dotSize ?? 8,
+    }),
+    [customTheme, globalTheme],
+  );
 
   // Resolve loading text based on type
   const getDefaultText = (): string => {
@@ -369,4 +383,3 @@ const styles = StyleSheet.create({
 });
 
 export default AjoraChatLoadingState;
-

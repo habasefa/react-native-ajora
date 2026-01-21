@@ -6,6 +6,7 @@ import {
   Pressable,
   StyleProp,
   ViewStyle,
+  TextStyle,
   Platform,
 } from "react-native";
 import {
@@ -15,12 +16,14 @@ import {
   type BottomSheetBackdropProps,
 } from "@gorhom/bottom-sheet";
 import { Ionicons } from "@expo/vector-icons";
+import { useAjoraTheme } from "../../providers/AjoraThemeProvider";
+import { type AttachmentSource } from "../../lib/fileSystem";
 
 // ============================================================================
 // Types & Interfaces
 // ============================================================================
 
-export type AttachmentType = "camera" | "gallery" | "files";
+export type AttachmentType = AttachmentSource;
 
 export interface AttachmentOption {
   id: AttachmentType;
@@ -29,17 +32,8 @@ export interface AttachmentOption {
   icon: keyof typeof Ionicons.glyphMap;
 }
 
-export interface AttachmentSheetTheme {
-  container?: StyleProp<ViewStyle>;
-  handleIndicator?: string;
-  background?: string;
-  colors?: {
-    text?: string;
-    textSecondary?: string;
-    border?: string;
-    optionBackground?: string;
-    optionBackgroundPressed?: string;
-  };
+export interface AttachmentSheetIcons {
+  close?: React.ReactNode;
 }
 
 export interface AttachmentSheetProps {
@@ -47,14 +41,57 @@ export interface AttachmentSheetProps {
   onSelect?: (type: AttachmentType) => void;
   /** Callback when the sheet is closed */
   onClose?: () => void;
-  /** Custom theme overrides */
-  theme?: AttachmentSheetTheme;
-  /** Whether to use dark mode */
-  darkMode?: boolean;
   /** Custom attachment options */
   options?: AttachmentOption[];
   /** Test ID for testing */
   testID?: string;
+
+  /** Custom icons */
+  icons?: AttachmentSheetIcons;
+
+  // --- Style Overrides ---
+  /** Style for the sheet container (top-level) */
+  containerStyle?: StyleProp<ViewStyle>;
+  /** Style for the sheet content background */
+  sheetContentStyle?: StyleProp<ViewStyle>;
+  /** Style for the sheet header */
+  sheetHeaderStyle?: StyleProp<ViewStyle>;
+  /** Style for the sheet title text */
+  sheetTitleStyle?: StyleProp<TextStyle>;
+  /** Style for the options container */
+  optionsContainerStyle?: StyleProp<ViewStyle>;
+
+  /** Style for each option item container */
+  optionItemStyle?: StyleProp<ViewStyle>;
+  /** Style for option label text */
+  optionLabelStyle?: StyleProp<TextStyle>;
+
+  // --- Component Overrides ---
+  /** Custom render function for each attachment option */
+  renderItem?: (props: {
+    item: AttachmentOption;
+    onPress: () => void;
+    theme: any;
+  }) => React.ReactNode;
+
+  /** Custom render function for header */
+  renderHeader?: (props: {
+    title: string;
+    onClose?: () => void;
+  }) => React.ReactNode;
+
+  /** Custom colors override (highest priority) */
+  colors?: {
+    text?: string;
+    textSecondary?: string;
+    border?: string;
+    optionBackground?: string;
+    optionBackgroundPressed?: string;
+    iconColor?: string;
+    iconBackground?: string;
+    handleIndicator?: string;
+    background?: string;
+  };
 }
 
 // ============================================================================
@@ -82,30 +119,6 @@ const DEFAULT_ATTACHMENT_OPTIONS: AttachmentOption[] = [
   },
 ];
 
-const LIGHT_COLORS = {
-  text: "#1F2937",
-  textSecondary: "#6B7280",
-  border: "#E8E8E8",
-  optionBackground: "#F5F5F5",
-  optionBackgroundPressed: "#E8E8E8",
-  iconColor: "#6B7280",
-  iconBackground: "#E8E8E8",
-  handleIndicator: "#D1D5DB",
-  background: "#FFFFFF",
-};
-
-const DARK_COLORS = {
-  text: "#F9FAFB",
-  textSecondary: "#8E8E93",
-  border: "#2C2C2E",
-  optionBackground: "#2C2C2E",
-  optionBackgroundPressed: "#3A3A3C",
-  iconColor: "#9CA3AF",
-  iconBackground: "#3A3A3C",
-  handleIndicator: "#48484A",
-  background: "#1C1C1E",
-};
-
 // ============================================================================
 // Component
 // ============================================================================
@@ -117,21 +130,45 @@ export const AttachmentSheet = forwardRef<
   {
     onSelect,
     onClose,
-    theme,
-    darkMode = false,
     options = DEFAULT_ATTACHMENT_OPTIONS,
     testID = "attachment-sheet",
+    icons: customIcons,
+    containerStyle,
+    sheetContentStyle,
+    sheetHeaderStyle,
+    sheetTitleStyle,
+    optionsContainerStyle,
+    optionItemStyle,
+    optionLabelStyle,
+    renderItem,
+    renderHeader,
+    colors: colorOverrides,
   },
-  ref
+  ref,
 ) {
   // ========================================================================
-  // Theme
+  // Theme - Priority: colorOverrides > global theme (user custom > default)
   // ========================================================================
 
-  const colors = useMemo(() => {
-    const baseColors = darkMode ? DARK_COLORS : LIGHT_COLORS;
-    return { ...baseColors, ...theme?.colors };
-  }, [darkMode, theme?.colors]);
+  const theme = useAjoraTheme();
+
+  const colors = useMemo(
+    () => ({
+      text: colorOverrides?.text ?? theme.colors.text,
+      textSecondary:
+        colorOverrides?.textSecondary ?? theme.colors.textSecondary,
+      border: colorOverrides?.border ?? theme.colors.border,
+      optionBackground:
+        colorOverrides?.optionBackground ?? theme.colors.surface,
+      optionBackgroundPressed:
+        colorOverrides?.optionBackgroundPressed ?? theme.colors.border,
+      iconColor: colorOverrides?.iconColor ?? theme.colors.iconDefault,
+      iconBackground: colorOverrides?.iconBackground ?? theme.colors.border,
+      handleIndicator: colorOverrides?.handleIndicator ?? theme.colors.border,
+      background: colorOverrides?.background ?? theme.colors.surface,
+    }),
+    [theme, colorOverrides],
+  );
 
   const snapPoints = useMemo(() => ["28%"], []);
 
@@ -145,7 +182,7 @@ export const AttachmentSheet = forwardRef<
       // @ts-expect-error - ref type issue
       ref?.current?.dismiss();
     },
-    [onSelect, ref]
+    [onSelect, ref],
   );
 
   const handleDismiss = useCallback(() => {
@@ -161,7 +198,55 @@ export const AttachmentSheet = forwardRef<
         opacity={0.5}
       />
     ),
-    []
+    [],
+  );
+
+  // ========================================================================
+  // Default Renders
+  // ========================================================================
+
+  const defaultRenderHeader = () => (
+    <Text
+      style={[styles.title, { color: colors.text }, sheetTitleStyle]}
+      testID={testID}
+    >
+      Add Attachment
+    </Text>
+  );
+
+  const defaultRenderItem = (option: AttachmentOption) => (
+    <Pressable
+      key={option.id}
+      onPress={() => handleSelect(option.id)}
+      style={({ pressed }) => [
+        styles.optionItem,
+        {
+          backgroundColor: pressed
+            ? colors.optionBackgroundPressed
+            : colors.optionBackground,
+        },
+        optionItemStyle,
+      ]}
+      testID={`${testID}-option-${option.id}`}
+      accessibilityRole="button"
+      accessibilityLabel={option.label}
+      accessibilityHint={option.description}
+    >
+      <View
+        style={[
+          styles.iconContainer,
+          { backgroundColor: colors.iconBackground },
+        ]}
+      >
+        <Ionicons name={option.icon} size={26} color={colors.iconColor} />
+      </View>
+      <Text
+        style={[styles.optionLabel, { color: colors.text }, optionLabelStyle]}
+        numberOfLines={1}
+      >
+        {option.label}
+      </Text>
+    </Pressable>
   );
 
   // ========================================================================
@@ -183,47 +268,26 @@ export const AttachmentSheet = forwardRef<
       backgroundStyle={[
         styles.sheetBackground,
         { backgroundColor: colors.background },
+        sheetContentStyle,
       ]}
+      style={containerStyle}
     >
-      <BottomSheetView style={[styles.container, theme?.container]}>
-        <Text style={[styles.title, { color: colors.text }]} testID={testID}>
-          Add Attachment
-        </Text>
+      <BottomSheetView style={[styles.container, sheetHeaderStyle]}>
+        {renderHeader
+          ? renderHeader({ title: "Add Attachment", onClose: handleDismiss })
+          : defaultRenderHeader()}
 
-        <View style={styles.optionsContainer}>
-          {options.map((option) => (
-            <Pressable
-              key={option.id}
-              onPress={() => handleSelect(option.id)}
-              style={({ pressed }) => [
-                styles.optionItem,
-                {
-                  backgroundColor: pressed
-                    ? colors.optionBackgroundPressed
-                    : colors.optionBackground,
-                },
-              ]}
-              testID={`${testID}-option-${option.id}`}
-              accessibilityRole="button"
-              accessibilityLabel={option.label}
-              accessibilityHint={option.description}
-            >
-              <View
-                style={[
-                  styles.iconContainer,
-                  { backgroundColor: colors.iconBackground },
-                ]}
-              >
-                <Ionicons name={option.icon} size={26} color={colors.iconColor} />
-              </View>
-              <Text
-                style={[styles.optionLabel, { color: colors.text }]}
-                numberOfLines={1}
-              >
-                {option.label}
-              </Text>
-            </Pressable>
-          ))}
+        <View style={[styles.optionsContainer, optionsContainerStyle]}>
+          {options.map((option) => {
+            if (renderItem) {
+              return renderItem({
+                item: option,
+                onPress: () => handleSelect(option.id),
+                theme: { colors },
+              });
+            }
+            return defaultRenderItem(option);
+          })}
         </View>
       </BottomSheetView>
     </BottomSheetModal>

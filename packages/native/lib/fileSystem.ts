@@ -11,6 +11,14 @@ import { Alert, Platform } from "react-native";
 /**
  * Represents a file attachment with metadata
  */
+/**
+ * Attachment upload state
+ */
+export type AttachmentUploadState = "idle" | "uploading" | "uploaded" | "error";
+
+/**
+ * Represents a file attachment with metadata
+ */
 export interface FileAttachment {
   /** Unique identifier for the attachment */
   id: string;
@@ -22,11 +30,20 @@ export interface FileAttachment {
   mimeType: string;
   /** File size in bytes */
   size?: number;
-  /** File type: 'image', 'video', 'document', 'audio', etc. */
-  type: "image" | "video" | "document" | "audio" | "other";
+  /** File type: 'image', 'file', 'document' */
+  type: "image" | "file" | "document";
+  /** Upload state */
+  uploadState: AttachmentUploadState;
+  /** Upload progress (0-100) */
+  uploadProgress?: number;
   /** Whether the file is from camera */
   isFromCamera?: boolean;
 }
+
+/**
+ * Source of the attachment
+ */
+export type AttachmentSource = "camera" | "gallery" | "files";
 
 /**
  * Options for picking images from gallery
@@ -108,7 +125,7 @@ export async function requestCameraPermission(): Promise<boolean> {
             onPress: () => Linking.openURL("app-settings:"),
           },
           { text: "Cancel", style: "cancel" },
-        ]
+        ],
       );
       return false;
     }
@@ -135,7 +152,7 @@ export async function requestMediaLibraryPermission(): Promise<boolean> {
             onPress: () => Linking.openURL("app-settings:"),
           },
           { text: "Cancel", style: "cancel" },
-        ]
+        ],
       );
       return false;
     }
@@ -155,8 +172,6 @@ export async function requestMediaLibraryPermission(): Promise<boolean> {
  */
 function getFileTypeFromMimeType(mimeType: string): FileAttachment["type"] {
   if (mimeType.startsWith("image/")) return "image";
-  if (mimeType.startsWith("video/")) return "video";
-  if (mimeType.startsWith("audio/")) return "audio";
   if (
     mimeType.includes("pdf") ||
     mimeType.includes("document") ||
@@ -167,7 +182,7 @@ function getFileTypeFromMimeType(mimeType: string): FileAttachment["type"] {
   ) {
     return "document";
   }
-  return "other";
+  return "file";
 }
 
 /**
@@ -185,7 +200,7 @@ function generateFileId(): string {
  * Take a photo using the camera
  */
 export async function takePhoto(
-  options: CameraOptions = {}
+  options: CameraOptions = {},
 ): Promise<FileOperationResult> {
   try {
     const hasPermission = await requestCameraPermission();
@@ -225,6 +240,7 @@ export async function takePhoto(
       mimeType,
       size: asset.fileSize,
       type: getFileTypeFromMimeType(mimeType),
+      uploadState: "idle",
       isFromCamera: true,
     };
 
@@ -249,7 +265,7 @@ export async function takePhoto(
  * Pick images from the gallery
  */
 export async function pickImages(
-  options: ImagePickerOptions = {}
+  options: ImagePickerOptions = {},
 ): Promise<FileOperationResult> {
   try {
     const hasPermission = await requestMediaLibraryPermission();
@@ -288,6 +304,7 @@ export async function pickImages(
         mimeType,
         size: asset.fileSize,
         type: getFileTypeFromMimeType(mimeType),
+        uploadState: "idle",
         isFromCamera: false,
       };
     });
@@ -316,7 +333,7 @@ export async function pickImages(
  * Pick videos from the gallery
  */
 export async function pickVideos(
-  options: ImagePickerOptions = {}
+  options: ImagePickerOptions = {},
 ): Promise<FileOperationResult> {
   return pickImages({
     ...options,
@@ -332,7 +349,7 @@ export async function pickVideos(
  * Pick documents/files
  */
 export async function pickDocuments(
-  options: DocumentPickerOptions = {}
+  options: DocumentPickerOptions = {},
 ): Promise<FileOperationResult> {
   try {
     const result = await DocumentPicker.getDocumentAsync({
@@ -359,6 +376,7 @@ export async function pickDocuments(
         mimeType,
         size: asset.size,
         type: getFileTypeFromMimeType(mimeType),
+        uploadState: "idle",
         isFromCamera: false,
       };
     });
@@ -391,7 +409,7 @@ export async function pickDocuments(
  * Get file info from URI
  */
 export async function getFileInfo(
-  uri: string
+  uri: string,
 ): Promise<FileSystem.FileInfo | null> {
   try {
     const info = await FileSystem.getInfoAsync(uri);
@@ -445,7 +463,7 @@ export async function readFileAsString(uri: string): Promise<string | null> {
  */
 export async function copyFile(
   fromUri: string,
-  toUri: string
+  toUri: string,
 ): Promise<boolean> {
   try {
     await FileSystem.copyAsync({
@@ -512,12 +530,12 @@ export function formatFileSize(bytes: number): string {
  * This is the main function to use with AttachmentSheet
  */
 export async function handleAttachmentSelection(
-  type: "camera" | "gallery" | "files",
+  type: AttachmentSource,
   options?: {
     camera?: CameraOptions;
     gallery?: ImagePickerOptions;
     files?: DocumentPickerOptions;
-  }
+  },
 ): Promise<FileOperationResult> {
   switch (type) {
     case "camera":

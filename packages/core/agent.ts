@@ -10,8 +10,10 @@ import { Observable } from "rxjs";
 import { AjoraRuntimeTransport } from "./types";
 import { patchedRunHttpRequest } from "../shared/http-request-patch";
 
-export interface ProxiedAjoraRuntimeAgentConfig
-  extends Omit<HttpAgentConfig, "url"> {
+export interface ProxiedAjoraRuntimeAgentConfig extends Omit<
+  HttpAgentConfig,
+  "url"
+> {
   runtimeUrl?: string;
   transport?: AjoraRuntimeTransport;
 }
@@ -33,7 +35,7 @@ export class ProxiedAjoraRuntimeAgent extends HttpAgent {
 
     if (!runUrl) {
       throw new Error(
-        "ProxiedAjoraRuntimeAgent requires a runtimeUrl when transport is set to 'single'."
+        "ProxiedAjoraRuntimeAgent requires a runtimeUrl when transport is set to 'single'.",
       );
     }
 
@@ -116,12 +118,12 @@ export class ProxiedAjoraRuntimeAgent extends HttpAgent {
         "agent/connect",
         {
           agentId: this.agentId!,
-        }
+        },
       );
       const httpEvents = patchedRunHttpRequest(
         this.singleEndpointUrl,
         requestInit,
-        runHttpRequest
+        runHttpRequest,
       );
       return transformHttpEventStream(httpEvents);
     }
@@ -129,7 +131,7 @@ export class ProxiedAjoraRuntimeAgent extends HttpAgent {
     const httpEvents = patchedRunHttpRequest(
       `${this.runtimeUrl}/agent/${this.agentId}/connect`,
       this.requestInit(input),
-      runHttpRequest
+      runHttpRequest,
     );
     return transformHttpEventStream(httpEvents);
   }
@@ -145,12 +147,12 @@ export class ProxiedAjoraRuntimeAgent extends HttpAgent {
         "agent/run",
         {
           agentId: this.agentId!,
-        }
+        },
       );
       const httpEvents = patchedRunHttpRequest(
         this.singleEndpointUrl,
         requestInit,
-        runHttpRequest
+        runHttpRequest,
       );
       return transformHttpEventStream(httpEvents);
     }
@@ -169,11 +171,11 @@ export class ProxiedAjoraRuntimeAgent extends HttpAgent {
   private createSingleRouteRequestInit(
     input: RunAgentInput,
     method: string,
-    params?: Record<string, string>
+    params?: Record<string, string>,
   ): RequestInit {
     if (!this.agentId) {
       throw new Error(
-        "ProxiedAjoraRuntimeAgent requires agentId to make runtime requests"
+        "ProxiedAjoraRuntimeAgent requires agentId to make runtime requests",
       );
     }
 
@@ -189,7 +191,7 @@ export class ProxiedAjoraRuntimeAgent extends HttpAgent {
       } catch (error) {
         console.warn(
           "ProxiedAjoraRuntimeAgent: failed to parse request body for single route transport",
-          error
+          error,
         );
         originalBody = undefined;
       }

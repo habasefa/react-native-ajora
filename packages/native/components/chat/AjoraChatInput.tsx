@@ -27,7 +27,9 @@ import {
   TouchableOpacity,
   Image,
   ActivityIndicator,
+  Keyboard,
 } from "react-native";
+import Lightbox from "react-native-lightbox-v2";
 import { Ionicons, MaterialIcons, Feather } from "@expo/vector-icons";
 import { BottomSheetModal } from "@gorhom/bottom-sheet";
 import {
@@ -35,6 +37,7 @@ import {
   AjoraChatLabels,
   AjoraChatDefaultLabels,
 } from "../../providers/AjoraChatConfigurationProvider";
+import { useAjoraTheme } from "../../providers/AjoraThemeProvider";
 import { AjoraChatAudioRecorder } from "./AjoraChatAudioRecorder";
 import {
   AttachmentSheet,
@@ -44,6 +47,11 @@ import {
   ModelsSheet,
   type ModelOption,
 } from "../sheets";
+import {
+  type FileAttachment,
+  type AttachmentUploadState,
+  handleAttachmentSelection,
+} from "../../lib/fileSystem";
 
 // ============================================================================
 // Types & Interfaces
@@ -52,21 +60,9 @@ import {
 export type AjoraChatInputMode = "input" | "transcribe" | "processing";
 
 /**
- * Attachment upload state
- */
-export type AttachmentUploadState = "idle" | "uploading" | "uploaded" | "error";
-
-/**
  * Attachment preview item
  */
-export interface AttachmentPreviewItem {
-  id: string;
-  uri: string;
-  type: "image" | "file" | "document";
-  name?: string;
-  uploadState: AttachmentUploadState;
-  uploadProgress?: number;
-}
+export interface AttachmentPreviewItem extends FileAttachment {}
 
 /**
  * Agent type option for selection
@@ -77,25 +73,6 @@ export interface AgentTypeOption {
   description?: string;
   icon?: keyof typeof Ionicons.glyphMap;
 }
-
-/**
- * Default agent type options
- */
-export const DEFAULT_AGENT_TYPES: AgentTypeOption[] = [
-  { id: "fast", label: "Fast", description: "Quick responses", icon: "flash" },
-  {
-    id: "balanced",
-    label: "Balanced",
-    description: "Quality & speed",
-    icon: "options",
-  },
-  {
-    id: "quality",
-    label: "Quality",
-    description: "Best responses",
-    icon: "diamond",
-  },
-];
 
 /**
  * Theme configuration for AjoraChatInput styling
@@ -135,51 +112,19 @@ export interface AjoraChatInputTheme {
     iconDefault?: string;
     iconActive?: string;
     border?: string;
+    error?: string;
   };
 }
 
-/**
- * Default dark theme colors (Gemini-inspired)
- */
-export const DEFAULT_DARK_COLORS = {
-  background: "#1A1A1A",
-  inputBackground: "#2D2D2D",
-  text: "#FFFFFF",
-  placeholder: "#8E8E93",
-  primary: "#4A9EFF",
-  secondary: "#3D3D3D",
-  accent: "#8AB4F8",
-  iconDefault: "#8E8E93",
-  iconActive: "#FFFFFF",
-  border: "#3D3D3D",
-};
-
-/**
- * Default light theme colors
- */
-export const DEFAULT_LIGHT_COLORS = {
-  background: "transparent",
-  inputBackground: "#FFFFFF",
-  text: "#1F2937",
-  placeholder: "#9CA3AF",
-  primary: "#3B82F6",
-  secondary: "#F3F4F6",
-  accent: "#2563EB",
-  iconDefault: "#6B7280",
-  iconActive: "#1F2937",
-  border: "#E0E0E0",
-};
-
-/**
- * Base props for AjoraChatInput component
- */
+// Hardcoded defaults removed in favor of global theme inheritance
+// To customize colors, use the `theme` prop or override global AjoraTheme
 export interface AjoraChatInputProps {
   /** Current input mode */
   mode?: AjoraChatInputMode;
   /** Whether auto-focus is enabled */
   autoFocus?: boolean;
   /** Callback when message is submitted */
-  onSubmitMessage?: (value: string) => void;
+  onSubmitMessage?: (value: string, attachments?: FileAttachment[]) => void;
   /** Callback to stop the current operation */
   onStop?: () => void;
   /** Whether the agent is currently running */
@@ -252,6 +197,51 @@ export interface AjoraChatInputProps {
   attachments?: AttachmentPreviewItem[];
   /** Callback when an attachment is removed */
   onRemoveAttachment?: (attachmentId: string) => void;
+  /** Callback for handling attachment upload/preview state */
+  onAttachmentPreview?: (
+    file: FileAttachment,
+    callbacks: {
+      onProgress: (progress: number) => void;
+      onComplete: (updatedFile?: FileAttachment) => void;
+      onError: (error?: Error) => void;
+    },
+  ) => void;
+
+  // ========================================================================
+  // Icons Customization
+  // ========================================================================
+
+  /** Custom icons to override default icons */
+  icons?: {
+    /** Custom send icon */
+    send?:
+      | React.ReactNode
+      | ((props: { size: number; color: string }) => React.ReactNode);
+    /** Custom stop icon */
+    stop?:
+      | React.ReactNode
+      | ((props: { size: number; color: string }) => React.ReactNode);
+    /** Custom attachment/add icon */
+    attachment?:
+      | React.ReactNode
+      | ((props: { size: number; color: string }) => React.ReactNode);
+    /** Custom microphone icon */
+    microphone?:
+      | React.ReactNode
+      | ((props: { size: number; color: string }) => React.ReactNode);
+    /** Custom model selector icon */
+    model?:
+      | React.ReactNode
+      | ((props: { size: number; color: string }) => React.ReactNode);
+    /** Custom agent selector icon */
+    agent?:
+      | React.ReactNode
+      | ((props: { size: number; color: string }) => React.ReactNode);
+    /** Custom settings icon */
+    settings?:
+      | React.ReactNode
+      | ((props: { size: number; color: string }) => React.ReactNode);
+  };
 }
 
 /**
@@ -272,7 +262,7 @@ export interface AjoraChatInputChildrenArgs {
   value: string;
   canSend: boolean;
   canStop: boolean;
-  colors: typeof DEFAULT_DARK_COLORS;
+  colors: Required<NonNullable<AjoraChatInputTheme["colors"]>>;
   attachments: AttachmentPreviewItem[];
 }
 
@@ -303,7 +293,7 @@ const BUTTON_SIZE = 40;
 export interface AjoraChatTextInputProps extends Omit<TextInputProps, "style"> {
   style?: StyleProp<TextStyle>;
   testID?: string;
-  colors?: typeof DEFAULT_DARK_COLORS;
+  colors?: AjoraChatInputTheme["colors"];
 }
 
 export interface AjoraChatIconButtonProps {
@@ -324,7 +314,7 @@ export interface AgentSelectorProps {
   options: AgentTypeOption[];
   selectedId?: string;
   onSelect: (option: AgentTypeOption) => void;
-  colors: typeof DEFAULT_DARK_COLORS;
+  colors: Required<NonNullable<AjoraChatInputTheme["colors"]>>;
   style?: StyleProp<ViewStyle>;
   testID?: string;
 }
@@ -338,21 +328,15 @@ export interface AgentSelectorProps {
  */
 const AjoraChatTextInput = forwardRef<RNTextInput, AjoraChatTextInputProps>(
   function AjoraChatTextInput(
-    {
-      style,
-      placeholder = "Ask Ajora...",
-      testID,
-      colors = DEFAULT_DARK_COLORS,
-      ...props
-    },
-    ref
+    { style, placeholder = "Ask Ajora...", testID, colors, ...props },
+    ref,
   ) {
     return (
       <RNTextInput
         ref={ref}
-        style={[styles.textInput, { color: colors.text }, style]}
+        style={[styles.textInput, { color: colors?.text }, style]}
         placeholder={placeholder}
-        placeholderTextColor={colors.placeholder}
+        placeholderTextColor={colors?.placeholder}
         multiline
         textAlignVertical="top"
         blurOnSubmit={false}
@@ -366,7 +350,7 @@ const AjoraChatTextInput = forwardRef<RNTextInput, AjoraChatTextInputProps>(
         {...props}
       />
     );
-  }
+  },
 );
 
 AjoraChatTextInput.displayName = "AjoraChatInput.TextInput";
@@ -574,7 +558,7 @@ AgentSelector.displayName = "AjoraChatInput.AgentSelector";
 interface AttachmentPreviewProps {
   attachments: AttachmentPreviewItem[];
   onRemove: (id: string) => void;
-  colors: typeof DEFAULT_DARK_COLORS;
+  colors: Required<NonNullable<AjoraChatInputTheme["colors"]>>;
   testID?: string;
 }
 
@@ -603,12 +587,33 @@ const AttachmentPreview: React.FC<AttachmentPreviewProps> = ({
             ]}
           >
             {attachment.type === "image" && attachment.uri ? (
-              <Image
-                source={{ uri: attachment.uri }}
+              // @ts-expect-error - Lightbox types are incomplete
+              <Lightbox
+                renderContent={() => (
+                  <Image
+                    source={{ uri: attachment.uri }}
+                    style={{
+                      width: "100%",
+                      height: "100%",
+                      resizeMode: "contain",
+                    }}
+                  />
+                )}
+                activeProps={{
+                  style: { flex: 1, width: "100%", height: "100%" },
+                }}
+                underlayColor="transparent"
                 style={attachmentPreviewStyles.thumbnail}
-                resizeMode="cover"
-                accessibilityLabel={attachment.name || "Attached image"}
-              />
+              >
+                <Image
+                  source={{ uri: attachment.uri }}
+                  style={attachmentPreviewStyles.thumbnail}
+                  resizeMode="cover"
+                  accessibilityLabel={
+                    attachment.displayName || "Attached image"
+                  }
+                />
+              </Lightbox>
             ) : (
               <View
                 style={[
@@ -617,7 +622,11 @@ const AttachmentPreview: React.FC<AttachmentPreviewProps> = ({
                 ]}
               >
                 <Ionicons
-                  name="document-outline"
+                  name={
+                    attachment.type === "document"
+                      ? "document-text-outline"
+                      : "document-outline"
+                  }
                   size={24}
                   color={colors.iconDefault}
                 />
@@ -634,9 +643,21 @@ const AttachmentPreview: React.FC<AttachmentPreviewProps> = ({
               >
                 <ActivityIndicator
                   size="small"
-                  color="#FFFFFF"
+                  color={colors.background}
                   accessibilityLabel="Uploading attachment"
                 />
+                {attachment.uploadProgress !== undefined && (
+                  <Text
+                    style={{
+                      color: colors.background,
+                      fontSize: 10,
+                      marginTop: 4,
+                      fontWeight: "600",
+                    }}
+                  >
+                    {Math.round(attachment.uploadProgress)}%
+                  </Text>
+                )}
               </View>
             )}
 
@@ -645,10 +666,15 @@ const AttachmentPreview: React.FC<AttachmentPreviewProps> = ({
               <View
                 style={[
                   attachmentPreviewStyles.spinnerOverlay,
-                  { backgroundColor: "rgba(239, 68, 68, 0.7)" },
+                  // Use error color with opacity for error state
+                  { backgroundColor: colors.error, opacity: 0.8 },
                 ]}
               >
-                <Ionicons name="alert-circle" size={20} color="#FFFFFF" />
+                <Ionicons
+                  name="alert-circle"
+                  size={20}
+                  color={colors.background}
+                />
               </View>
             )}
           </View>
@@ -755,8 +781,7 @@ const AjoraChatInputComponent = forwardRef<
     maxLines = 5,
     placeholder,
     testID = "ajora-chat-input",
-    darkMode = false,
-    agentTypes = DEFAULT_AGENT_TYPES,
+    agentTypes,
     selectedAgentType,
     onAgentTypeChange,
     showAgentSelector = true,
@@ -780,8 +805,10 @@ const AjoraChatInputComponent = forwardRef<
     models,
     attachments = [],
     onRemoveAttachment,
+    onAttachmentPreview,
+    icons,
   },
-  ref
+  ref,
 ) {
   // ========================================================================
   // State & Refs
@@ -790,13 +817,16 @@ const AjoraChatInputComponent = forwardRef<
   const isControlled = value !== undefined;
   const isModelControlled = selectedModelId !== undefined;
   const [internalValue, setInternalValue] = useState<string>(() => value ?? "");
+  const [internalAttachments, setInternalAttachments] = useState<
+    AttachmentPreviewItem[]
+  >([]);
   const [internalAgentType, setInternalAgentType] = useState(
-    selectedAgentType ?? agentTypes?.[0]?.id
+    selectedAgentType ?? agentTypes?.[0]?.id,
   );
   // Default to the first model if no selectedModelId provided
   const defaultModelId = models?.[0]?.id ?? "";
   const [internalModelId, setInternalModelId] = useState<string>(
-    selectedModelId ?? defaultModelId
+    selectedModelId ?? defaultModelId,
   );
   const inputRef = useRef<RNTextInput>(null);
   const fadeAnim = useRef(new Animated.Value(1)).current;
@@ -813,19 +843,50 @@ const AjoraChatInputComponent = forwardRef<
   const config = useAjoraChatConfiguration();
   const labels = config?.labels ?? AjoraChatDefaultLabels;
 
-  // Colors based on theme
+  // Get global theme from context
+  const globalTheme = useAjoraTheme();
+
+  // Colors based on theme - priority: local theme prop > global theme > darkMode default
+  // Colors based on theme - priority: local theme prop > global theme > defaults
   const colors = useMemo(() => {
-    const baseColors = darkMode ? DEFAULT_DARK_COLORS : DEFAULT_LIGHT_COLORS;
-    return { ...baseColors, ...theme?.colors };
-  }, [darkMode, theme?.colors]);
+    // Map global theme colors to input color format
+    const defaultColors = {
+      background: globalTheme.colors.background,
+      inputBackground: globalTheme.colors.inputBackground, // Or surface if preferred
+      text: globalTheme.colors.text,
+      placeholder: globalTheme.colors.placeholder, // Ensure placeholder defined in global map
+      primary: globalTheme.colors.primary,
+      secondary: globalTheme.colors.surface, // Map surface to secondary (often button backgrounds)
+      accent: globalTheme.colors.primaryVariant,
+      iconDefault: globalTheme.colors.iconDefault,
+      iconActive: globalTheme.colors.iconActive,
+      border: globalTheme.colors.border,
+      error: globalTheme.colors.error,
+    };
+
+    return { ...defaultColors, ...theme?.colors } as Required<
+      NonNullable<AjoraChatInputTheme["colors"]>
+    >;
+  }, [globalTheme, theme?.colors]);
 
   // ========================================================================
   // Derived State
   // ========================================================================
 
+  const resolvedAttachments = useMemo(() => {
+    return [...(attachments ?? []), ...internalAttachments];
+  }, [attachments, internalAttachments]);
+
   const resolvedValue = isControlled ? (value ?? "") : internalValue;
   const isProcessing = mode !== "transcribe" && isRunning;
-  const canSend = resolvedValue.trim().length > 0 && !!onSubmitMessage;
+  const hasAttachments = resolvedAttachments.length > 0;
+  const isUploading = resolvedAttachments.some(
+    (a) => a.uploadState === "uploading",
+  );
+  const canSend =
+    (resolvedValue.trim().length > 0 || hasAttachments) &&
+    !!onSubmitMessage &&
+    !isUploading;
   const canStop = !!onStop;
   const maxHeight = Math.min(maxLines * LINE_HEIGHT + 20, INPUT_MAX_HEIGHT);
   const currentAgentType = selectedAgentType ?? internalAgentType;
@@ -889,7 +950,7 @@ const AjoraChatInputComponent = forwardRef<
       },
       getValue: () => resolvedValue,
     }),
-    [isControlled, onChange, resolvedValue]
+    [isControlled, onChange, resolvedValue],
   );
 
   // ========================================================================
@@ -903,7 +964,7 @@ const AjoraChatInputComponent = forwardRef<
       }
       onChange?.(text);
     },
-    [isControlled, onChange]
+    [isControlled, onChange],
   );
 
   const clearInputValue = useCallback(() => {
@@ -917,13 +978,20 @@ const AjoraChatInputComponent = forwardRef<
     if (!canSend) return;
 
     const trimmedValue = resolvedValue.trim();
-    onSubmitMessage?.(trimmedValue);
+    onSubmitMessage?.(trimmedValue, resolvedAttachments);
     clearInputValue();
+    setInternalAttachments([]);
 
     requestAnimationFrame(() => {
       inputRef.current?.focus();
     });
-  }, [canSend, resolvedValue, onSubmitMessage, clearInputValue]);
+  }, [
+    canSend,
+    resolvedValue,
+    resolvedAttachments,
+    onSubmitMessage,
+    clearInputValue,
+  ]);
 
   const handleStop = useCallback(() => {
     onStop?.();
@@ -937,7 +1005,7 @@ const AjoraChatInputComponent = forwardRef<
         handleSend();
       }
     },
-    [isProcessing, handleSend, handleStop]
+    [isProcessing, handleSend, handleStop],
   );
 
   const handleAgentTypeChange = useCallback(
@@ -947,7 +1015,7 @@ const AjoraChatInputComponent = forwardRef<
       }
       onAgentTypeChange?.(option);
     },
-    [selectedAgentType, onAgentTypeChange]
+    [selectedAgentType, onAgentTypeChange],
   );
 
   // ========================================================================
@@ -955,31 +1023,100 @@ const AjoraChatInputComponent = forwardRef<
   // ========================================================================
 
   const handleOpenAttachmentSheet = useCallback(() => {
+    Keyboard.dismiss();
     attachmentSheetRef.current?.present();
     onAddPress?.();
   }, [onAddPress]);
 
   const handleOpenAgentPickerSheet = useCallback(() => {
+    Keyboard.dismiss();
     agentPickerSheetRef.current?.present();
     onSettingsPress?.();
   }, [onSettingsPress]);
 
   const handleOpenModelsSheet = useCallback(() => {
+    Keyboard.dismiss();
     modelsSheetRef.current?.present();
   }, []);
 
   const handleAttachmentSelect = useCallback(
-    (type: AttachmentType) => {
+    async (type: AttachmentType) => {
       onAttachmentSelect?.(type);
+
+      if (onAttachmentPreview) {
+        attachmentSheetRef.current?.close();
+        try {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const result = await handleAttachmentSelection(type as any);
+
+          if (result.success) {
+            const files =
+              result.attachments ||
+              (result.attachment ? [result.attachment] : []);
+
+            if (files.length > 0) {
+              const newItems: AttachmentPreviewItem[] = files.map((f) => ({
+                ...f,
+                uploadState: "uploading",
+                uploadProgress: 0,
+              }));
+
+              setInternalAttachments((prev) => [...prev, ...newItems]);
+
+              files.forEach((file) => {
+                onAttachmentPreview(file, {
+                  onProgress: (progress) => {
+                    setInternalAttachments((prev) =>
+                      prev.map((p) =>
+                        p.id === file.id
+                          ? {
+                              ...p,
+                              uploadProgress: progress,
+                              uploadState: "uploading",
+                            }
+                          : p,
+                      ),
+                    );
+                  },
+                  onComplete: (updatedFile) => {
+                    setInternalAttachments((prev) =>
+                      prev.map((p) =>
+                        p.id === file.id
+                          ? {
+                              ...(updatedFile ?? p),
+                              uploadState: "uploaded",
+                              uploadProgress: 100,
+                            }
+                          : p,
+                      ),
+                    );
+                  },
+                  onError: (_error) => {
+                    setInternalAttachments((prev) =>
+                      prev.map((p) =>
+                        p.id === file.id ? { ...p, uploadState: "error" } : p,
+                      ),
+                    );
+                  },
+                });
+              });
+            }
+          } else if (result.error) {
+            console.error("Error selecting attachments:", result.error);
+          }
+        } catch (error) {
+          console.error("Error selecting attachments:", error);
+        }
+      }
     },
-    [onAttachmentSelect]
+    [onAttachmentSelect, onAttachmentPreview],
   );
 
   const handleAgentSelect = useCallback(
     (agent: AgentOption) => {
       onAgentSelect?.(agent);
     },
-    [onAgentSelect]
+    [onAgentSelect],
   );
 
   const handleModelSelect = useCallback(
@@ -989,14 +1126,17 @@ const AjoraChatInputComponent = forwardRef<
       }
       onModelSelect?.(model);
     },
-    [onModelSelect, isModelControlled]
+    [onModelSelect, isModelControlled],
   );
 
   const handleRemoveAttachment = useCallback(
     (attachmentId: string) => {
+      setInternalAttachments((prev) =>
+        prev.filter((a) => a.id !== attachmentId),
+      );
       onRemoveAttachment?.(attachmentId);
     },
-    [onRemoveAttachment]
+    [onRemoveAttachment],
   );
 
   // ========================================================================
@@ -1022,7 +1162,7 @@ const AjoraChatInputComponent = forwardRef<
       toolbarContainer: [styles.toolbarContainer, theme?.toolbarContainer],
       actionsContainer: [styles.actionsContainer, theme?.actionsContainer],
     }),
-    [colors, theme, style, maxHeight]
+    [colors, theme, style, maxHeight],
   );
 
   // ========================================================================
@@ -1073,7 +1213,31 @@ const AjoraChatInputComponent = forwardRef<
     />
   );
 
-  const agentSelectorElement = (
+  const agentSelectorElement = icons?.model ? (
+    <Pressable
+      onPress={handleOpenModelsSheet}
+      style={({ pressed }) => [
+        styles.agentSelector,
+        { borderColor: colors.border },
+        pressed && styles.buttonPressed,
+      ]}
+      testID={`${testID}-agent-selector`}
+      accessibilityRole="button"
+      accessibilityLabel={`Selected model: ${selectedModel?.name ?? "Select model"}`}
+      accessibilityHint="Tap to select AI model"
+    >
+      {typeof icons.model === "function"
+        ? icons.model({ size: 14, color: colors.iconActive })
+        : icons.model}
+      <Text
+        style={[styles.agentSelectorText, { color: colors.text }]}
+        numberOfLines={1}
+      >
+        {selectedModel?.name ?? "Select Model"}
+      </Text>
+      <Ionicons name="chevron-down" size={14} color={colors.iconDefault} />
+    </Pressable>
+  ) : (
     <Pressable
       onPress={handleOpenModelsSheet}
       style={({ pressed }) => [
@@ -1092,6 +1256,7 @@ const AjoraChatInputComponent = forwardRef<
       >
         {selectedModel?.name ?? "Select Model"}
       </Text>
+      <Ionicons name="chevron-down" size={14} color={colors.iconDefault} />
     </Pressable>
   );
 
@@ -1108,51 +1273,93 @@ const AjoraChatInputComponent = forwardRef<
     />
   );
 
-  const sendButtonElement = customSendButton ?? (
-    <Pressable
-      onPress={handleSend}
-      disabled={!canSend}
-      style={({ pressed }) => [
-        styles.circleButton,
-        styles.sendButton,
-        { backgroundColor: canSend ? colors.primary : colors.secondary },
-        pressed && canSend && styles.buttonPressed,
-      ]}
-      testID={`${testID}-send-button`}
-      accessibilityRole="button"
-      accessibilityLabel="Send message"
-      accessibilityState={{ disabled: !canSend }}
-    >
-      <Ionicons
-        name="arrow-up"
-        size={20}
-        color={canSend ? "#FFFFFF" : colors.iconDefault}
-      />
-    </Pressable>
-  );
+  const sendButtonElement =
+    customSendButton ??
+    (icons?.send ? (
+      <Pressable
+        onPress={handleSend}
+        disabled={!canSend}
+        style={({ pressed }) => [
+          styles.circleButton,
+          { backgroundColor: canSend ? colors.primary : colors.secondary },
+          pressed && canSend && styles.buttonPressed,
+        ]}
+        testID={`${testID}-send-button`}
+        accessibilityRole="button"
+        accessibilityLabel="Send message"
+        accessibilityState={{ disabled: !canSend }}
+      >
+        {typeof icons.send === "function"
+          ? icons.send({
+              size: 20,
+              color: canSend ? colors.background : colors.iconDefault,
+            })
+          : icons.send}
+      </Pressable>
+    ) : (
+      <Pressable
+        onPress={handleSend}
+        disabled={!canSend}
+        style={({ pressed }) => [
+          styles.circleButton,
+          { backgroundColor: canSend ? colors.primary : colors.secondary },
+          pressed && canSend && styles.buttonPressed,
+        ]}
+        testID={`${testID}-send-button`}
+        accessibilityRole="button"
+        accessibilityLabel="Send message"
+        accessibilityState={{ disabled: !canSend }}
+      >
+        <Ionicons
+          name="arrow-up"
+          size={20}
+          color={canSend ? colors.background : colors.iconDefault}
+        />
+      </Pressable>
+    ));
 
-  const stopButtonElement = customStopButton ?? (
-    <Pressable
-      onPress={handleStop}
-      disabled={!canStop}
-      style={({ pressed }) => [
-        styles.circleButton,
-        styles.stopButton,
-        pressed && canStop && styles.buttonPressed,
-      ]}
-      testID={`${testID}-stop-button`}
-      accessibilityRole="button"
-      accessibilityLabel="Stop processing"
-      accessibilityState={{ disabled: !canStop }}
-    >
-      <Ionicons name="stop" size={16} color="#FFFFFF" />
-    </Pressable>
-  );
+  const stopButtonElement =
+    customStopButton ??
+    (icons?.stop ? (
+      <Pressable
+        onPress={handleStop}
+        disabled={!canStop}
+        style={({ pressed }) => [
+          styles.circleButton,
+          { backgroundColor: colors.error },
+          pressed && canStop && styles.buttonPressed,
+        ]}
+        testID={`${testID}-stop-button`}
+        accessibilityRole="button"
+        accessibilityLabel="Stop processing"
+        accessibilityState={{ disabled: !canStop }}
+      >
+        {typeof icons.stop === "function"
+          ? icons.stop({ size: 16, color: colors.background })
+          : icons.stop}
+      </Pressable>
+    ) : (
+      <Pressable
+        onPress={handleStop}
+        disabled={!canStop}
+        style={({ pressed }) => [
+          styles.circleButton,
+          { backgroundColor: colors.error },
+          pressed && canStop && styles.buttonPressed,
+        ]}
+        testID={`${testID}-stop-button`}
+        accessibilityRole="button"
+        accessibilityLabel="Stop processing"
+        accessibilityState={{ disabled: !canStop }}
+      >
+        <Ionicons name="stop" size={16} color={colors.background} />
+      </Pressable>
+    ));
 
   const attachmentPreviewElement =
-    attachments.length > 0 ? (
+    resolvedAttachments.length > 0 ? (
       <AttachmentPreview
-        attachments={attachments}
+        attachments={resolvedAttachments}
         onRemove={handleRemoveAttachment}
         colors={colors}
         testID={`${testID}-attachment-preview`}
@@ -1180,7 +1387,7 @@ const AjoraChatInputComponent = forwardRef<
       canSend,
       canStop,
       colors,
-      attachments,
+      attachments: resolvedAttachments,
     };
 
     return <>{children(childProps)}</>;
@@ -1201,9 +1408,9 @@ const AjoraChatInputComponent = forwardRef<
         {/* Main Input Container */}
         <View style={computedStyles.inputWrapper}>
           {/* Attachment Previews */}
-          {attachments.length > 0 && (
+          {resolvedAttachments.length > 0 && (
             <AttachmentPreview
-              attachments={attachments}
+              attachments={resolvedAttachments}
               onRemove={handleRemoveAttachment}
               colors={colors}
               testID={`${testID}-attachment-preview`}
@@ -1237,13 +1444,17 @@ const AjoraChatInputComponent = forwardRef<
             </View>
           </View>
         </View>
+
+        {/* Disclaimer Text */}
+        <Text style={[styles.disclaimerText, { color: colors.placeholder }]}>
+          {labels.chatDisclaimerText}
+        </Text>
       </Animated.View>
 
       {/* Bottom Sheets */}
       <AttachmentSheet
         ref={attachmentSheetRef}
         onSelect={handleAttachmentSelect}
-        darkMode={darkMode}
         testID={`${testID}-attachment-sheet`}
       />
 
@@ -1252,7 +1463,6 @@ const AjoraChatInputComponent = forwardRef<
         selectedAgentId={selectedAgentId}
         onSelect={handleAgentSelect}
         agents={agents}
-        darkMode={darkMode}
         testID={`${testID}-agent-picker-sheet`}
       />
 
@@ -1261,7 +1471,6 @@ const AjoraChatInputComponent = forwardRef<
         selectedModelId={resolvedModelId}
         onSelect={handleModelSelect}
         models={modelsList}
-        darkMode={darkMode}
         testID={`${testID}-models-sheet`}
       />
     </>
@@ -1303,8 +1512,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 14,
     paddingBottom: 10,
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
+    borderWidth: 1.5,
   },
   inputRow: {
     width: "100%",
@@ -1356,12 +1564,6 @@ const styles = StyleSheet.create({
     borderRadius: BUTTON_SIZE / 2,
     alignItems: "center",
     justifyContent: "center",
-  },
-  sendButton: {
-    // Base styles applied via inline
-  },
-  stopButton: {
-    backgroundColor: "#EF4444",
   },
   buttonPressed: {
     opacity: 0.7,
@@ -1436,6 +1638,13 @@ const styles = StyleSheet.create({
   modalOptionDescription: {
     fontSize: 13,
     marginTop: 2,
+  },
+  disclaimerText: {
+    fontSize: 12,
+    marginTop: 8,
+    textAlign: "center",
+    opacity: 0.7,
+    paddingHorizontal: 16,
   },
 });
 

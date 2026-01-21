@@ -6,6 +6,7 @@ import {
   Pressable,
   StyleProp,
   ViewStyle,
+  TextStyle,
   Platform,
 } from "react-native";
 import {
@@ -15,6 +16,7 @@ import {
   type BottomSheetBackdropProps,
 } from "@gorhom/bottom-sheet";
 import { Ionicons } from "@expo/vector-icons";
+import { useAjoraTheme } from "../../providers/AjoraThemeProvider";
 
 // ============================================================================
 // Types & Interfaces
@@ -27,30 +29,18 @@ export interface AgentOption {
   icon?: keyof typeof Ionicons.glyphMap;
   /** Whether this agent is disabled (not selectable) */
   isDisabled?: boolean;
-  /** Whether this agent is new (shows "New" badge) */
-  isNew?: boolean;
+  /** Badge (e.g. "New" badge) */
+  badge?: string;
   /** Any additional data for the agent */
   extraData?: any;
 }
 
-export interface AgentPickerSheetTheme {
-  container?: StyleProp<ViewStyle>;
-  handleIndicator?: string;
-  background?: string;
-  colors?: {
-    text?: string;
-    textSecondary?: string;
-    border?: string;
-    optionBackground?: string;
-    optionBackgroundPressed?: string;
-    selectedBackground?: string;
-    selectedBorder?: string;
-    primary?: string;
-    disabledBackground?: string;
-    disabledText?: string;
-    newBadgeBackground?: string;
-    newBadgeText?: string;
-  };
+export interface AgentPickerSheetIcons {
+  back?: React.ReactNode;
+  close?: React.ReactNode;
+  check?: React.ReactNode;
+  lock?: React.ReactNode;
+  empty?: React.ReactNode;
 }
 
 export interface AgentPickerSheetProps {
@@ -60,57 +50,75 @@ export interface AgentPickerSheetProps {
   onSelect?: (agent: AgentOption) => void;
   /** Callback when the sheet is closed */
   onClose?: () => void;
-  /** Custom theme overrides */
-  theme?: AgentPickerSheetTheme;
-  /** Whether to use dark mode */
-  darkMode?: boolean;
   /** Agent options - if not provided, nothing is shown */
   agents?: AgentOption[];
   /** Sheet title */
   title?: string;
+  /** Sheet description */
+  description?: string;
   /** Test ID for testing */
   testID?: string;
+
+  /** Custom icons */
+  icons?: AgentPickerSheetIcons;
+
+  // --- Style Overrides ---
+  /** Style for the sheet container (top-level) */
+  containerStyle?: StyleProp<ViewStyle>;
+  /** Style for the sheet content background */
+  sheetContentStyle?: StyleProp<ViewStyle>;
+  /** Style for the sheet header */
+  sheetHeaderStyle?: StyleProp<ViewStyle>;
+  /** Style for the sheet title text */
+  sheetTitleStyle?: StyleProp<TextStyle>;
+  /** Style for the scroll view content container */
+  listContentStyle?: StyleProp<ViewStyle>;
+
+  /** Style for each item container */
+  itemStyle?: StyleProp<ViewStyle>;
+  /** Style for item text (name) */
+  itemTextStyle?: StyleProp<TextStyle>;
+  /** Style for active/selected item container */
+  activeItemStyle?: StyleProp<ViewStyle>;
+  /** Style for active/selected item text */
+  activeItemTextStyle?: StyleProp<TextStyle>;
+
+  // --- Component Overrides ---
+  /** Custom render function for each agent item */
+  renderItem?: (props: {
+    item: AgentOption;
+    isSelected: boolean;
+    isDisabled: boolean;
+    onPress: () => void;
+    theme: any;
+  }) => React.ReactNode;
+
+  /** Custom render function for header */
+  renderHeader?: (props: {
+    title: string;
+    onClose?: () => void;
+  }) => React.ReactNode;
+
+  /** Custom colors override (highest priority) */
+  colors?: {
+    text?: string;
+    textSecondary?: string;
+    border?: string;
+    optionBackground?: string;
+    optionBackgroundPressed?: string;
+    selectedBackground?: string;
+    selectedBorder?: string;
+    selectedText?: string;
+    iconColor?: string;
+    iconBackground?: string;
+    handleIndicator?: string;
+    background?: string;
+    disabledBackground?: string;
+    disabledText?: string;
+    badgeBackground?: string;
+    badgeText?: string;
+  };
 }
-
-// ============================================================================
-// Constants
-// ============================================================================
-
-const LIGHT_COLORS = {
-  text: "#1F2937",
-  textSecondary: "#6B7280",
-  border: "#E8E8E8",
-  optionBackground: "#FFFFFF",
-  optionBackgroundPressed: "#F5F5F5",
-  selectedBackground: "#F5F5F5",
-  selectedBorder: "#1F2937",
-  iconColor: "#6B7280",
-  iconBackground: "#F5F5F5",
-  handleIndicator: "#D1D5DB",
-  background: "#FFFFFF",
-  disabledBackground: "#F3F4F6",
-  disabledText: "#9CA3AF",
-  newBadgeBackground: "#10B981",
-  newBadgeText: "#FFFFFF",
-};
-
-const DARK_COLORS = {
-  text: "#F9FAFB",
-  textSecondary: "#8E8E93",
-  border: "#2C2C2E",
-  optionBackground: "#1C1C1E",
-  optionBackgroundPressed: "#2C2C2E",
-  selectedBackground: "#2C2C2E",
-  selectedBorder: "#F9FAFB",
-  iconColor: "#9CA3AF",
-  iconBackground: "#2C2C2E",
-  handleIndicator: "#48484A",
-  background: "#1C1C1E",
-  disabledBackground: "#2C2C2E",
-  disabledText: "#6B7280",
-  newBadgeBackground: "#10B981",
-  newBadgeText: "#FFFFFF",
-};
 
 // ============================================================================
 // Component
@@ -124,22 +132,61 @@ export const AgentPickerSheet = forwardRef<
     selectedAgentId,
     onSelect,
     onClose,
-    theme,
-    darkMode = false,
     agents,
     title = "Select Agent",
     testID = "agent-picker-sheet",
+    icons: customIcons,
+    containerStyle,
+    sheetContentStyle,
+    sheetHeaderStyle,
+    sheetTitleStyle,
+    listContentStyle,
+    itemStyle,
+    itemTextStyle,
+    activeItemStyle,
+    activeItemTextStyle,
+    renderItem,
+    renderHeader,
+    colors: colorOverrides,
   },
-  ref
+  ref,
 ) {
   // ========================================================================
-  // Theme
+  // Theme - Priority: colorOverrides > global theme (user custom > default)
   // ========================================================================
 
-  const colors = useMemo(() => {
-    const baseColors = darkMode ? DARK_COLORS : LIGHT_COLORS;
-    return { ...baseColors, ...theme?.colors };
-  }, [darkMode, theme?.colors]);
+  const theme = useAjoraTheme();
+
+  const colors = useMemo(
+    () => ({
+      text: colorOverrides?.text ?? theme.colors.text,
+      textSecondary:
+        colorOverrides?.textSecondary ?? theme.colors.textSecondary,
+      border: colorOverrides?.border ?? theme.colors.border,
+      optionBackground:
+        colorOverrides?.optionBackground ?? theme.colors.surface,
+      optionBackgroundPressed:
+        colorOverrides?.optionBackgroundPressed ?? theme.colors.itemSelected,
+      selectedBackground:
+        colorOverrides?.selectedBackground ?? theme.colors.itemSelected,
+      selectedBorder: colorOverrides?.selectedBorder ?? theme.colors.border,
+      selectedText: colorOverrides?.selectedText ?? theme.colors.text,
+      iconColor: colorOverrides?.iconColor ?? theme.colors.iconDefault,
+      iconBackground: colorOverrides?.iconBackground ?? theme.colors.border,
+      handleIndicator: colorOverrides?.handleIndicator ?? theme.colors.border,
+      background: colorOverrides?.background ?? theme.colors.surface,
+      disabledBackground:
+        colorOverrides?.disabledBackground ?? theme.colors.surface,
+      disabledText: colorOverrides?.disabledText ?? theme.colors.textSecondary,
+      badgeBackground: colorOverrides?.badgeBackground ?? theme.colors.primary,
+      badgeText:
+        colorOverrides?.badgeText ??
+        (theme.name === "dark"
+          ? theme.colors.background
+          : theme.colors.background),
+    }),
+    [theme, colorOverrides],
+  );
 
   const snapPoints = useMemo(() => ["50%", "75%"], []);
 
@@ -154,7 +201,7 @@ export const AgentPickerSheet = forwardRef<
       // @ts-expect-error - ref type issue
       ref?.current?.dismiss();
     },
-    [onSelect, ref]
+    [onSelect, ref],
   );
 
   const handleDismiss = useCallback(() => {
@@ -170,8 +217,133 @@ export const AgentPickerSheet = forwardRef<
         opacity={0.5}
       />
     ),
-    []
+    [],
   );
+
+  // ========================================================================
+  // Default Renders
+  // ========================================================================
+
+  const defaultRenderHeader = () => (
+    <View style={[styles.headerContainer, sheetHeaderStyle]} testID={testID}>
+      <Text style={[styles.title, { color: colors.text }, sheetTitleStyle]}>
+        {title}
+      </Text>
+    </View>
+  );
+
+  const defaultRenderItem = (agent: AgentOption) => {
+    const isSelected = agent.id === selectedAgentId;
+    const isDisabled = agent.isDisabled === true;
+
+    return (
+      <Pressable
+        key={agent.id}
+        onPress={() => handleSelect(agent)}
+        disabled={isDisabled}
+        style={({ pressed }) => [
+          styles.optionItem,
+          {
+            backgroundColor: isDisabled
+              ? colors.disabledBackground
+              : isSelected
+                ? colors.selectedBackground
+                : pressed
+                  ? colors.optionBackgroundPressed
+                  : colors.optionBackground,
+            borderColor: isSelected ? colors.selectedBorder : "transparent",
+            opacity: isDisabled ? 0.6 : 1,
+          },
+          itemStyle,
+          isSelected && activeItemStyle,
+        ]}
+        testID={`${testID}-option-${agent.id}`}
+        accessibilityRole="button"
+        accessibilityLabel={agent.name}
+        accessibilityHint={agent.description}
+        accessibilityState={{
+          selected: isSelected,
+          disabled: isDisabled,
+        }}
+      >
+        <View
+          style={[
+            styles.iconContainer,
+            { backgroundColor: colors.iconBackground },
+          ]}
+        >
+          <Ionicons
+            name={agent.icon || "person-outline"}
+            size={20}
+            color={isDisabled ? colors.disabledText : colors.iconColor}
+          />
+        </View>
+
+        <View style={styles.optionTextContainer}>
+          <View style={styles.optionLabelRow}>
+            <Text
+              style={[
+                styles.optionLabel,
+                {
+                  color: isDisabled ? colors.disabledText : colors.text,
+                },
+                isSelected && styles.optionLabelSelected,
+                itemTextStyle,
+                isSelected && activeItemTextStyle,
+              ]}
+            >
+              {agent.name}
+            </Text>
+
+            {/* Badge */}
+            {agent.badge && (
+              <View
+                style={[
+                  styles.badge,
+                  { backgroundColor: colors.badgeBackground },
+                ]}
+              >
+                <Text style={[styles.badgeText, { color: colors.badgeText }]}>
+                  {agent.badge}
+                </Text>
+              </View>
+            )}
+          </View>
+
+          {agent.description && (
+            <Text
+              style={[
+                styles.optionDescription,
+                {
+                  color: isDisabled
+                    ? colors.disabledText
+                    : colors.textSecondary,
+                },
+              ]}
+              numberOfLines={1}
+            >
+              {agent.description}
+            </Text>
+          )}
+        </View>
+
+        {isSelected &&
+          !isDisabled &&
+          (customIcons?.check ?? (
+            <Ionicons name="checkmark" size={20} color={colors.text} />
+          ))}
+
+        {isDisabled &&
+          (customIcons?.lock ?? (
+            <Ionicons
+              name="lock-closed-outline"
+              size={18}
+              color={colors.disabledText}
+            />
+          ))}
+      </Pressable>
+    );
+  };
 
   // If no agents provided, render empty sheet
   if (!agents || agents.length === 0) {
@@ -190,14 +362,17 @@ export const AgentPickerSheet = forwardRef<
         backgroundStyle={[
           styles.sheetBackground,
           { backgroundColor: colors.background },
+          sheetContentStyle,
         ]}
       >
         <View style={styles.emptyContainer}>
-          <Ionicons
-            name="people-outline"
-            size={48}
-            color={colors.textSecondary}
-          />
+          {customIcons?.empty ?? (
+            <Ionicons
+              name="people-outline"
+              size={48}
+              color={colors.textSecondary}
+            />
+          )}
           <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
             No agents available
           </Text>
@@ -225,130 +400,30 @@ export const AgentPickerSheet = forwardRef<
       backgroundStyle={[
         styles.sheetBackground,
         { backgroundColor: colors.background },
+        sheetContentStyle,
       ]}
+      style={containerStyle}
     >
+      {renderHeader
+        ? renderHeader({ title, onClose: handleDismiss })
+        : defaultRenderHeader()}
+
       <BottomSheetScrollView
         style={styles.scrollView}
-        contentContainerStyle={[styles.scrollContent, theme?.container]}
+        contentContainerStyle={[styles.scrollContent, listContentStyle]}
       >
-        <Text style={[styles.title, { color: colors.text }]} testID={testID}>
-          {title}
-        </Text>
-
-        <View style={styles.optionsContainer}>
-          {agents.map((agent) => {
-            const isSelected = agent.id === selectedAgentId;
-            const isDisabled = agent.isDisabled === true;
-
-            return (
-              <Pressable
-                key={agent.id}
-                onPress={() => handleSelect(agent)}
-                disabled={isDisabled}
-                style={({ pressed }) => [
-                  styles.optionItem,
-                  {
-                    backgroundColor: isDisabled
-                      ? colors.disabledBackground
-                      : isSelected
-                        ? colors.selectedBackground
-                        : pressed
-                          ? colors.optionBackgroundPressed
-                          : colors.optionBackground,
-                    borderColor: isSelected
-                      ? colors.selectedBorder
-                      : colors.border,
-                    opacity: isDisabled ? 0.6 : 1,
-                  },
-                ]}
-                testID={`${testID}-option-${agent.id}`}
-                accessibilityRole="button"
-                accessibilityLabel={agent.name}
-                accessibilityHint={agent.description}
-                accessibilityState={{
-                  selected: isSelected,
-                  disabled: isDisabled,
-                }}
-              >
-                <View
-                  style={[
-                    styles.iconContainer,
-                    { backgroundColor: colors.iconBackground },
-                  ]}
-                >
-                  <Ionicons
-                    name={agent.icon || "person-outline"}
-                    size={20}
-                    color={isDisabled ? colors.disabledText : colors.iconColor}
-                  />
-                </View>
-
-                <View style={styles.optionTextContainer}>
-                  <View style={styles.optionLabelRow}>
-                    <Text
-                      style={[
-                        styles.optionLabel,
-                        {
-                          color: isDisabled ? colors.disabledText : colors.text,
-                        },
-                        isSelected && styles.optionLabelSelected,
-                      ]}
-                    >
-                      {agent.name}
-                    </Text>
-
-                    {/* New Badge */}
-                    {agent.isNew && (
-                      <View
-                        style={[
-                          styles.newBadge,
-                          { backgroundColor: colors.newBadgeBackground },
-                        ]}
-                      >
-                        <Text
-                          style={[
-                            styles.newBadgeText,
-                            { color: colors.newBadgeText },
-                          ]}
-                        >
-                          New
-                        </Text>
-                      </View>
-                    )}
-                  </View>
-
-                  {agent.description && (
-                    <Text
-                      style={[
-                        styles.optionDescription,
-                        {
-                          color: isDisabled
-                            ? colors.disabledText
-                            : colors.textSecondary,
-                        },
-                      ]}
-                      numberOfLines={1}
-                    >
-                      {agent.description}
-                    </Text>
-                  )}
-                </View>
-
-                {isSelected && !isDisabled && (
-                  <Ionicons name="checkmark" size={20} color={colors.text} />
-                )}
-
-                {isDisabled && (
-                  <Ionicons
-                    name="lock-closed-outline"
-                    size={18}
-                    color={colors.disabledText}
-                  />
-                )}
-              </Pressable>
-            );
-          })}
-        </View>
+        {agents.map((agent) => {
+          if (renderItem) {
+            return renderItem({
+              item: agent,
+              isSelected: agent.id === selectedAgentId,
+              isDisabled: !!agent.isDisabled,
+              onPress: () => handleSelect(agent),
+              theme: { colors },
+            });
+          }
+          return defaultRenderItem(agent);
+        })}
       </BottomSheetScrollView>
     </BottomSheetModal>
   );
@@ -379,19 +454,23 @@ const styles = StyleSheet.create({
     height: 4,
     borderRadius: 2,
   },
+  headerContainer: {
+    paddingHorizontal: 20,
+    paddingTop: 8,
+    paddingBottom: 20,
+  },
+  title: {
+    fontSize: 17,
+    fontWeight: "600",
+    textAlign: "center",
+  },
   scrollView: {
     flex: 1,
   },
   scrollContent: {
     paddingHorizontal: 16,
-    paddingTop: 8,
     paddingBottom: 40,
-  },
-  title: {
-    fontSize: 17,
-    fontWeight: "600",
-    marginBottom: 20,
-    textAlign: "center",
+    gap: 8,
   },
   optionsContainer: {
     gap: 8,
@@ -402,6 +481,7 @@ const styles = StyleSheet.create({
     padding: 14,
     borderRadius: 12,
     borderWidth: 1,
+    borderColor: "transparent",
     gap: 14,
   },
   iconContainer: {
@@ -430,12 +510,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginTop: 3,
   },
-  newBadge: {
+  badge: {
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 4,
   },
-  newBadgeText: {
+  badgeText: {
     fontSize: 10,
     fontWeight: "700",
     textTransform: "uppercase",

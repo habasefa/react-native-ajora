@@ -9,23 +9,23 @@ import {
   Suggestion,
 } from "../../core";
 
-export type StaticSuggestionInput = Omit<Suggestion, "isLoading"> &
+type StaticSuggestionInput = Omit<Suggestion, "isLoading"> &
   Partial<Pick<Suggestion, "isLoading">>;
 
-export type StaticSuggestionsConfigInput = Omit<
+type StaticSuggestionsConfigInput = Omit<
   StaticSuggestionsConfig,
   "suggestions"
 > & {
   suggestions: StaticSuggestionInput[];
 };
 
-export type SuggestionsConfigInput =
+type SuggestionsConfigInput =
   | DynamicSuggestionsConfig
   | StaticSuggestionsConfigInput;
 
 export function useConfigureSuggestions(
   config: SuggestionsConfigInput | null | undefined,
-  deps?: ReadonlyArray<unknown>
+  deps?: ReadonlyArray<unknown>,
 ): void {
   const { ajora } = useAjora();
   const chatConfig = useAjoraChatConfiguration();
@@ -33,13 +33,13 @@ export function useConfigureSuggestions(
 
   const resolvedConsumerAgentId = useMemo(
     () => chatConfig?.agentId ?? DEFAULT_AGENT_ID,
-    [chatConfig?.agentId]
+    [chatConfig?.agentId],
   );
 
   const rawConsumerAgentId = useMemo(
     () =>
       config ? (config as SuggestionsConfigInput).consumerAgentId : undefined,
-    [config]
+    [config],
   );
 
   const normalizationCacheRef = useRef<{
@@ -68,7 +68,7 @@ export function useConfigureSuggestions(
       } satisfies DynamicSuggestionsConfig;
     } else {
       const normalizedSuggestions = normalizeStaticSuggestions(
-        config.suggestions
+        config.suggestions,
       );
       const baseConfig: StaticSuggestionsConfig = {
         ...config,
@@ -172,13 +172,13 @@ export function useConfigureSuggestions(
 }
 
 function isDynamicConfig(
-  config: SuggestionsConfigInput
+  config: SuggestionsConfigInput,
 ): config is DynamicSuggestionsConfig {
   return "instructions" in config;
 }
 
 function normalizeStaticSuggestions(
-  suggestions: StaticSuggestionInput[]
+  suggestions: StaticSuggestionInput[],
 ): Suggestion[] {
   return suggestions.map((suggestion) => ({
     ...suggestion,

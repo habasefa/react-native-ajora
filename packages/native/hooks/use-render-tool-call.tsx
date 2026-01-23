@@ -1,16 +1,20 @@
-import React, { useCallback, useMemo, useEffect, useReducer } from "react";
+import React, { useCallback, useMemo, useSyncExternalStore } from "react";
 import { ToolCall, ToolMessage } from "@ag-ui/core";
 import { ToolCallStatus } from "../../core";
+import { DEFAULT_AGENT_ID } from "../../shared";
+import { partialJSONParse } from "../../shared";
+import { ReactToolCallRenderer } from "../types";
 import { useAjora } from "../providers/AjoraProvider";
 import { useAjoraChatConfiguration } from "../providers/AjoraChatConfigurationProvider";
-import { DEFAULT_AGENT_ID, partialJSONParse } from "../../shared";
-import { ReactToolCallRenderer } from "../types";
 
 export interface UseRenderToolCallProps {
   toolCall: ToolCall;
   toolMessage?: ToolMessage;
 }
 
+/**
+ * Props for the memoized ToolCallRenderer component
+ */
 interface ToolCallRendererProps {
   toolCall: ToolCall;
   toolMessage?: ToolMessage;
@@ -18,6 +22,11 @@ interface ToolCallRendererProps {
   isExecuting: boolean;
 }
 
+/**
+ * Memoized component that renders a single tool call.
+ * This prevents unnecessary re-renders when parent components update
+ * but the tool call data hasn't changed.
+ */
 const ToolCallRenderer = React.memo(
   function ToolCallRenderer({
     toolCall,
@@ -25,13 +34,15 @@ const ToolCallRenderer = React.memo(
     RenderComponent,
     isExecuting,
   }: ToolCallRendererProps) {
+    // Memoize args based on the arguments string to maintain stable reference
     const args = useMemo(
       () => partialJSONParse(toolCall.function.arguments),
-      [toolCall.function.arguments]
+      [toolCall.function.arguments],
     );
 
     const toolName = toolCall.function.name;
 
+    // Render based on status to preserve discriminated union type inference
     if (toolMessage) {
       return (
         <RenderComponent
@@ -61,7 +72,9 @@ const ToolCallRenderer = React.memo(
       );
     }
   },
+  // Custom comparison function to prevent re-renders when tool call data hasn't changed
   (prevProps, nextProps) => {
+    // Compare tool call identity and content
     if (prevProps.toolCall.id !== nextProps.toolCall.id) return false;
     if (prevProps.toolCall.function.name !== nextProps.toolCall.function.name)
       return false;
@@ -71,47 +84,66 @@ const ToolCallRenderer = React.memo(
     )
       return false;
 
+    // Compare tool message (result)
     const prevResult = prevProps.toolMessage?.content;
     const nextResult = nextProps.toolMessage?.content;
     if (prevResult !== nextResult) return false;
 
+    // Compare executing state
     if (prevProps.isExecuting !== nextProps.isExecuting) return false;
+
+    // Compare render component reference
     if (prevProps.RenderComponent !== nextProps.RenderComponent) return false;
 
     return true;
-  }
+  },
 );
 
+/**
+ * Hook that returns a function to render tool calls based on the render functions
+ * defined in CopilotKitProvider.
+ *
+ * @returns A function that takes a tool call and optional tool message and returns the rendered component
+ */
 export function useRenderToolCall() {
   const { ajora, executingToolCallIds } = useAjora();
   const config = useAjoraChatConfiguration();
   const agentId = config?.agentId ?? DEFAULT_AGENT_ID;
 
-  const [, forceUpdate] = useReducer((x) => x + 1, 0);
+  // Subscribe to render tool calls changes using useSyncExternalStore
+  // This ensures we always have the latest value, even if subscriptions run in any order
+  const renderToolCalls = useSyncExternalStore(
+    (callback) => {
+      return ajora.subscribe({
+        onRenderToolCallsChanged: callback,
+      }).unsubscribe;
+    },
+    () => ajora.renderToolCalls,
+    () => ajora.renderToolCalls,
+  );
 
-  useEffect(() => {
-    const subscription = ajora.subscribe({
-      onRenderToolCallsChanged: () => {
-        forceUpdate();
-      },
-    });
-
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, [ajora]);
-
-  const renderToolCalls = ajora.renderToolCalls;
+  // Note: executingToolCallIds is now provided by CopilotKitProvider context.
+  // This is critical for HITL reconnection: when connecting to a thread with
+  // pending tool calls, the onToolExecutionStart event fires before child components
+  // mount. By tracking at the provider level, the executing state is already
+  // available when this hook first runs.
 
   const renderToolCall = useCallback(
     ({
       toolCall,
       toolMessage,
     }: UseRenderToolCallProps): React.ReactElement | null => {
+      // Find the render config for this tool call by name
+      // For rendering, we show all tool calls regardless of agentId
+      // The agentId scoping only affects handler execution (in core)
+      // Priority order:
+      // 1. Exact match by name (prefer agent-specific if multiple exist)
+      // 2. Wildcard (*) renderer
       const exactMatches = renderToolCalls.filter(
-        (rc) => rc.name === toolCall.function.name
+        (rc) => rc.name === toolCall.function.name,
       );
 
+      // If multiple renderers with same name exist, prefer the one matching our agentId
       const renderConfig =
         exactMatches.find((rc) => rc.agentId === agentId) ||
         exactMatches.find((rc) => !rc.agentId) ||
@@ -125,6 +157,7 @@ export function useRenderToolCall() {
       const RenderComponent = renderConfig.render;
       const isExecuting = executingToolCallIds.has(toolCall.id);
 
+      // Use the memoized ToolCallRenderer component to prevent unnecessary re-renders
       return (
         <ToolCallRenderer
           key={toolCall.id}
@@ -135,7 +168,7 @@ export function useRenderToolCall() {
         />
       );
     },
-    [renderToolCalls, executingToolCallIds, agentId]
+    [renderToolCalls, executingToolCallIds, agentId],
   );
 
   return renderToolCall;

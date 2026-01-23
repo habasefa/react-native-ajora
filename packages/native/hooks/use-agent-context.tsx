@@ -1,6 +1,9 @@
 import { useAjora } from "../providers/AjoraProvider";
 import { useEffect, useMemo } from "react";
 
+/**
+ * Represents any value that can be serialized to JSON.
+ */
 export type JsonSerializable =
   | string
   | number
@@ -9,8 +12,14 @@ export type JsonSerializable =
   | JsonSerializable[]
   | { [key: string]: JsonSerializable };
 
+/**
+ * Context configuration for useAgentContext.
+ * Accepts any JSON-serializable value which will be converted to a string.
+ */
 export interface AgentContextInput {
+  /** A human-readable description of what this context represents */
   description: string;
+  /** The context value - will be converted to a JSON string if not already a string */
   value: JsonSerializable;
 }
 

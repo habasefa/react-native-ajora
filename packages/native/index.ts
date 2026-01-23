@@ -1,5 +1,6 @@
 // Core
 export * from "./providers/AjoraProvider";
+export { ToolCallStatus } from "../core";
 
 // Hooks
 export * from "./hooks";
@@ -18,6 +19,5 @@ export * from "./config";
 // Types & Libs
 export * from "./types";
 export * from "./lib/slots";
-export * from "./lib/define-tool-call-renderer";
 export * from "./lib/react-core";
 export * from "./lib/fileSystem";

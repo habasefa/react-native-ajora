@@ -1,11 +1,11 @@
-import * as React from "react";
-import { useCallback, useRef, useEffect } from "react";
-import { useAjora } from "../providers/AjoraProvider";
 import { useFrontendTool } from "./use-frontend-tool";
+import { useCallback, useRef, useEffect } from "react";
+import React from "react";
+import { useAjora } from "../providers/AjoraProvider";
 import {
   ReactFrontendTool,
-  ReactToolCallRenderer,
   ReactHumanInTheLoop,
+  ReactToolCallRenderer,
 } from "../types";
 
 export function useHumanInTheLoop<
@@ -30,10 +30,6 @@ export function useHumanInTheLoop<
   const RenderComponent: ReactToolCallRenderer<T>["render"] = useCallback(
     (props) => {
       const ToolComponent = tool.render;
-
-      if (!ToolComponent) {
-        return null;
-      }
 
       // Enhance props based on current status
       if (props.status === "inProgress") {
@@ -66,7 +62,7 @@ export function useHumanInTheLoop<
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       return React.createElement(ToolComponent, props as any);
     },
-    [tool.render, tool.name, tool.description, respond]
+    [tool.render, tool.name, tool.description, respond],
   );
 
   const frontendTool: ReactFrontendTool<T> = {
@@ -87,7 +83,8 @@ export function useHumanInTheLoop<
         ajora.renderToolCalls as ReactToolCallRenderer<any>[];
       const filtered = currentRenderToolCalls.filter(
         (rc) =>
-          keyOf(rc) !== keyOf({ name: tool.name, agentId: tool.agentId } as any)
+          keyOf(rc) !==
+          keyOf({ name: tool.name, agentId: tool.agentId } as any),
       );
       ajora.setRenderToolCalls(filtered);
     };

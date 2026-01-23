@@ -25,6 +25,7 @@ try {
   Haptics = require("expo-haptics");
 } catch {
   // expo-haptics not available
+  console.warn("expo-haptics not available");
 }
 import { AssistantMessage, Message } from "@ag-ui/core";
 import {
@@ -253,11 +254,15 @@ export function AjoraChatAssistantMessage({
   // ========================================================================
 
   const hasContent = !!(message.content && message.content.trim().length > 0);
-  const isLatestAssistantMessage =
-    message.role === "assistant" &&
-    messages?.[messages.length - 1]?.id === message.id;
+
+  // Calculate if this is the last message in a sequence of assistant messages
+  const messageIndex = messages?.findIndex((m) => m.id === message.id) ?? -1;
+  const nextMessage =
+    messageIndex >= 0 ? messages?.[messageIndex + 1] : undefined;
+  const isLastInSequence = !nextMessage || nextMessage.role !== "assistant";
+
   const shouldShowToolbar =
-    toolbarVisible && hasContent && !(isRunning && isLatestAssistantMessage);
+    toolbarVisible && hasContent && isLastInSequence && !isRunning;
 
   // ========================================================================
   // Handlers

@@ -14,8 +14,10 @@ export function useKeyboardHeight() {
     }
 
     // Android/iOS differences in event naming
-    const showEvent = Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
-    const hideEvent = Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
+    const showEvent =
+      Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
+    const hideEvent =
+      Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
 
     const showSubscription = Keyboard.addListener(showEvent, onKeyboardDidShow);
     const hideSubscription = Keyboard.addListener(hideEvent, onKeyboardDidHide);

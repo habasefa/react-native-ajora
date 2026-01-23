@@ -1,8 +1,9 @@
 import { ActivityMessage } from "@ag-ui/core";
 import { DEFAULT_AGENT_ID } from "../../shared";
 import { useAjora } from "../providers/AjoraProvider";
+import { useCallback, useMemo } from "react";
+import { ReactActivityMessageRenderer } from "../types";
 import { useAjoraChatConfiguration } from "../providers/AjoraChatConfigurationProvider";
-import React, { useCallback } from "react";
 
 export function useRenderActivityMessage() {
   const { ajora } = useAjora();
@@ -11,20 +12,30 @@ export function useRenderActivityMessage() {
 
   const renderers = ajora.renderActivityMessages;
 
-  return useCallback(
-    (message: ActivityMessage): React.ReactElement | null => {
+  // Find the renderer for a given activity type
+  const findRenderer = useCallback(
+    (activityType: string): ReactActivityMessageRenderer<unknown> | null => {
       if (!renderers.length) {
         return null;
       }
 
       const matches = renderers.filter(
-        (renderer) => renderer.activityType === message.activityType
+        (renderer) => renderer.activityType === activityType,
       );
 
-      const renderer =
+      return (
         matches.find((candidate) => candidate.agentId === agentId) ??
         matches.find((candidate) => candidate.agentId === undefined) ??
-        renderers.find((candidate) => candidate.activityType === "*");
+        renderers.find((candidate) => candidate.activityType === "*") ??
+        null
+      );
+    },
+    [agentId, renderers],
+  );
+
+  const renderActivityMessage = useCallback(
+    (message: ActivityMessage): React.ReactElement | null => {
+      const renderer = findRenderer(message.activityType);
 
       if (!renderer) {
         return null;
@@ -35,13 +46,12 @@ export function useRenderActivityMessage() {
       if (!parseResult.success) {
         console.warn(
           `Failed to parse content for activity message '${message.activityType}':`,
-          parseResult.error
+          parseResult.error,
         );
         return null;
       }
 
       const Component = renderer.render;
-
       const agent = ajora.getAgent(agentId);
 
       return (
@@ -54,6 +64,11 @@ export function useRenderActivityMessage() {
         />
       );
     },
-    [agentId, ajora, renderers]
+    [agentId, ajora, findRenderer],
+  );
+
+  return useMemo(
+    () => ({ renderActivityMessage, findRenderer }),
+    [renderActivityMessage, findRenderer],
   );
 }

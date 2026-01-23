@@ -7,6 +7,20 @@ import {
   AjoraCoreRuntimeConnectionStatus,
 } from "../../core";
 
+// Optional haptics import - gracefully handle if not available
+let Haptics: {
+  impactAsync?: (style: string) => Promise<void>;
+  ImpactFeedbackStyle?: { Light: string };
+} = {};
+
+try {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  Haptics = require("expo-haptics");
+} catch {
+  // expo-haptics not available
+  console.warn("expo-haptics not available");
+}
+
 export enum UseAgentUpdate {
   OnMessagesChanged = "OnMessagesChanged",
   OnStateChanged = "OnStateChanged",
@@ -32,7 +46,7 @@ export function useAgent({ agentId, updates }: UseAgentProps = {}) {
 
   const updateFlags = useMemo(
     () => updates ?? ALL_UPDATES,
-    [JSON.stringify(updates)]
+    [JSON.stringify(updates)],
   );
 
   const agent: AbstractAgent = useMemo(() => {
@@ -44,21 +58,27 @@ export function useAgent({ agentId, updates }: UseAgentProps = {}) {
     const isRuntimeConfigured = ajora.runtimeUrl !== undefined;
     const status = ajora.runtimeConnectionStatus;
 
+    // While runtime is not yet synced, return a provisional runtime agent
     if (
       isRuntimeConfigured &&
       (status === AjoraCoreRuntimeConnectionStatus.Disconnected ||
-        status === AjoraCoreRuntimeConnectionStatus.Connecting)
+        status === AjoraCoreRuntimeConnectionStatus.Connecting ||
+        status === AjoraCoreRuntimeConnectionStatus.Error)
     ) {
       const provisional = new ProxiedAjoraRuntimeAgent({
         runtimeUrl: ajora.runtimeUrl,
         agentId,
         transport: ajora.runtimeTransport,
       });
+      // Apply current headers so runs/connects inherit them
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (provisional as any).headers = { ...ajora.headers };
       return provisional;
     }
 
+    // If no runtime is configured (dev/local), return a no-op agent to satisfy the
+    // non-undefined contract without forcing network behavior.
+    // After runtime has synced (Connected or Error) or no runtime configured and the agent doesn't exist, throw a descriptive error
     const knownAgents = Object.keys(ajora.agents ?? {});
     const runtimePart = isRuntimeConfigured
       ? `runtimeUrl=${ajora.runtimeUrl}`
@@ -68,8 +88,9 @@ export function useAgent({ agentId, updates }: UseAgentProps = {}) {
         (knownAgents.length
           ? `Known agents: [${knownAgents.join(", ")}]`
           : "No agents registered.") +
-        " Verify your runtime /info and/or agents__unsafe_dev_only."
+        " Verify your runtime /info and/or agents__unsafe_dev_only.",
     );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     agentId,
     ajora.agents,
@@ -88,31 +109,32 @@ export function useAgent({ agentId, updates }: UseAgentProps = {}) {
     const handlers: Parameters<AbstractAgent["subscribe"]>[0] = {};
 
     if (updateFlags.includes(UseAgentUpdate.OnMessagesChanged)) {
+      // Content stripping for immutableContent renderers is handled by AjoraCoreReact
       handlers.onMessagesChanged = () => {
         forceUpdate();
+        if (
+          Haptics.impactAsync &&
+          Haptics.ImpactFeedbackStyle &&
+          agent.isRunning
+        ) {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        }
       };
     }
 
     if (updateFlags.includes(UseAgentUpdate.OnStateChanged)) {
-      handlers.onStateChanged = () => {
-        forceUpdate();
-      };
+      handlers.onStateChanged = forceUpdate;
     }
 
     if (updateFlags.includes(UseAgentUpdate.OnRunStatusChanged)) {
-      handlers.onRunInitialized = () => {
-        forceUpdate();
-      };
-      handlers.onRunFinalized = () => {
-        forceUpdate();
-      };
-      handlers.onRunFailed = () => {
-        forceUpdate();
-      };
+      handlers.onRunInitialized = forceUpdate;
+      handlers.onRunFinalized = forceUpdate;
+      handlers.onRunFailed = forceUpdate;
     }
 
     const subscription = agent.subscribe(handlers);
     return () => subscription.unsubscribe();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [agent, forceUpdate, JSON.stringify(updateFlags)]);
 
   return {

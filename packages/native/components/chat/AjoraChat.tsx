@@ -115,7 +115,7 @@ export function AjoraChat({
       try {
         await ajora.connectAgent({ agent });
       } catch (error) {
-        // console.warn("Connect error", error);
+        console.warn("Connect error", error);
       }
     };
     agent.threadId = resolvedThreadId;

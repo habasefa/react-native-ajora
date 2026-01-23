@@ -1,8 +1,7 @@
+import { ReactCustomMessageRendererPosition } from "../types/react-custom-message-renderer";
+import { Message } from "@ag-ui/core";
 import { useAjora } from "../providers/AjoraProvider";
 import { useAjoraChatConfiguration } from "../providers/AjoraChatConfigurationProvider";
-import { ReactCustomMessageRendererPosition } from "../types";
-import { Message } from "@ag-ui/core";
-import React from "react";
 
 interface UseRenderCustomMessagesParams {
   message: Message;
@@ -22,7 +21,7 @@ export function useRenderCustomMessages() {
   const customMessageRenderers = ajora.renderCustomMessages
     .filter(
       (renderer) =>
-        renderer.agentId === undefined || renderer.agentId === agentId
+        renderer.agentId === undefined || renderer.agentId === agentId,
     )
     .sort((a, b) => {
       const aHasAgent = a.agentId !== undefined;
@@ -44,13 +43,13 @@ export function useRenderCustomMessages() {
 
     const messagesIdsInRun = agent.messages
       .filter(
-        (msg) => ajora.getRunIdForMessage(agentId, threadId, msg.id) === runId
+        (msg) => ajora.getRunIdForMessage(agentId, threadId, msg.id) === runId,
       )
       .map((msg) => msg.id);
 
     const messageIndex =
       agent.messages.findIndex((msg) => msg.id === message.id) ?? 0;
-    const messageIndexInRun = Math.max(messagesIdsInRun.indexOf(message.id), 0);
+    const messageIndexInRun = Math.min(messagesIdsInRun.indexOf(message.id), 0);
     const numberOfMessagesInRun = messagesIdsInRun.length;
     const stateSnapshot = ajora.getStateByRun(agentId, threadId, runId);
 

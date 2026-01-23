@@ -4,15 +4,16 @@ import { Suggestion } from "@ajora-ai/core";
 export const STARTER_SUGGESTIONS: Suggestion[] = [
   {
     id: "1",
-    title: "Tell me a joke",
-    message: "Tell me a well designed joke",
+    title: "Aggergate latest news ",
+    message: "Aggergate latest news and give me different angles of summary",
     icon: "happy-outline",
     iconFamily: "Ionicons",
   },
   {
     id: "2",
-    title: "Quote of the day",
-    message: "What is the quote of the day?",
+    title: "Entertainment",
+    message:
+      "Give me a joke, then a quote, then man in history then new year resolution.",
     icon: "format-quote",
     iconFamily: "MaterialIcons",
   },

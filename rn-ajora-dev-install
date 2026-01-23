@@ -1,0 +1,48 @@
+#!/bin/bash
+set -e
+
+# Directory definitions
+AJORA_DIR="/home/habtamu-asefa/development/react-native-ajora"
+PREPX_MOBILE_DIR="/home/habtamu-asefa/Prepx/prepx-mobile"
+
+# Ensure we are in the project root
+cd "$AJORA_DIR"
+
+# Clean up old tarballs
+echo "Cleaning up old tarballs..."
+rm -f react-native-ajora-*.tgz
+
+# Build the package
+echo "Building react-native-ajora..."
+# We allow build to fail (TS errors) as long as it generates output
+set +e
+npm run build
+BUILD_STATUS=$?
+set -e
+
+if [ $BUILD_STATUS -ne 0 ]; then
+  echo "⚠️  Build finished with errors (likely TS), but attempting to pack anyway..."
+fi
+
+# Pack the package
+echo "Packing react-native-ajora..."
+npm pack
+
+# Find the generated tarball
+TARBALL=$(ls react-native-ajora-*.tgz | head -n 1)
+
+if [ -z "$TARBALL" ]; then
+  echo "Error: Failed to create tarball."
+  exit 1
+fi
+
+echo "Created package: $TARBALL"
+
+# Navigate to destination
+cd "$PREPX_MOBILE_DIR"
+
+# Install the new package
+echo "Installing $TARBALL into prepx-mobile..."
+npm install "$AJORA_DIR/$TARBALL"
+
+echo "✅ Successfully built, packed, and installed react-native-ajora into prepx-mobile!"

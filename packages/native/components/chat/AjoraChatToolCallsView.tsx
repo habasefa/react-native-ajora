@@ -21,7 +21,7 @@ export function AjoraChatToolCallsView({
     <React.Fragment>
       {message.toolCalls.map((toolCall) => {
         const toolMessage = messages.find(
-          (m) => m.role === "tool" && m.toolCallId === toolCall.id
+          (m) => m.role === "tool" && m.toolCallId === toolCall.id,
         ) as ToolMessage | undefined;
 
         return (

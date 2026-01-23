@@ -6,6 +6,9 @@ import "react-native-get-random-values";
 import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { StyleSheet } from "react-native";
+import { AjoraProvider } from "@ajora-ai/native";
+import { WebSearchTool } from "../components/tools/backendTools/websearchTool";
+import z from "zod";
 
 export const unstable_settings = {
   anchor: "index",
@@ -16,10 +19,24 @@ export default function RootLayout() {
     <GestureHandlerRootView style={styles.container}>
       <BottomSheetModalProvider>
         <SafeAreaProvider>
-          <Stack>
-            <Stack.Screen name="index" options={{ headerShown: false }} />
-          </Stack>
-          <StatusBar style="auto" />
+          <AjoraProvider
+            runtimeUrl="http://localhost:3000/api/copilotkit"
+            useSingleEndpoint={true}
+            renderToolCalls={[
+              {
+                name: "webSearch",
+                args: z.object({
+                  query: z.string().min(1).max(50).describe("The search query"),
+                }),
+                render: WebSearchTool,
+              },
+            ]}
+          >
+            <Stack>
+              <Stack.Screen name="index" options={{ headerShown: false }} />
+            </Stack>
+            <StatusBar style="auto" />
+          </AjoraProvider>
         </SafeAreaProvider>
       </BottomSheetModalProvider>
     </GestureHandlerRootView>

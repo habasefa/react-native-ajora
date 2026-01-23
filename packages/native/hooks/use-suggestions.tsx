@@ -22,7 +22,7 @@ export function useSuggestions({
   const config = useAjoraChatConfiguration();
   const resolvedAgentId = useMemo(
     () => agentId ?? config?.agentId ?? DEFAULT_AGENT_ID,
-    [agentId, config?.agentId]
+    [agentId, config?.agentId],
   );
 
   const [suggestions, setSuggestions] = useState<Suggestion[]>(() => {

@@ -88,6 +88,11 @@ export type AjoraChatUserMessageProps = WithSlots<
     colors?: AjoraChatUserMessageColorsOverride;
     onLongPress?: (props: { message: UserMessage }) => void;
     style?: StyleProp<ViewStyle>;
+    textRenderer?: (props: {
+      content: string;
+      style?: any;
+      isUser?: boolean;
+    }) => React.ReactNode;
   }
 >;
 
@@ -134,6 +139,7 @@ export function AjoraChatUserMessage({
       content: flattenedContent,
       colors,
       onLongPress: () => onLongPress?.({ message }),
+      textRenderer: props.textRenderer,
     },
   );
 
@@ -228,6 +234,11 @@ export namespace AjoraChatUserMessage {
 
     colors?: AjoraChatUserMessageColors;
     onLongPress?: () => void;
+    textRenderer?: (props: {
+      content: string;
+      style?: any;
+      isUser?: boolean;
+    }) => React.ReactNode;
   }> = ({
     content,
     style,
@@ -236,25 +247,38 @@ export namespace AjoraChatUserMessage {
     fontSize = 16,
     lineHeight = 22,
     onLongPress,
-  }) => (
-    <Pressable
-      onLongPress={onLongPress}
-      delayLongPress={500}
-      style={({ pressed }) => [
-        styles.messageBubble,
-        { backgroundColor: colors?.bubbleBackground ?? "#007AFF" },
-        style,
-        pressed && { opacity: 0.8 },
-      ]}
-    >
-      <RichText
-        text={content}
-        textColor={textColor ?? colors?.text ?? "#FFFFFF"}
-        fontSize={fontSize}
-        lineHeight={lineHeight}
-      />
-    </Pressable>
-  );
+    textRenderer,
+  }) => {
+    const defaultTextStyle = {
+      color: textColor ?? colors?.text ?? "#FFFFFF",
+      fontSize,
+      lineHeight,
+    };
+
+    return (
+      <Pressable
+        onLongPress={onLongPress}
+        delayLongPress={500}
+        style={({ pressed }) => [
+          styles.messageBubble,
+          { backgroundColor: colors?.bubbleBackground ?? "#007AFF" },
+          style,
+          pressed && { opacity: 0.8 },
+        ]}
+      >
+        {textRenderer ? (
+          textRenderer({ content, style: defaultTextStyle, isUser: true })
+        ) : (
+          <RichText
+            text={content}
+            textColor={textColor ?? colors?.text ?? "#FFFFFF"}
+            fontSize={fontSize}
+            lineHeight={lineHeight}
+          />
+        )}
+      </Pressable>
+    );
+  };
 
   export const Toolbar: React.FC<{
     children: React.ReactNode;

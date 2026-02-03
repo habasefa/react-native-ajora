@@ -8,6 +8,7 @@ import {
   ViewStyle,
   TextStyle,
   Platform,
+  ActivityIndicator,
 } from "react-native";
 import { SuggestionsProvidedProps } from "react-native-controlled-mentions";
 import { useAjoraTheme } from "../../providers/AjoraThemeProvider";
@@ -43,6 +44,11 @@ export interface AjoraMentionSuggestionsProps extends Omit<
   theme?: AjoraMentionSuggestionsTheme;
   onSelect: (suggestion: MentionSuggestion) => void;
   maxHeight?: number;
+  SuggestionItem?: React.ComponentType<{
+    item: MentionSuggestion;
+    onSelect: (suggestion: MentionSuggestion) => void;
+  }>;
+  isLoading?: boolean;
 }
 
 export const AjoraMentionSuggestions: FC<AjoraMentionSuggestionsProps> = ({
@@ -50,6 +56,8 @@ export const AjoraMentionSuggestions: FC<AjoraMentionSuggestionsProps> = ({
   onSelect,
   suggestions = [],
   theme: customTheme,
+  SuggestionItem,
+  isLoading,
 }) => {
   const globalTheme = useAjoraTheme();
 
@@ -70,9 +78,16 @@ export const AjoraMentionSuggestions: FC<AjoraMentionSuggestionsProps> = ({
     one.name.toLocaleLowerCase().includes(keyword.toLocaleLowerCase()),
   );
 
-  if (filteredSuggestions.length === 0) {
+  const shouldShow =
+    isLoading ||
+    filteredSuggestions.length > 0 ||
+    (keyword && keyword.length > 0);
+
+  if (!shouldShow) {
     return null;
   }
+
+  const hasSuggestions = filteredSuggestions.length > 0;
 
   return (
     <View
@@ -81,54 +96,95 @@ export const AjoraMentionSuggestions: FC<AjoraMentionSuggestionsProps> = ({
         {
           backgroundColor: colors.background,
           borderColor: colors.border,
+          minHeight: hasSuggestions || isLoading ? undefined : 150,
         },
         customTheme?.container,
       ]}
     >
-      {filteredSuggestions.map((one) => (
-        <Pressable
-          key={one.id}
-          onPress={() => onSelect(one)}
-          style={({ pressed }) => [
-            styles.item,
-            pressed && { backgroundColor: colors.highlight },
-            customTheme?.item,
+      {isLoading && !hasSuggestions ? (
+        <View
+          style={[
+            styles.loadingContainer,
+            { backgroundColor: colors.background, minHeight: 150 },
           ]}
         >
-          <View style={styles.contentContainer}>
-            {one.icon && (
-              <Ionicons
-                name={one.icon}
-                size={20}
-                color={colors.text}
-                style={styles.icon}
-              />
-            )}
-            <View>
-              <Text
-                style={[
-                  styles.name,
-                  { color: colors.text },
-                  customTheme?.itemText,
-                ]}
-              >
-                {one.name}
-              </Text>
-              {one.subtitle && (
-                <Text
-                  style={[
-                    styles.subtitle,
-                    { color: colors.subtitle },
-                    customTheme?.itemSubtitle,
-                  ]}
-                >
-                  {one.subtitle}
-                </Text>
-              )}
-            </View>
+          <ActivityIndicator size="small" color={globalTheme.colors.primary} />
+        </View>
+      ) : hasSuggestions ? (
+        filteredSuggestions.map((one) =>
+          SuggestionItem ? (
+            <SuggestionItem
+              key={one.id}
+              item={one}
+              onSelect={() => onSelect(one)}
+            />
+          ) : (
+            <Pressable
+              key={one.id}
+              onPress={() => onSelect(one)}
+              style={({ pressed }) => [
+                styles.item,
+                pressed && { backgroundColor: colors.highlight },
+                customTheme?.item,
+              ]}
+            >
+              <View style={styles.contentContainer}>
+                {one.icon && (
+                  <Ionicons
+                    name={one.icon}
+                    size={20}
+                    color={colors.text}
+                    style={styles.icon}
+                  />
+                )}
+                <View>
+                  <Text
+                    style={[
+                      styles.name,
+                      { color: colors.text },
+                      customTheme?.itemText,
+                    ]}
+                  >
+                    {one.name}
+                  </Text>
+                  {one.subtitle && (
+                    <Text
+                      style={[
+                        styles.subtitle,
+                        { color: colors.subtitle },
+                        customTheme?.itemSubtitle,
+                      ]}
+                    >
+                      {one.subtitle}
+                    </Text>
+                  )}
+                </View>
+              </View>
+            </Pressable>
+          ),
+        )
+      ) : (
+        <View style={styles.emptyStateContainer}>
+          <View
+            style={[
+              styles.emptyStateIcon,
+              { backgroundColor: globalTheme.colors.surface },
+            ]}
+          >
+            <Ionicons
+              name="search-outline"
+              size={24}
+              color={globalTheme.colors.placeholder}
+            />
           </View>
-        </Pressable>
-      ))}
+          <Text style={[styles.emptyStateTitle, { color: colors.text }]}>
+            No Results Found
+          </Text>
+          <Text style={[styles.emptyStateSubtitle, { color: colors.subtitle }]}>
+            Try adjusting your search terms
+          </Text>
+        </View>
+      )}
     </View>
   );
 };
@@ -137,9 +193,10 @@ const styles = StyleSheet.create({
   container: {
     position: "absolute",
     bottom: "100%",
-    left: 0,
-    right: 0,
+    left: -16,
+    right: -16,
     marginBottom: 8,
+    transform: [{ translateY: -10 }],
     borderRadius: 12,
     borderWidth: 1,
     overflow: "hidden",
@@ -174,5 +231,35 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: 12,
     marginTop: 2,
+  },
+  loadingContainer: {
+    padding: 16,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  emptyStateContainer: {
+    padding: 24,
+    alignItems: "center",
+    justifyContent: "center",
+    minHeight: 150,
+  },
+  emptyStateIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 12,
+  },
+  emptyStateTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    marginBottom: 4,
+    textAlign: "center",
+  },
+  emptyStateSubtitle: {
+    fontSize: 13,
+    textAlign: "center",
+    opacity: 0.8,
   },
 });

@@ -57,6 +57,7 @@ import {
   SuggestionsProvidedProps,
   TriggersConfig,
   useMentions,
+  replaceTriggerValues,
 } from "react-native-controlled-mentions";
 import {
   AjoraMentionSuggestions,
@@ -171,6 +172,13 @@ export interface AjoraChatInputProps {
   mentionSuggestions?: MentionSuggestion[];
   /** Callback when a mention suggestion is selected */
   onMentionSelect?: (suggestion: MentionSuggestion) => void;
+  /** Callback when mention keyword changes */
+  onMentionKeywordChange?: (keyword: string | null) => void;
+  /** Custom render component for suggestion items */
+  SuggestionItem?: React.ComponentType<{
+    item: MentionSuggestion;
+    onSelect: (suggestion: MentionSuggestion) => void;
+  }>;
   /** Show add button */
   showAddButton?: boolean;
   /** Callback when add button is pressed */
@@ -220,6 +228,18 @@ export interface AjoraChatInputProps {
       onError: (error?: Error) => void;
     },
   ) => void;
+  /** Whether to disable attachments functionality */
+  disableAttachments?: boolean;
+  /** Whether suggestions are loading */
+  mentionLoading?: boolean;
+  /** Custom regex pattern for parsing mentions */
+  mentionPattern?: RegExp;
+  /** Custom text style for mentions */
+  mentionTextStyle?: StyleProp<TextStyle>;
+  /** Custom function to stringify mentions */
+  getMentionPlainString?: (mention: any) => string;
+  /** Custom function to get the value for a mention */
+  getMentionValue?: (suggestion: any) => string;
 
   // ========================================================================
   // Icons Customization
@@ -310,6 +330,16 @@ export interface AjoraChatTextInputProps extends Omit<TextInputProps, "style"> {
   colors?: AjoraChatInputTheme["colors"];
   mentionSuggestions?: MentionSuggestion[];
   onMentionSelect?: (suggestion: MentionSuggestion) => void;
+  onMentionKeywordChange?: (keyword: string | null) => void;
+  SuggestionItem?: React.ComponentType<{
+    item: MentionSuggestion;
+    onSelect: (suggestion: MentionSuggestion) => void;
+  }>;
+  mentionLoading?: boolean;
+  mentionPattern?: RegExp;
+  mentionTextStyle?: StyleProp<TextStyle>;
+  getMentionPlainString?: (mention: any) => string;
+  getMentionValue?: (suggestion: any) => string;
 }
 
 export interface AjoraChatIconButtonProps {
@@ -351,8 +381,15 @@ const AjoraChatTextInput = forwardRef<RNTextInput, AjoraChatTextInputProps>(
       colors,
       mentionSuggestions,
       onMentionSelect,
+      onMentionKeywordChange,
+      SuggestionItem,
       value,
       onChangeText,
+      mentionLoading,
+      mentionPattern,
+      mentionTextStyle,
+      getMentionPlainString,
+      getMentionValue,
       ...props
     },
     ref,
@@ -360,7 +397,13 @@ const AjoraChatTextInput = forwardRef<RNTextInput, AjoraChatTextInputProps>(
     const triggersConfig: TriggersConfig<"mention"> = {
       mention: {
         trigger: "@",
-        textStyle: { fontWeight: "bold", color: colors?.primary || "blue" },
+        textStyle: mentionTextStyle || {
+          fontWeight: "bold",
+          color: colors?.primary || "blue",
+        },
+        pattern: mentionPattern,
+        getPlainString: getMentionPlainString,
+        getTriggerValue: getMentionValue,
       },
     };
 
@@ -369,6 +412,10 @@ const AjoraChatTextInput = forwardRef<RNTextInput, AjoraChatTextInputProps>(
       onChange: onChangeText || (() => {}),
       triggersConfig,
     });
+
+    useEffect(() => {
+      onMentionKeywordChange?.(triggers.mention.keyword ?? null);
+    }, [triggers.mention.keyword, onMentionKeywordChange]);
 
     return (
       <>
@@ -381,6 +428,8 @@ const AjoraChatTextInput = forwardRef<RNTextInput, AjoraChatTextInputProps>(
             }
             onMentionSelect?.(suggestion);
           }}
+          SuggestionItem={SuggestionItem}
+          isLoading={mentionLoading}
         />
 
         <RNTextInput
@@ -862,6 +911,14 @@ const AjoraChatInputComponent = forwardRef<
     icons,
     mentionSuggestions,
     onMentionSelect,
+    onMentionKeywordChange,
+    SuggestionItem,
+    disableAttachments,
+    mentionLoading,
+    mentionPattern,
+    mentionTextStyle,
+    getMentionPlainString,
+    getMentionValue,
   },
   ref,
 ) {
@@ -1032,7 +1089,18 @@ const AjoraChatInputComponent = forwardRef<
   const handleSend = useCallback(() => {
     if (!canSend) return;
 
-    const trimmedValue = resolvedValue.trim();
+    let finalValue = resolvedValue;
+
+    if (getMentionValue) {
+      finalValue = replaceTriggerValues(
+        resolvedValue,
+        ({ original, trigger, name, id }) => {
+          return getMentionValue({ original, trigger, name, id });
+        },
+      );
+    }
+
+    const trimmedValue = finalValue.trim();
     onSubmitMessage?.(trimmedValue, resolvedAttachments);
     clearInputValue();
     setInternalAttachments([]);
@@ -1046,6 +1114,7 @@ const AjoraChatInputComponent = forwardRef<
     resolvedAttachments,
     onSubmitMessage,
     clearInputValue,
+    getMentionValue,
   ]);
 
   const handleStop = useCallback(() => {
@@ -1238,6 +1307,13 @@ const AjoraChatInputComponent = forwardRef<
       testID={`${testID}-text-input`}
       mentionSuggestions={mentionSuggestions}
       onMentionSelect={onMentionSelect}
+      onMentionKeywordChange={onMentionKeywordChange}
+      SuggestionItem={SuggestionItem}
+      mentionLoading={mentionLoading}
+      mentionPattern={mentionPattern}
+      mentionTextStyle={mentionTextStyle}
+      getMentionPlainString={getMentionPlainString}
+      getMentionValue={getMentionValue}
     />
   );
 
@@ -1483,7 +1559,7 @@ const AjoraChatInputComponent = forwardRef<
           <View style={styles.bottomRow}>
             {/* Left Side: Add & Settings Buttons */}
             <View style={computedStyles.toolbarContainer}>
-              {showAddButton && addButtonElement}
+              {showAddButton && !disableAttachments && addButtonElement}
               {showSettingsButton &&
                 agents &&
                 agents.length > 0 &&

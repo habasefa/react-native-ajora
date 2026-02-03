@@ -71,6 +71,11 @@ export type AjoraChatViewProps = WithSlots<
     suggestionLoadingIndexes?: ReadonlyArray<number>;
     onSelectSuggestion?: (suggestion: Suggestion, index: number) => void;
     onRegenerate?: (message: AssistantMessage) => void;
+    textRenderer?: (props: {
+      content: string;
+      style?: any;
+      isUser?: boolean;
+    }) => React.ReactNode;
 
     onMessageLongPress?: (message: Message) => void;
     style?: StyleProp<ViewStyle>;
@@ -487,6 +492,7 @@ function AjoraChatViewInner({
 
     onRegenerate,
     onMessageLongPress,
+    textRenderer: props.textRenderer,
   });
 
   const BoundInput = renderSlot(input, AjoraChatInput, {

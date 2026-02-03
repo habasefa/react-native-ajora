@@ -11,9 +11,6 @@ export {
   type AgentSelectorProps,
   type AgentTypeOption,
   type AttachmentPreviewItem,
-  type MentionSuggestion,
-  type AjoraMentionSuggestionsProps,
-  type AjoraMentionSuggestionsTheme,
 } from "./AjoraChatInput";
 
 export { AjoraMentionSuggestions } from "./AjoraMentionSuggestions";

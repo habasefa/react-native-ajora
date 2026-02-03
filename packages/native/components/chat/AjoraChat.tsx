@@ -37,6 +37,12 @@ export type AjoraChatProps = Omit<
   isLoading?: boolean;
   /** Starter suggestions to show in the empty state */
   starterSuggestions?: Suggestion[];
+  /** Custom text renderer for messages */
+  textRenderer?: (props: {
+    content: string;
+    style?: any;
+    isUser?: boolean;
+  }) => React.ReactNode;
 
   // ========================================================================
   // Behavior Callbacks
@@ -236,6 +242,7 @@ export function AjoraChat({
 
       onRegenerate: handleRegenerate,
       onMessageLongPress: handleMessageLongPress,
+      textRenderer: props.textRenderer,
     },
     {
       ...restProps,

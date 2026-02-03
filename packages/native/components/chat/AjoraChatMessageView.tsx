@@ -20,12 +20,18 @@ const MemoizedAssistantMessage = React.memo(
     isRunning,
     onRegenerate,
     AssistantMessageComponent,
+    textRenderer,
   }: {
     message: AssistantMessage;
     messages: Message[];
     isRunning: boolean;
     onRegenerate?: (message: AssistantMessage) => void;
     AssistantMessageComponent: typeof AjoraChatAssistantMessage;
+    textRenderer?: (props: {
+      content: string;
+      style?: any;
+      isUser?: boolean;
+    }) => React.ReactNode;
   }) {
     return (
       <AssistantMessageComponent
@@ -33,6 +39,7 @@ const MemoizedAssistantMessage = React.memo(
         messages={messages}
         isRunning={isRunning}
         onRegenerate={onRegenerate}
+        textRenderer={textRenderer}
       />
     );
   },
@@ -97,15 +104,22 @@ const MemoizedUserMessage = React.memo(
     message,
     UserMessageComponent,
     onLongPress,
+    textRenderer,
   }: {
     message: UserMessage;
     UserMessageComponent: typeof AjoraChatUserMessage;
     onLongPress?: (message: UserMessage) => void;
+    textRenderer?: (props: {
+      content: string;
+      style?: any;
+      isUser?: boolean;
+    }) => React.ReactNode;
   }) {
     return (
       <UserMessageComponent
         message={message}
         onLongPress={onLongPress ? () => onLongPress(message) : undefined}
+        textRenderer={textRenderer}
       />
     );
   },
@@ -181,6 +195,11 @@ export type AjoraChatMessageViewProps = Omit<
       onMessageLongPress?: (message: Message) => void;
       /** Whether to show the thinking indicator when isRunning is true */
       showThinkingIndicator?: boolean;
+      textRenderer?: (props: {
+        content: string;
+        style?: any;
+        isUser?: boolean;
+      }) => React.ReactNode;
       style?: StyleProp<ViewStyle>;
     }
   >,
@@ -257,6 +276,7 @@ export function AjoraChatMessageView({
             isRunning={isRunning}
             onRegenerate={onRegenerate}
             AssistantMessageComponent={AssistantComponent}
+            textRenderer={props.textRenderer}
           />,
         );
       } else if (message.role === "user") {
@@ -270,6 +290,7 @@ export function AjoraChatMessageView({
             message={message as UserMessage}
             UserMessageComponent={UserComponent}
             onLongPress={onMessageLongPress}
+            textRenderer={props.textRenderer}
           />,
         );
       } else if (message.role === "activity") {

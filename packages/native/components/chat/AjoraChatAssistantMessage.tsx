@@ -350,6 +350,7 @@ export function AjoraChatAssistantMessage({
     {
       content: message.content || "",
       colors,
+      textRenderer: props.textRenderer,
     },
   );
 
@@ -480,6 +481,11 @@ export namespace AjoraChatAssistantMessage {
     fontSize?: number;
     lineHeight?: number;
     colors?: AjoraChatAssistantMessageColors;
+    textRenderer?: (props: {
+      content: string;
+      style?: any;
+      isUser?: boolean;
+    }) => React.ReactNode;
   }> = ({
     content,
     style,
@@ -487,16 +493,29 @@ export namespace AjoraChatAssistantMessage {
     textColor,
     fontSize = 16,
     lineHeight = 24,
-  }) => (
-    <View style={[styles.markdownContainer, style]}>
-      <RichText
-        text={content}
-        textColor={textColor ?? colors?.text}
-        fontSize={fontSize}
-        lineHeight={lineHeight}
-      />
-    </View>
-  );
+    textRenderer,
+  }) => {
+    const defaultTextStyle = {
+      color: textColor ?? colors?.text,
+      fontSize,
+      lineHeight,
+    };
+
+    return (
+      <View style={[styles.markdownContainer, style]}>
+        {textRenderer ? (
+          textRenderer({ content, style: defaultTextStyle, isUser: false })
+        ) : (
+          <RichText
+            text={content}
+            textColor={textColor ?? colors?.text}
+            fontSize={fontSize}
+            lineHeight={lineHeight}
+          />
+        )}
+      </View>
+    );
+  };
 
   export const Toolbar: React.FC<{
     children: React.ReactNode;

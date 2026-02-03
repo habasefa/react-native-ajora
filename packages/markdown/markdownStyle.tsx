@@ -1,226 +1,250 @@
-import { Platform } from "react-native";
+import { Platform, StyleSheet, TextStyle, ViewStyle } from "react-native";
+import { AjoraTheme } from "../native/providers/AjoraThemeProvider";
 
-// The base styles as defined.
-export const baseStyles = {
-  // The main container
-  body: {
-    fontSize: 16,
-  },
-
-  // Headings
-  heading1: {
-    flexDirection: "row",
-    fontSize: 32,
-  },
-  heading2: {
-    flexDirection: "row",
-    fontSize: 24,
-  },
-  heading3: {
-    flexDirection: "row",
-    fontSize: 18,
-  },
-  heading4: {
-    flexDirection: "row",
-    fontSize: 16,
-  },
-  heading5: {
-    flexDirection: "row",
-    fontSize: 13,
-  },
-  heading6: {
-    flexDirection: "row",
-    fontSize: 11,
-  },
-
-  // Horizontal Rule
-  hr: {
-    backgroundColor: "#000000",
-    height: 1,
-  },
-
-  // Emphasis
-  strong: {
-    fontWeight: "bold",
-  },
-  em: {
-    fontStyle: "italic",
-  },
-  s: {
-    textDecorationLine: "line-through",
-  },
-
-  // Blockquotes
-  blockquote: {
-    backgroundColor: "#black",
-    borderColor: "#CCC",
-    borderLeftWidth: 4,
-    marginLeft: 5,
-    paddingHorizontal: 5,
-  },
-
-  // Lists
-  bullet_list: {},
-  ordered_list: {},
-  list_item: {
-    flexDirection: "row",
-    justifyContent: "flex-start",
-  },
-  bullet_list_icon: {
-    marginLeft: 10,
-    marginRight: 10,
-  },
-  bullet_list_content: {
-    flex: 1,
-  },
-  ordered_list_icon: {
-    marginLeft: 10,
-    marginRight: 10,
-  },
-  ordered_list_content: {
-    flex: 1,
-  },
-
-  // Code
-  code_inline: {
-    borderWidth: 1,
-    borderColor: "#CCCCCC",
-    backgroundColor: "#f5f5f5",
-    padding: 10,
-    borderRadius: 4,
-    ...Platform.select({
-      ios: { fontFamily: "Courier" },
-      android: { fontFamily: "monospace" },
-    }),
-  },
-  code_block: {
-    borderWidth: 1,
-    borderColor: "#CCCCCC",
-    backgroundColor: "#f5f5f5",
-    padding: 10,
-    borderRadius: 4,
-    ...Platform.select({
-      ios: { fontFamily: "Courier" },
-      android: { fontFamily: "monospace" },
-    }),
-  },
-  fence: {
-    borderWidth: 1,
-    borderColor: "#CCCCCC",
-    backgroundColor: "#f5f5f5",
-    padding: 10,
-    borderRadius: 4,
-    ...Platform.select({
-      ios: { fontFamily: "Courier" },
-      android: { fontFamily: "monospace" },
-    }),
-  },
-
-  // Tables
-  table: {
-    borderWidth: 1,
-    borderColor: "white",
-    borderRadius: 3,
-  },
-  thead: {},
-  tbody: {},
-  th: {
-    flex: 1,
-    padding: 5,
-  },
-  tr: {
-    borderBottomWidth: 1,
-    borderColor: "white",
-    flexDirection: "row",
-  },
-  td: {
-    flex: 1,
-    padding: 5,
-  },
-
-  // Links
-  link: {
-    textDecorationLine: "underline",
-    color: "blue",
-  },
-  blocklink: {
-    flex: 1,
-    borderColor: "#000000",
-    borderBottomWidth: 1,
-    color: "blue",
-  },
-
-  // Images
-  image: {
-    flex: 1,
-  },
-
-  // Text Output
-  text: {},
-  textgroup: {},
-  paragraph: {
-    marginTop: 10,
-    marginBottom: 10,
-    flexWrap: "wrap",
-    flexDirection: "row",
-    alignItems: "flex-start",
-    justifyContent: "flex-start",
-    width: "100%",
-  },
-  hardbreak: {
-    width: "100%",
-    height: 1,
-  },
-  softbreak: {},
-
-  // Others (not used)
-  pre: {},
-  inline: {},
-  span: {},
+// Define the shape of the styles object compatible with react-native-markdown-display
+type MarkdownStyle = {
+  [key: string]: ViewStyle | TextStyle;
 };
 
 /**
- * Returns a new styles object.
+ * Returns a new styles object based on the Ajora Theme.
  *
- * @param color - the color to apply to text-based styles
+ * @param theme - the AjoraTheme object
  * @param overrides - an optional object containing style overrides for specific keys
  */
 export function createMarkdownStyles(
-  color: string,
-  overrides: Partial<typeof baseStyles> = {}
-) {
-  // Define which keys should have their text color overridden.
-  const textKeys = [
-    "body",
-    "heading1",
-    "heading2",
-    "heading3",
-    "heading4",
-    "heading5",
-    "heading6",
-    "strong",
-    "em",
-    "s",
-    "blockquote",
-    "text",
-    "paragraph",
-    "code_inline",
-    "code_block",
-    "fence",
-    "link",
-    "blocklink",
-    "span",
-  ];
+  theme: AjoraTheme,
+  overrides: MarkdownStyle = {},
+): MarkdownStyle {
+  const { colors, typography, borderRadius } = theme;
 
-  // Loop through each key in baseStyles, merging the override (if any) and applying color if key is in textKeys.
-  const newStyles: Record<string, any> = {};
-  for (const key in baseStyles) {
-    newStyles[key] = {
-      ...baseStyles[key as keyof typeof baseStyles],
-      ...(overrides[key as keyof typeof baseStyles] || {}),
-      ...(textKeys.includes(key) ? { color } : {}), // Apply the color only if it's a text-related style.
-    };
-  }
+  const baseStyles: MarkdownStyle = {
+    // The main container
+    body: {
+      fontSize: typography.sizes.md,
+      color: colors.text,
+      fontFamily: typography.regular,
+    },
 
-  return newStyles;
+    // Headings
+    heading1: {
+      flexDirection: "row",
+      fontSize: typography.sizes.xxl,
+      color: colors.text,
+      fontWeight: "bold",
+      marginVertical: 10,
+    },
+    heading2: {
+      flexDirection: "row",
+      fontSize: typography.sizes.xl,
+      color: colors.text,
+      fontWeight: "bold",
+      marginVertical: 8,
+    },
+    heading3: {
+      flexDirection: "row",
+      fontSize: typography.sizes.lg,
+      color: colors.text,
+      fontWeight: "bold",
+      marginVertical: 6,
+    },
+    heading4: {
+      flexDirection: "row",
+      fontSize: typography.sizes.md,
+      color: colors.text,
+      fontWeight: "bold",
+      marginVertical: 4,
+    },
+    heading5: {
+      flexDirection: "row",
+      fontSize: typography.sizes.sm,
+      color: colors.text,
+      fontWeight: "bold",
+      marginVertical: 2,
+    },
+    heading6: {
+      flexDirection: "row",
+      fontSize: typography.sizes.xs,
+      color: colors.textSecondary,
+      fontWeight: "bold",
+      marginVertical: 2,
+    },
+
+    // Horizontal Rule
+    hr: {
+      backgroundColor: colors.border,
+      height: 1,
+      marginVertical: 8,
+    },
+
+    // Emphasis
+    strong: {
+      fontWeight: "bold",
+      color: colors.text,
+    },
+    em: {
+      fontStyle: "italic",
+      color: colors.text,
+    },
+    s: {
+      textDecorationLine: "line-through",
+      color: colors.textSecondary,
+    },
+
+    // Blockquotes
+    blockquote: {
+      backgroundColor: colors.surface,
+      borderColor: colors.border,
+      borderLeftWidth: 4,
+      marginLeft: 5,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      marginVertical: 8,
+      borderRadius: borderRadius.sm,
+    },
+
+    // Lists
+    bullet_list: {},
+    ordered_list: {},
+    list_item: {
+      flexDirection: "row",
+      justifyContent: "flex-start",
+      marginVertical: 2,
+    },
+    bullet_list_icon: {
+      marginLeft: 10,
+      marginRight: 10,
+      color: colors.text,
+      fontSize: typography.sizes.md,
+    },
+    bullet_list_content: {
+      flex: 1,
+    },
+    ordered_list_icon: {
+      marginLeft: 10,
+      marginRight: 10,
+      color: colors.text,
+      fontSize: typography.sizes.md,
+    },
+    ordered_list_content: {
+      flex: 1,
+    },
+
+    // Code
+    code_inline: {
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.surface,
+      padding: 4,
+      borderRadius: borderRadius.sm,
+      color: colors.primary,
+      ...Platform.select({
+        ios: { fontFamily: "Courier" },
+        android: { fontFamily: "monospace" },
+      }),
+    },
+    code_block: {
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.surface,
+      padding: 12,
+      borderRadius: borderRadius.md,
+      color: colors.text,
+      marginVertical: 8,
+      ...Platform.select({
+        ios: { fontFamily: "Courier" },
+        android: { fontFamily: "monospace" },
+      }),
+    },
+    fence: {
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.surface,
+      padding: 12,
+      borderRadius: borderRadius.md,
+      color: colors.text,
+      marginVertical: 8,
+      ...Platform.select({
+        ios: { fontFamily: "Courier" },
+        android: { fontFamily: "monospace" },
+      }),
+    },
+
+    // Tables
+    table: {
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: borderRadius.sm,
+      marginVertical: 8,
+    },
+    thead: {
+      backgroundColor: colors.surface,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    tbody: {},
+    th: {
+      flex: 1,
+      padding: 8,
+      color: colors.text,
+      fontWeight: "bold",
+    },
+    tr: {
+      borderBottomWidth: 1,
+      borderColor: colors.border,
+      flexDirection: "row",
+    },
+    td: {
+      flex: 1,
+      padding: 8,
+      color: colors.text,
+    },
+
+    // Links
+    link: {
+      textDecorationLine: "underline",
+      color: colors.primary,
+    },
+    blocklink: {
+      flex: 1,
+      borderColor: colors.border,
+      borderBottomWidth: 1,
+      color: colors.primary,
+    },
+
+    // Images
+    image: {
+      flex: 1,
+    },
+
+    // Text Output
+    text: {
+      color: colors.text,
+    },
+    textgroup: {},
+    paragraph: {
+      marginTop: 8,
+      marginBottom: 8,
+      flexWrap: "wrap",
+      flexDirection: "row",
+      alignItems: "flex-start",
+      justifyContent: "flex-start",
+      width: "100%",
+    },
+    hardbreak: {
+      width: "100%",
+      height: 1,
+    },
+    softbreak: {},
+
+    // Others (not used)
+    pre: {},
+    inline: {},
+    span: {},
+  };
+
+  return StyleSheet.create({
+    ...baseStyles,
+    ...overrides,
+  });
 }

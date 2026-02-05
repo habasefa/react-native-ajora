@@ -212,13 +212,17 @@ export function AjoraChatMessageView({
   const renderActivityMessage = useRenderActivityMessage();
 
   // Determine if we should show the thinking indicator
-  // Show when running AND the latest message is from the user (waiting for assistant response)
-  // OR when running and there are no messages yet
+  // Show when running, except when waiting for tool execution (isToolCall).
+  // We WANT to show it after tool execution ends (isToolResult), so we don't exclude that.
   const lastMessage = messages[messages.length - 1];
-  const shouldShowThinking =
-    showThinkingIndicator &&
-    isRunning &&
-    (messages.length === 0 || lastMessage?.role === "user");
+
+  // Check for tool call states
+  const isToolCall =
+    lastMessage?.role === "assistant" &&
+    Array.isArray((lastMessage as any).toolCalls) &&
+    (lastMessage as any).toolCalls.length > 0;
+
+  const shouldShowThinking = showThinkingIndicator && isRunning && !isToolCall;
 
   // Render the thinking indicator using the slot system
   const boundThinkingIndicator = shouldShowThinking

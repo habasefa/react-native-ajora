@@ -9,7 +9,7 @@ import {
   useAjoraChatConfiguration,
 } from "../../providers/AjoraChatConfigurationProvider";
 import { DEFAULT_AGENT_ID, randomUUID } from "../../../shared";
-import { Suggestion } from "../../../core";
+import { AjoraCoreRuntimeConnectionStatus, Suggestion } from "../../../core";
 import React, { useCallback, useEffect, useMemo } from "react";
 import { merge } from "ts-deepmerge";
 import { useAjora } from "../../providers/AjoraProvider";
@@ -175,13 +175,14 @@ export function AjoraChat({
 
   const handleRegenerate = useCallback(
     async (messageToRegenerate: { id: string }) => {
-      // Find the index of the message to regenerate
+      // Find the index of the first assistant or non-user message
+      // We want to regenerate the entire run starting from the first response
       const messageIndex = agent.messages.findIndex(
-        (m) => m.id === messageToRegenerate.id,
+        (m) => m.role !== "user" && m.role !== "system",
       );
 
       if (messageIndex === -1) {
-        console.warn("AjoraChat: Message to regenerate not found");
+        console.warn("AjoraChat: No assistant message found to regenerate");
         return;
       }
 

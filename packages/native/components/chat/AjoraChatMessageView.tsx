@@ -102,15 +102,18 @@ const MemoizedUserMessage = React.memo(
     message,
     UserMessageComponent,
     onLongPress,
+    textRenderer,
   }: {
     message: UserMessage;
     UserMessageComponent: typeof AjoraChatUserMessage;
     onLongPress?: (message: UserMessage) => void;
+    textRenderer?: (props: { content: string }) => React.ReactNode;
   }) {
     return (
       <UserMessageComponent
         message={message}
         onLongPress={onLongPress ? () => onLongPress(message) : undefined}
+        textRenderer={textRenderer}
       />
     );
   },
@@ -119,6 +122,7 @@ const MemoizedUserMessage = React.memo(
     if (prevProps.message.content !== nextProps.message.content) return false;
     if (prevProps.UserMessageComponent !== nextProps.UserMessageComponent)
       return false;
+    if (prevProps.textRenderer !== nextProps.textRenderer) return false;
     return true;
   },
 );
@@ -238,7 +242,17 @@ export function AjoraChatMessageView({
       })
     : null;
 
-  const messageElements: React.ReactElement[] = messages
+  // Deduplicate messages by ID to prevent duplicate React keys
+  const deduplicatedMessages = React.useMemo(() => {
+    const seen = new Map<string, Message>();
+    for (const message of messages) {
+      // Keep the last occurrence of each message ID (most recent version)
+      seen.set(message.id, message);
+    }
+    return Array.from(seen.values());
+  }, [messages]);
+
+  const messageElements: React.ReactElement[] = deduplicatedMessages
     .flatMap((message) => {
       const elements: (React.ReactElement | null | undefined)[] = [];
 
@@ -282,6 +296,7 @@ export function AjoraChatMessageView({
             message={message as UserMessage}
             UserMessageComponent={UserComponent}
             onLongPress={onMessageLongPress}
+            textRenderer={textRenderer}
           />,
         );
       } else if (message.role === "activity") {

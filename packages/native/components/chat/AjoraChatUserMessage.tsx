@@ -88,6 +88,7 @@ export type AjoraChatUserMessageProps = WithSlots<
     colors?: AjoraChatUserMessageColorsOverride;
     onLongPress?: (props: { message: UserMessage }) => void;
     style?: StyleProp<ViewStyle>;
+    textRenderer?: (props: { content: string }) => React.ReactNode;
   }
 >;
 
@@ -108,6 +109,7 @@ export function AjoraChatUserMessage({
   branchNavigation,
   children,
   style,
+  textRenderer,
   ...props
 }: AjoraChatUserMessageProps) {
   const flattenedContent = useMemo(
@@ -134,6 +136,7 @@ export function AjoraChatUserMessage({
       content: flattenedContent,
       colors,
       onLongPress: () => onLongPress?.({ message }),
+      textRenderer,
     },
   );
 
@@ -228,6 +231,7 @@ export namespace AjoraChatUserMessage {
 
     colors?: AjoraChatUserMessageColors;
     onLongPress?: () => void;
+    textRenderer?: (props: { content: string }) => React.ReactNode;
   }> = ({
     content,
     style,
@@ -236,6 +240,7 @@ export namespace AjoraChatUserMessage {
     fontSize = 16,
     lineHeight = 22,
     onLongPress,
+    textRenderer,
   }) => (
     <Pressable
       onLongPress={onLongPress}
@@ -247,12 +252,16 @@ export namespace AjoraChatUserMessage {
         pressed && { opacity: 0.8 },
       ]}
     >
-      <RichText
-        text={content}
-        textColor={textColor ?? colors?.text ?? "#FFFFFF"}
-        fontSize={fontSize}
-        lineHeight={lineHeight}
-      />
+      {textRenderer ? (
+        textRenderer({ content })
+      ) : (
+        <RichText
+          text={content}
+          textColor={textColor ?? colors?.text ?? "#FFFFFF"}
+          fontSize={fontSize}
+          lineHeight={lineHeight}
+        />
+      )}
     </Pressable>
   );
 

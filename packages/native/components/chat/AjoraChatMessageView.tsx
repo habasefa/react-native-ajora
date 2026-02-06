@@ -20,12 +20,14 @@ const MemoizedAssistantMessage = React.memo(
     isRunning,
     onRegenerate,
     AssistantMessageComponent,
+    textRenderer,
   }: {
     message: AssistantMessage;
     messages: Message[];
     isRunning: boolean;
     onRegenerate?: (message: AssistantMessage) => void;
     AssistantMessageComponent: typeof AjoraChatAssistantMessage;
+    textRenderer?: (props: { content: string }) => React.ReactNode;
   }) {
     return (
       <AssistantMessageComponent
@@ -33,6 +35,7 @@ const MemoizedAssistantMessage = React.memo(
         messages={messages}
         isRunning={isRunning}
         onRegenerate={onRegenerate}
+        textRenderer={textRenderer}
       />
     );
   },
@@ -87,6 +90,8 @@ const MemoizedAssistantMessage = React.memo(
       nextProps.AssistantMessageComponent
     )
       return false;
+
+    if (prevProps.textRenderer !== nextProps.textRenderer) return false;
 
     return true;
   },
@@ -179,6 +184,7 @@ export type AjoraChatMessageViewProps = Omit<
       messages?: Message[];
       onRegenerate?: (message: AssistantMessage) => void;
       onMessageLongPress?: (message: Message) => void;
+      textRenderer?: (props: { content: string }) => React.ReactNode;
       /** Whether to show the thinking indicator when isRunning is true */
       showThinkingIndicator?: boolean;
       style?: StyleProp<ViewStyle>;
@@ -204,6 +210,7 @@ export function AjoraChatMessageView({
 
   onRegenerate,
   onMessageLongPress,
+  textRenderer,
   children,
   style,
   ...props
@@ -261,6 +268,7 @@ export function AjoraChatMessageView({
             isRunning={isRunning}
             onRegenerate={onRegenerate}
             AssistantMessageComponent={AssistantComponent}
+            textRenderer={textRenderer}
           />,
         );
       } else if (message.role === "user") {

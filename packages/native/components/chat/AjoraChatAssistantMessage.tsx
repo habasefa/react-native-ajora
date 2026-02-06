@@ -71,6 +71,7 @@ export type AjoraChatAssistantMessageProps = WithSlots<
     showThumbsButtons?: boolean;
     showReadAloudButton?: boolean;
     showRegenerateButton?: boolean;
+    textRenderer?: (props: { content: string }) => React.ReactNode;
     style?: StyleProp<ViewStyle>;
   }
 >;
@@ -203,6 +204,7 @@ export function AjoraChatAssistantMessage({
   readAloudButton,
   regenerateButton,
   toolCallsView,
+  textRenderer,
   children,
   style,
   ...props
@@ -350,6 +352,7 @@ export function AjoraChatAssistantMessage({
     {
       content: message.content || "",
       colors,
+      textRenderer,
     },
   );
 
@@ -480,6 +483,7 @@ export namespace AjoraChatAssistantMessage {
     fontSize?: number;
     lineHeight?: number;
     colors?: AjoraChatAssistantMessageColors;
+    textRenderer?: (props: { content: string }) => React.ReactNode; // Add textRenderer prop
   }> = ({
     content,
     style,
@@ -487,14 +491,19 @@ export namespace AjoraChatAssistantMessage {
     textColor,
     fontSize = 16,
     lineHeight = 24,
+    textRenderer, // Destructure textRenderer
   }) => (
     <View style={[styles.markdownContainer, style]}>
-      <RichText
-        text={content}
-        textColor={textColor ?? colors?.text}
-        fontSize={fontSize}
-        lineHeight={lineHeight}
-      />
+      {textRenderer ? ( // Use textRenderer if available
+        textRenderer({ content })
+      ) : (
+        <RichText
+          text={content}
+          textColor={textColor ?? colors?.text}
+          fontSize={fontSize}
+          lineHeight={lineHeight}
+        />
+      )}
     </View>
   );
 

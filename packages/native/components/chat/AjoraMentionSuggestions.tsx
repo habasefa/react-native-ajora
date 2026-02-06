@@ -8,6 +8,7 @@ import {
   ViewStyle,
   TextStyle,
   Platform,
+  ActivityIndicator,
 } from "react-native";
 import { SuggestionsProvidedProps } from "react-native-controlled-mentions";
 import { useAjoraTheme } from "../../providers/AjoraThemeProvider";
@@ -43,6 +44,9 @@ export interface AjoraMentionSuggestionsProps extends Omit<
   theme?: AjoraMentionSuggestionsTheme;
   onSelect: (suggestion: MentionSuggestion) => void;
   maxHeight?: number;
+  loading?: boolean;
+  SuggestionItem?: React.ComponentType<any>;
+  maxSuggestions?: number;
 }
 
 export const AjoraMentionSuggestions: FC<AjoraMentionSuggestionsProps> = ({
@@ -50,6 +54,9 @@ export const AjoraMentionSuggestions: FC<AjoraMentionSuggestionsProps> = ({
   onSelect,
   suggestions = [],
   theme: customTheme,
+  loading,
+  SuggestionItem,
+  maxSuggestions = 6,
 }) => {
   const globalTheme = useAjoraTheme();
 
@@ -66,11 +73,13 @@ export const AjoraMentionSuggestions: FC<AjoraMentionSuggestionsProps> = ({
     return null;
   }
 
-  const filteredSuggestions = suggestions.filter((one) =>
-    one.name.toLocaleLowerCase().includes(keyword.toLocaleLowerCase()),
-  );
+  const filteredSuggestions = suggestions
+    .filter((one) =>
+      one.name.toLocaleLowerCase().includes(keyword.toLocaleLowerCase()),
+    )
+    .slice(0, maxSuggestions);
 
-  if (filteredSuggestions.length === 0) {
+  if (filteredSuggestions.length === 0 && !loading) {
     return null;
   }
 
@@ -85,50 +94,65 @@ export const AjoraMentionSuggestions: FC<AjoraMentionSuggestionsProps> = ({
         customTheme?.container,
       ]}
     >
-      {filteredSuggestions.map((one) => (
-        <Pressable
-          key={one.id}
-          onPress={() => onSelect(one)}
-          style={({ pressed }) => [
-            styles.item,
-            pressed && { backgroundColor: colors.highlight },
-            customTheme?.item,
-          ]}
-        >
-          <View style={styles.contentContainer}>
-            {one.icon && (
-              <Ionicons
-                name={one.icon}
-                size={20}
-                color={colors.text}
-                style={styles.icon}
-              />
-            )}
-            <View>
-              <Text
-                style={[
-                  styles.name,
-                  { color: colors.text },
-                  customTheme?.itemText,
-                ]}
-              >
-                {one.name}
-              </Text>
-              {one.subtitle && (
-                <Text
-                  style={[
-                    styles.subtitle,
-                    { color: colors.subtitle },
-                    customTheme?.itemSubtitle,
-                  ]}
-                >
-                  {one.subtitle}
-                </Text>
-              )}
-            </View>
-          </View>
-        </Pressable>
-      ))}
+      {loading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator color={colors.text} />
+        </View>
+      ) : (
+        filteredSuggestions.map((one) => {
+          if (SuggestionItem) {
+            return (
+              <Pressable key={one.id} onPress={() => onSelect(one)}>
+                <SuggestionItem item={one} onSelect={onSelect} />
+              </Pressable>
+            );
+          }
+          return (
+            <Pressable
+              key={one.id}
+              onPress={() => onSelect(one)}
+              style={({ pressed }) => [
+                styles.item,
+                pressed && { backgroundColor: colors.highlight },
+                customTheme?.item,
+              ]}
+            >
+              <View style={styles.contentContainer}>
+                {one.icon && (
+                  <Ionicons
+                    name={one.icon}
+                    size={20}
+                    color={colors.text}
+                    style={styles.icon}
+                  />
+                )}
+                <View>
+                  <Text
+                    style={[
+                      styles.name,
+                      { color: colors.text },
+                      customTheme?.itemText,
+                    ]}
+                  >
+                    {one.name}
+                  </Text>
+                  {one.subtitle && (
+                    <Text
+                      style={[
+                        styles.subtitle,
+                        { color: colors.subtitle },
+                        customTheme?.itemSubtitle,
+                      ]}
+                    >
+                      {one.subtitle}
+                    </Text>
+                  )}
+                </View>
+              </View>
+            </Pressable>
+          );
+        })
+      )}
     </View>
   );
 };
@@ -139,7 +163,7 @@ const styles = StyleSheet.create({
     bottom: "100%",
     left: 0,
     right: 0,
-    marginBottom: 8,
+    marginBottom: 16,
     borderRadius: 12,
     borderWidth: 1,
     overflow: "hidden",
@@ -174,5 +198,10 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: 12,
     marginTop: 2,
+  },
+  loadingContainer: {
+    padding: 20,
+    alignItems: "center",
+    justifyContent: "center",
   },
 });

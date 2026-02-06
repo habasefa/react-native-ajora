@@ -171,6 +171,8 @@ export interface AjoraChatInputProps {
   mentionSuggestions?: MentionSuggestion[];
   /** Callback when a mention suggestion is selected */
   onMentionSelect?: (suggestion: MentionSuggestion) => void;
+  /** Callback when the mention keyword changes */
+  onMentionKeywordChange?: (keyword: string | null) => void;
   /** Show add button */
   showAddButton?: boolean;
   /** Callback when add button is pressed */
@@ -179,6 +181,18 @@ export interface AjoraChatInputProps {
   showSettingsButton?: boolean;
   /** Callback when settings button is pressed */
   onSettingsPress?: () => void;
+  /** Style for mention text in input */
+  mentionTextStyle?: StyleProp<TextStyle>;
+  /** Whether mentions are loading */
+  mentionLoading?: boolean;
+  /** Custom component to render suggestion item */
+  SuggestionItem?: React.ComponentType<any>;
+  /** Function to get string representation of mention for input */
+  getMentionPlainString?: (suggestion: MentionSuggestion) => string;
+  /** Function to get value of mention */
+  getMentionValue?: (suggestion: MentionSuggestion) => string;
+  /** Maximum number of suggestions to display */
+  maxSuggestions?: number;
   /** Custom text input component */
   textInput?: React.ReactElement;
   /** Custom send button component */
@@ -299,6 +313,7 @@ const INPUT_MAX_HEIGHT = 120;
 const LINE_HEIGHT = 20;
 const ICON_SIZE = 22;
 const BUTTON_SIZE = 40;
+const INPUT_PADDING_HORIZONTAL = 16;
 
 // ============================================================================
 // Sub-Component Props Types
@@ -310,6 +325,13 @@ export interface AjoraChatTextInputProps extends Omit<TextInputProps, "style"> {
   colors?: AjoraChatInputTheme["colors"];
   mentionSuggestions?: MentionSuggestion[];
   onMentionSelect?: (suggestion: MentionSuggestion) => void;
+  onMentionKeywordChange?: (keyword: string | null) => void;
+  mentionTextStyle?: StyleProp<TextStyle>;
+  mentionLoading?: boolean;
+  SuggestionItem?: React.ComponentType<any>;
+  getMentionPlainString?: (suggestion: MentionSuggestion) => string;
+  getMentionValue?: (suggestion: MentionSuggestion) => string;
+  maxSuggestions?: number;
 }
 
 export interface AjoraChatIconButtonProps {
@@ -351,8 +373,11 @@ const AjoraChatTextInput = forwardRef<RNTextInput, AjoraChatTextInputProps>(
       colors,
       mentionSuggestions,
       onMentionSelect,
+      onMentionKeywordChange,
       value,
       onChangeText,
+      getMentionPlainString,
+      getMentionValue,
       ...props
     },
     ref,
@@ -360,7 +385,10 @@ const AjoraChatTextInput = forwardRef<RNTextInput, AjoraChatTextInputProps>(
     const triggersConfig: TriggersConfig<"mention"> = {
       mention: {
         trigger: "@",
-        textStyle: { fontWeight: "bold", color: colors?.primary || "blue" },
+        textStyle: props.mentionTextStyle || {
+          fontWeight: "bold",
+          color: colors?.primary || "blue",
+        },
       },
     };
 
@@ -370,16 +398,36 @@ const AjoraChatTextInput = forwardRef<RNTextInput, AjoraChatTextInputProps>(
       triggersConfig,
     });
 
+    useEffect(() => {
+      onMentionKeywordChange?.(triggers.mention?.keyword ?? null);
+    }, [triggers.mention?.keyword, onMentionKeywordChange]);
+
     return (
       <>
         <AjoraMentionSuggestions
           {...triggers.mention}
           suggestions={mentionSuggestions}
           onSelect={(suggestion) => {
+            if (getMentionPlainString) {
+              getMentionPlainString(suggestion);
+            }
+            if (getMentionValue) {
+              getMentionValue(suggestion);
+            }
+
             if (triggers.mention.onSelect) {
               triggers.mention.onSelect(suggestion);
             }
             onMentionSelect?.(suggestion);
+          }}
+          loading={props.mentionLoading}
+          SuggestionItem={props.SuggestionItem}
+          maxSuggestions={props.maxSuggestions}
+          theme={{
+            container: {
+              left: -INPUT_PADDING_HORIZONTAL,
+              right: -INPUT_PADDING_HORIZONTAL,
+            },
           }}
         />
 
@@ -390,7 +438,6 @@ const AjoraChatTextInput = forwardRef<RNTextInput, AjoraChatTextInputProps>(
           placeholderTextColor={colors?.placeholder}
           multiline
           textAlignVertical="top"
-          blurOnSubmit={false}
           autoCorrect
           autoCapitalize="sentences"
           keyboardType="default"
@@ -862,6 +909,13 @@ const AjoraChatInputComponent = forwardRef<
     icons,
     mentionSuggestions,
     onMentionSelect,
+    onMentionKeywordChange,
+    mentionTextStyle,
+    mentionLoading,
+    SuggestionItem,
+    getMentionPlainString,
+    getMentionValue,
+    maxSuggestions,
   },
   ref,
 ) {
@@ -1238,6 +1292,13 @@ const AjoraChatInputComponent = forwardRef<
       testID={`${testID}-text-input`}
       mentionSuggestions={mentionSuggestions}
       onMentionSelect={onMentionSelect}
+      onMentionKeywordChange={onMentionKeywordChange}
+      mentionTextStyle={mentionTextStyle}
+      mentionLoading={mentionLoading}
+      SuggestionItem={SuggestionItem}
+      getMentionPlainString={getMentionPlainString}
+      getMentionValue={getMentionValue}
+      maxSuggestions={maxSuggestions}
     />
   );
 
@@ -1566,7 +1627,7 @@ const styles = StyleSheet.create({
   inputWrapper: {
     width: "100%",
     borderRadius: 32,
-    paddingHorizontal: 16,
+    paddingHorizontal: INPUT_PADDING_HORIZONTAL,
     paddingTop: 14,
     paddingBottom: 10,
     borderWidth: 1.5,

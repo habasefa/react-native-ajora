@@ -69,6 +69,7 @@ export type AjoraChatProps = Omit<
   onSendError?: (error: Error) => void;
   /** Called when a message is successfully sent */
   onSendSuccess?: (message: any) => void;
+  textRenderer?: (props: { content: string }) => React.ReactNode;
 };
 export function AjoraChat({
   agentId,
@@ -101,6 +102,7 @@ export function AjoraChat({
     inputProps: providedInputProps,
     messageView: providedMessageView,
     suggestionView: providedSuggestionView,
+    textRenderer,
     ...restProps
   } = props;
 
@@ -237,6 +239,7 @@ export function AjoraChat({
 
       onRegenerate: handleRegenerate,
       onMessageLongPress: handleMessageLongPress,
+      textRenderer,
     },
     {
       ...restProps,

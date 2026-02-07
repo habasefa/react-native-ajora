@@ -187,9 +187,19 @@ export function AjoraChat({
         return;
       }
 
-      // Remove the message and any messages after it
-      // This keeps everything up to (but not including) the message to regenerate
-      const messagesToKeep = agent.messages.slice(0, messageIndex);
+      // Find the last user message before the message to regenerate
+      // This is the message that triggered the run we want to regenerate
+      let lastUserMessageIndex = -1;
+      for (let i = messageIndex - 1; i >= 0; i--) {
+        if (agent.messages[i].role === "user") {
+          lastUserMessageIndex = i;
+          break;
+        }
+      }
+
+      // Keep messages up to and including the user message that triggered the run
+      // This removes all assistant, tool, and other messages that were part of this run
+      const messagesToKeep = agent.messages.slice(0, lastUserMessageIndex + 1);
 
       // Use setMessages to trigger onMessagesChanged and update UI immediately
       agent.setMessages(messagesToKeep);

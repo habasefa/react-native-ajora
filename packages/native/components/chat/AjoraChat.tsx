@@ -10,7 +10,7 @@ import {
 } from "../../providers/AjoraChatConfigurationProvider";
 import { DEFAULT_AGENT_ID, randomUUID } from "../../../shared";
 import { AjoraCoreRuntimeConnectionStatus, Suggestion } from "../../../core";
-import React, { useCallback, useEffect, useMemo } from "react";
+import React, { useCallback, useEffect, useMemo, useReducer } from "react";
 import { merge } from "ts-deepmerge";
 import { useAjora } from "../../providers/AjoraProvider";
 import { AbstractAgent } from "@ag-ui/client";
@@ -177,24 +177,22 @@ export function AjoraChat({
 
   const handleRegenerate = useCallback(
     async (messageToRegenerate: { id: string }) => {
-      // Find the index of the first assistant or non-user message
-      // We want to regenerate the entire run starting from the first response
+      // Find the index of the specific message to regenerate
       const messageIndex = agent.messages.findIndex(
-        (m) => m.role !== "user" && m.role !== "system",
+        (m) => m.id === messageToRegenerate.id,
       );
 
       if (messageIndex === -1) {
-        console.warn("AjoraChat: No assistant message found to regenerate");
+        console.warn("AjoraChat: Message not found to regenerate");
         return;
       }
 
-      // Remove the assistant message and any messages after it
-      // This keeps the user message that triggered the response
+      // Remove the message and any messages after it
+      // This keeps everything up to (but not including) the message to regenerate
       const messagesToKeep = agent.messages.slice(0, messageIndex);
 
-      // Update agent messages (remove the assistant message and everything after)
-      agent.messages.length = 0;
-      agent.messages.push(...messagesToKeep);
+      // Use setMessages to trigger onMessagesChanged and update UI immediately
+      agent.setMessages(messagesToKeep);
 
       // Re-run the agent to generate a new response
       try {
@@ -271,8 +269,16 @@ export function AjoraChat({
     ? "processing"
     : (finalInputProps.mode ?? "input");
 
+  // Memoize messages array - only create new reference when content actually changes
+  // (agent.messages is mutated in place, so we need a new reference for React to detect changes)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const messages = useMemo(
+    () => [...agent.messages],
+    [JSON.stringify(agent.messages)],
+  );
+
   const finalProps = merge(mergedProps, {
-    messages: agent.messages,
+    messages,
     inputProps: finalInputProps,
   }) as AjoraChatViewProps;
 

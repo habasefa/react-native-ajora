@@ -24,7 +24,7 @@ export const AjoraChatDefaultLabels = {
   assistantMessageToolbarRegenerateLabel: "Regenerate",
   userMessageToolbarCopyMessageLabel: "Copy",
   userMessageToolbarEditMessageLabel: "Edit",
-  chatDisclaimerText: "Powered by Ajora",
+  chatDisclaimerText: "AI can make mistakes. Check important info.",
   chatToggleOpenLabel: "Open chat",
   chatToggleCloseLabel: "Close chat",
   modalHeaderTitle: "Ajora Chat",

@@ -12,6 +12,7 @@ import {
   UserMessage,
 } from "@ag-ui/core";
 import { useRenderActivityMessage, useRenderCustomMessages } from "../../hooks";
+import AjoraChatErrorMessage from "./AjoraChatErrorMessage";
 
 const MemoizedAssistantMessage = React.memo(
   function MemoizedAssistantMessage({
@@ -191,6 +192,8 @@ export type AjoraChatMessageViewProps = Omit<
       textRenderer?: (props: { content: string }) => React.ReactNode;
       /** Whether to show the thinking indicator when isRunning is true */
       showThinkingIndicator?: boolean;
+      /** Error message to display at the bottom of the chat */
+      error?: string | null;
       style?: StyleProp<ViewStyle>;
     }
   >,
@@ -217,6 +220,7 @@ export function AjoraChatMessageView({
   textRenderer,
   children,
   style,
+  error,
   ...props
 }: AjoraChatMessageViewProps) {
   const renderCustomMessage = useRenderCustomMessages();
@@ -323,6 +327,12 @@ export function AjoraChatMessageView({
       return elements;
     })
     .filter(Boolean) as React.ReactElement[];
+
+  if (error) {
+    messageElements.push(
+      <AjoraChatErrorMessage key="error-message" message={error} />,
+    );
+  }
 
   if (children) {
     return children({

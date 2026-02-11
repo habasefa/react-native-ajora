@@ -57,6 +57,8 @@ export type AjoraChatViewProps = WithSlots<
     isRunning?: boolean;
     /** Whether the chat is in a loading state (e.g., connecting, loading history) */
     isLoading?: boolean;
+    /** Error message to display at the bottom of the chat */
+    error?: string | null;
     /** Whether to show the thinking indicator when isRunning is true */
     showThinkingIndicator?: boolean;
     /** Whether to show the empty state when there are no messages */
@@ -419,6 +421,7 @@ function AjoraChatViewInner({
   inputProps,
   isRunning = false,
   isLoading = false,
+  error,
   showThinkingIndicator = true,
   showEmptyState = true,
   showLoadingState = true,
@@ -484,6 +487,7 @@ function AjoraChatViewInner({
   const BoundMessageView = renderSlot(messageView, AjoraChatMessageView, {
     messages,
     isRunning,
+    error,
     showThinkingIndicator,
     thinkingIndicator,
 

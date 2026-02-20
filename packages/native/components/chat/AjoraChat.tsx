@@ -25,6 +25,7 @@ import UserMessageActionSheet from "../sheets/UserMessageActionSheet";
 import { BottomSheetModal } from "@gorhom/bottom-sheet";
 import * as Clipboard from "expo-clipboard";
 import { UserMessage } from "@ag-ui/core";
+import { AjoraChatError } from "../../types";
 
 export type AjoraChatProps = Omit<
   AjoraChatViewProps,
@@ -35,6 +36,8 @@ export type AjoraChatProps = Omit<
   | "onSelectSuggestion"
 > & {
   agentId?: string;
+  /** Model ID to forward to the runtime for model selection */
+  modelId?: string;
   threadId?: string;
   labels?: Partial<AjoraChatLabels>;
   chatView?: SlotValue<typeof AjoraChatView>;
@@ -79,6 +82,7 @@ export type AjoraChatProps = Omit<
 };
 export function AjoraChat({
   agentId,
+  modelId,
   threadId,
   labels,
   chatView,
@@ -112,17 +116,85 @@ export function AjoraChat({
     ...restProps
   } = props;
 
+  const resolvedModelId = useMemo(() => {
+    if (modelId && modelId !== "default") return modelId;
+
+    // Fallback to a pro model if none is selected
+    // Models without a tier or with tier "pro" are preferred over "free" models
+    const proModel = ajora.models?.find(
+      (m) => m.tier !== "free" && m.tier?.toLowerCase() !== "free",
+    );
+
+    return proModel?.id || ajora.models?.[0]?.id;
+  }, [modelId, ajora.models]);
+
   // Sheet ref
   const userMessageSheetRef = React.useRef<BottomSheetModal>(null);
   const [selectedUserMessage, setSelectedUserMessage] = React.useState<
     UserMessage | undefined
   >();
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<AjoraChatError | null>(null);
+
+  const parseAjoraError = useCallback((err: any): AjoraChatError => {
+    let errorMessage = "Something went wrong please try again later";
+    let errorCode: string | undefined;
+    let details: any;
+
+    if (typeof err === "string") {
+      errorMessage = err;
+    } else if (err) {
+      errorMessage = err.message || errorMessage;
+      errorCode = err.code || err.status; // http-request-patch sets .status and .payload
+      details = err.payload || err.details;
+    }
+
+    const lowerMessage = errorMessage.toLowerCase();
+    if (
+      lowerMessage.includes("fetch failed") ||
+      lowerMessage.includes("network request failed") ||
+      lowerMessage.includes("java.io.ioexception") ||
+      lowerMessage.includes("java.net.connectexception") ||
+      lowerMessage.includes("unexpected end of stream") ||
+      lowerMessage.includes("network error")
+    ) {
+      return {
+        type: "network",
+        message: errorMessage,
+        code: errorCode,
+        details,
+      };
+    }
+
+    return { type: "runtime", message: errorMessage, code: errorCode, details };
+  }, []);
+
+  useEffect(() => {
+    if (
+      (!modelId || modelId === "default") &&
+      resolvedModelId &&
+      providedInputProps?.onModelSelect
+    ) {
+      if (providedInputProps.selectedModelId !== resolvedModelId) {
+        const fallbackModel = ajora.models?.find(
+          (m) => m.id === resolvedModelId,
+        );
+        if (fallbackModel) {
+          providedInputProps.onModelSelect(fallbackModel);
+        }
+      }
+    }
+  }, [
+    modelId,
+    resolvedModelId,
+    ajora.models,
+    providedInputProps?.selectedModelId,
+    providedInputProps?.onModelSelect,
+  ]);
 
   useEffect(() => {
     const connect = async (agent: AbstractAgent) => {
       try {
-        await ajora.connectAgent({ agent });
+        await ajora.connectAgent({ agent, modelId: resolvedModelId });
       } catch (error) {
         console.warn("Connect error", error);
       }
@@ -130,7 +202,7 @@ export function AjoraChat({
     agent.threadId = resolvedThreadId;
     connect(agent);
     return () => {};
-  }, [resolvedThreadId, agent, ajora, resolvedAgentId]);
+  }, [resolvedThreadId, agent, ajora, resolvedAgentId, resolvedModelId]);
 
   const onSubmitInput = useCallback(
     async (value: string, attachments?: any[]) => {
@@ -142,20 +214,14 @@ export function AjoraChat({
         attachments,
       });
       try {
-        await ajora.runAgent({ agent });
-      } catch (error: any) {
-        console.error("AjoraChat: runAgent failed", error);
-        let errorMessage = "Something went wrong please try again later";
-        if (typeof error === "string") {
-          errorMessage = error;
-        } else if (error?.message) {
-          errorMessage = error.message;
-        }
-        setError(errorMessage);
-        props.onSendError?.(error);
+        await ajora.runAgent({ agent, modelId: resolvedModelId });
+      } catch (err: any) {
+        console.error("AjoraChat: runAgent failed", err);
+        setError(parseAjoraError(err));
+        props.onSendError?.(err);
       }
     },
-    [agent, ajora, props.onSendError],
+    [agent, ajora, props.onSendError, resolvedModelId],
   );
 
   const handleSelectSuggestion = useCallback(
@@ -168,19 +234,17 @@ export function AjoraChat({
       });
 
       try {
-        await ajora.runAgent({ agent });
-      } catch (error: any) {
+        await ajora.runAgent({ agent, modelId: resolvedModelId });
+      } catch (err: any) {
         console.error(
           "AjoraChat: runAgent failed after selecting suggestion",
-          error,
+          err,
         );
-        const errorMessage =
-          error?.message || "Something went wrong please try again later";
-        setError(errorMessage);
-        props.onSendError?.(error);
+        setError(parseAjoraError(err));
+        props.onSendError?.(err);
       }
     },
-    [agent, ajora, props.onSendError],
+    [agent, ajora, props.onSendError, resolvedModelId],
   );
 
   const stopCurrentRun = useCallback(() => {
@@ -228,17 +292,26 @@ export function AjoraChat({
 
       // Re-run the agent to generate a new response
       try {
-        await ajora.runAgent({ agent });
-      } catch (error: any) {
-        console.error("AjoraChat: regenerate failed", error);
-        const errorMessage =
-          error?.message || "Something went wrong please try again later";
-        setError(errorMessage);
-        props.onSendError?.(error);
+        await ajora.runAgent({ agent, modelId: resolvedModelId });
+      } catch (err: any) {
+        console.error("AjoraChat: regenerate failed", err);
+        setError(parseAjoraError(err));
+        props.onSendError?.(err);
       }
     },
-    [agent, ajora, props.onSendError],
+    [agent, ajora, props.onSendError, resolvedModelId, parseAjoraError],
   );
+
+  const handleRetryError = useCallback(async () => {
+    setError(null);
+    try {
+      await ajora.runAgent({ agent, modelId: resolvedModelId });
+    } catch (err: any) {
+      console.error("AjoraChat: runAgent failed on retry", err);
+      setError(parseAjoraError(err));
+      props.onSendError?.(err);
+    }
+  }, [agent, ajora, props.onSendError, resolvedModelId, parseAjoraError]);
 
   const handleMessageLongPress = useCallback((message: any) => {
     if (message.role === "user") {
@@ -275,6 +348,7 @@ export function AjoraChat({
       onMessageLongPress: handleMessageLongPress,
       textRenderer,
       error,
+      onRetryError: handleRetryError,
     },
     {
       ...restProps,

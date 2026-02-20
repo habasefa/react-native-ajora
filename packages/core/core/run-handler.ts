@@ -14,10 +14,14 @@ import { FrontendTool } from "../types";
 
 export interface AjoraCoreRunAgentParams {
   agent: AbstractAgent;
+  /** Optional model ID to forward to the runtime as `model` in forwardedProps */
+  modelId?: string;
 }
 
 export interface AjoraCoreConnectAgentParams {
   agent: AbstractAgent;
+  /** Optional model ID to forward to the runtime as `model` in forwardedProps */
+  modelId?: string;
 }
 
 export interface AjoraCoreGetToolParams {
@@ -53,16 +57,16 @@ export class RunHandler {
    * Add a tool to the registry
    */
   addTool<T extends Record<string, unknown> = Record<string, unknown>>(
-    tool: FrontendTool<T>
+    tool: FrontendTool<T>,
   ): void {
     // Check if a tool with the same name and agentId already exists
     const existingToolIndex = this._tools.findIndex(
-      (t) => t.name === tool.name && t.agentId === tool.agentId
+      (t) => t.name === tool.name && t.agentId === tool.agentId,
     );
 
     if (existingToolIndex !== -1) {
       logger.warn(
-        `Tool already exists: '${tool.name}' for agent '${tool.agentId || "global"}', skipping.`
+        `Tool already exists: '${tool.name}' for agent '${tool.agentId || "global"}', skipping.`,
       );
       return;
     }
@@ -95,7 +99,7 @@ export class RunHandler {
     // If agentId is provided, first look for agent-specific tool
     if (agentId) {
       const agentTool = this._tools.find(
-        (tool) => tool.name === toolName && tool.agentId === agentId
+        (tool) => tool.name === toolName && tool.agentId === agentId,
       );
       if (agentTool) {
         return agentTool;
@@ -118,6 +122,7 @@ export class RunHandler {
    */
   async connectAgent({
     agent,
+    modelId,
   }: AjoraCoreConnectAgentParams): Promise<RunAgentResult> {
     try {
       // Detach any active run before connecting to avoid previous runs interfering
@@ -133,11 +138,13 @@ export class RunHandler {
 
       const runAgentResult = await agent.connectAgent(
         {
-          forwardedProps: (this.core as unknown as AjoraCoreFriendsAccess)
-            .properties,
+          forwardedProps: {
+            ...(this.core as unknown as AjoraCoreFriendsAccess).properties,
+            ...(modelId ? { model: modelId } : {}),
+          },
           tools: this.buildFrontendTools(agent.agentId),
         },
-        this.createAgentErrorSubscriber(agent)
+        this.createAgentErrorSubscriber(agent),
       );
 
       return this.processAgentResult({ runAgentResult, agent });
@@ -160,7 +167,10 @@ export class RunHandler {
   /**
    * Run an agent
    */
-  async runAgent({ agent }: AjoraCoreRunAgentParams): Promise<RunAgentResult> {
+  async runAgent({
+    agent,
+    modelId,
+  }: AjoraCoreRunAgentParams): Promise<RunAgentResult> {
     // Agent ID is guaranteed to be set by validateAndAssignAgentId
     if (agent.agentId) {
       void (
@@ -177,14 +187,16 @@ export class RunHandler {
     try {
       const runAgentResult = await agent.runAgent(
         {
-          forwardedProps: (this.core as unknown as AjoraCoreFriendsAccess)
-            .properties,
+          forwardedProps: {
+            ...(this.core as unknown as AjoraCoreFriendsAccess).properties,
+            ...(modelId ? { model: modelId } : {}),
+          },
           tools: this.buildFrontendTools(agent.agentId),
           context: Object.values(
-            (this.core as unknown as AjoraCoreFriendsAccess).context
+            (this.core as unknown as AjoraCoreFriendsAccess).context,
           ),
         },
-        this.createAgentErrorSubscriber(agent)
+        this.createAgentErrorSubscriber(agent),
       );
       return this.processAgentResult({ runAgentResult, agent });
     } catch (error) {
@@ -224,7 +236,7 @@ export class RunHandler {
         for (const toolCall of message.toolCalls || []) {
           if (
             newMessages.findIndex(
-              (m) => m.role === "tool" && m.toolCallId === toolCall.id
+              (m) => m.role === "tool" && m.toolCallId === toolCall.id,
             ) === -1
           ) {
             const tool = this.getTool({
@@ -237,7 +249,7 @@ export class RunHandler {
                 toolCall,
                 message,
                 agent,
-                agentId
+                agentId,
               );
               if (followUp) {
                 needsFollowUp = true;
@@ -254,7 +266,7 @@ export class RunHandler {
                   toolCall,
                   message,
                   agent,
-                  agentId
+                  agentId,
                 );
                 if (followUp) {
                   needsFollowUp = true;
@@ -285,7 +297,7 @@ export class RunHandler {
     toolCall: any,
     message: Message,
     agent: AbstractAgent,
-    agentId: string
+    agentId: string,
   ): Promise<boolean> {
     // Check if tool is constrained to a specific agent
     if (tool?.agentId && tool.agentId !== agent.agentId) {
@@ -329,7 +341,7 @@ export class RunHandler {
             toolName: toolCall.function.name,
             args: parsedArgs,
           }),
-        "Subscriber onToolExecutionStart error:"
+        "Subscriber onToolExecutionStart error:",
       );
 
       if (!errorMessage) {
@@ -375,7 +387,7 @@ export class RunHandler {
             result: errorMessage ? "" : toolCallResult,
             error: errorMessage,
           }),
-        "Subscriber onToolExecutionEnd error:"
+        "Subscriber onToolExecutionEnd error:",
       );
 
       if (isArgumentError) {
@@ -409,7 +421,7 @@ export class RunHandler {
     toolCall: any,
     message: Message,
     agent: AbstractAgent,
-    agentId: string
+    agentId: string,
   ): Promise<boolean> {
     // Check if wildcard tool is constrained to a specific agent
     if (wildcardTool?.agentId && wildcardTool.agentId !== agent.agentId) {
@@ -458,14 +470,14 @@ export class RunHandler {
             toolName: toolCall.function.name,
             args: wildcardArgs,
           }),
-        "Subscriber onToolExecutionStart error:"
+        "Subscriber onToolExecutionStart error:",
       );
 
       if (!errorMessage) {
         try {
           const result = await wildcardTool.handler(
             wildcardArgs as any,
-            toolCall
+            toolCall,
           );
           if (result === undefined || result === null) {
             toolCallResult = "";
@@ -507,7 +519,7 @@ export class RunHandler {
             result: errorMessage ? "" : toolCallResult,
             error: errorMessage,
           }),
-        "Subscriber onToolExecutionEnd error:"
+        "Subscriber onToolExecutionEnd error:",
       );
 
       if (isArgumentError) {
@@ -553,7 +565,7 @@ export class RunHandler {
     const emitAgentError = async (
       error: Error,
       code: AjoraCoreErrorCode,
-      extraContext: Record<string, any> = {}
+      extraContext: Record<string, any> = {},
     ) => {
       const context: Record<string, any> = { ...extraContext };
       if (agent.agentId) {
@@ -598,7 +610,7 @@ export class RunHandler {
             source: "onRunErrorEvent",
             event,
             runtimeErrorCode: event?.code,
-          }
+          },
         );
       },
     };

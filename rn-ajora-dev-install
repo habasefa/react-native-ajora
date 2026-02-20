@@ -2,8 +2,8 @@
 set -e
 
 # Directory definitions
-AJORA_DIR="/home/habtamu-asefa/development/react-native-ajora"
-PREPX_MOBILE_DIR="/home/habtamu-asefa/Prepx/prepx-mobile"
+AJORA_DIR="/media/habtamu-asefa/New Dev/development/react-native-ajora"
+PREPX_MOBILE_DIR="/media/habtamu-asefa/New Dev/Prepx/prepx-mobile"
 
 # Ensure we are in the project root
 cd "$AJORA_DIR"

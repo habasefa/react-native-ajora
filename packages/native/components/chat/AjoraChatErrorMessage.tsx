@@ -1,10 +1,12 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useAjoraTheme } from "../../providers/AjoraThemeProvider";
 
+import { AjoraChatError } from "../../types";
+
 export interface AjoraChatErrorMessageProps {
-  message: string;
+  message: string | AjoraChatError;
   onRetry?: () => void;
 }
 
@@ -14,14 +16,56 @@ export default function AjoraChatErrorMessage({
 }: AjoraChatErrorMessageProps) {
   const theme = useAjoraTheme();
 
+  const formattedMessage = useMemo(() => {
+    if (!message) return "An unexpected error occurred.";
+
+    if (typeof message === "object" && message !== null) {
+      if (message.type === "network") {
+        return "Network error. Please check your connection and try again.";
+      }
+      return message.message || "An unexpected error occurred.";
+    }
+
+    try {
+      const parsed = JSON.parse(message);
+      if (typeof parsed === "object" && parsed !== null) {
+        if (typeof parsed.message === "string") return parsed.message;
+        if (typeof parsed.error === "string") return parsed.error;
+
+        // If it's a JSON object but we don't know how to format it nicely, use a generic error
+        console.warn(
+          "AjoraChat: Received unhandled JSON error structure",
+          parsed,
+        );
+        return "An unexpected error occurred. Please try again later.";
+      }
+    } catch (e) {
+      // not JSON
+    }
+
+    // Check if the string itself is very long or looks like a raw stack trace/unformatted error
+    if (
+      message.length > 200 ||
+      message.includes("Error:") ||
+      message.includes("Exception:")
+    ) {
+      // If it looks like a stack trace, return generic
+      if (message.includes(" at ") && message.includes(".js:")) {
+        return "An unexpected error occurred. Please try again later.";
+      }
+    }
+
+    return message;
+  }, [message]);
+
   return (
     <View style={styles.container}>
       <View
         style={[
           styles.bubble,
           {
-            backgroundColor: theme.colors.error + "20", // 20% opacity
-            borderColor: theme.colors.error,
+            backgroundColor: theme.colors.surface,
+            borderColor: theme.colors.border,
           },
         ]}
       >
@@ -29,7 +73,7 @@ export default function AjoraChatErrorMessage({
           <Ionicons
             name="alert-circle"
             size={20}
-            color={theme.colors.error}
+            color={theme.colors.text}
             style={styles.icon}
           />
           <Text
@@ -38,15 +82,15 @@ export default function AjoraChatErrorMessage({
               { color: theme.colors.text || "#000000" }, // Fallback color
             ]}
           >
-            {message || "Error"}
+            {formattedMessage}
           </Text>
         </View>
         {onRetry && (
           <TouchableOpacity onPress={onRetry} style={styles.retryButton}>
-            <Text style={[styles.retryText, { color: theme.colors.error }]}>
+            <Text style={[styles.retryText, { color: theme.colors.text }]}>
               Try again
             </Text>
-            <Ionicons name="refresh" size={16} color={theme.colors.error} />
+            <Ionicons name="refresh" size={16} color={theme.colors.text} />
           </TouchableOpacity>
         )}
       </View>
@@ -59,27 +103,29 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingTop: 10,
     alignItems: "flex-start", // Left align like assistant messages
+    width: "90%",
   },
   bubble: {
-    borderRadius: 18,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     borderWidth: 1,
-    maxWidth: "85%",
-    minWidth: 100, // Ensure it's not too small
+    width: "100%",
   },
   contentContainer: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-start", // align icon with top line of text for long errors
     marginBottom: 4,
   },
   icon: {
     marginRight: 8,
+    marginTop: 2, // adjust icon slightly to align with text
   },
   text: {
-    fontSize: 16,
+    fontSize: 14,
     flex: 1,
-    lineHeight: 22,
+    lineHeight: 20,
+    fontFamily: "monospace", // use monospace for pretty-printed JSON if applicable
   },
   retryButton: {
     flexDirection: "row",

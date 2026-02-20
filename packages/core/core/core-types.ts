@@ -1,5 +1,6 @@
 import { AbstractAgent, Context, Tool } from "@ag-ui/client";
 import type { SuggestionsConfig, Suggestion } from "../types";
+import type { RuntimeModelInfo } from "../../shared";
 
 // ============================================================================
 // Error Codes
@@ -37,6 +38,8 @@ export interface AjoraCoreBase {
   readonly properties: Readonly<Record<string, unknown>>;
   readonly context: Readonly<Record<string, Context>>;
   readonly agents: Readonly<Record<string, AbstractAgent>>;
+  readonly models: Readonly<RuntimeModelInfo[]>;
+  readonly extraData: Readonly<Record<string, unknown>>;
   getAgent(id: string): AbstractAgent | undefined;
 }
 
@@ -63,6 +66,10 @@ export interface AjoraCoreSubscriber {
   onAgentsChanged?: (event: {
     ajora: AjoraCoreBase;
     agents: Readonly<Record<string, AbstractAgent>>;
+  }) => void | Promise<void>;
+  onModelsChanged?: (event: {
+    ajora: AjoraCoreBase;
+    models: Readonly<RuntimeModelInfo[]>;
   }) => void | Promise<void>;
   onContextChanged?: (event: {
     ajora: AjoraCoreBase;
@@ -118,7 +125,7 @@ export interface AjoraCoreFriendsAccess extends AjoraCoreBase {
   // Notification methods
   notifySubscribers(
     handler: (subscriber: AjoraCoreSubscriber) => void | Promise<void>,
-    errorMessage: string
+    errorMessage: string,
   ): Promise<void>;
 
   emitError(params: {

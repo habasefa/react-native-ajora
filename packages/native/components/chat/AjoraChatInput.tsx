@@ -1542,19 +1542,17 @@ const AjoraChatInputComponent = forwardRef<
 
           {/* Bottom Row: Toolbar */}
           <View style={styles.bottomRow}>
-            {/* Left Side: Add & Settings Buttons */}
+            {/* Left Side: Add, Settings & Model Selector */}
             <View style={computedStyles.toolbarContainer}>
               {showAddButton && addButtonElement}
               {showSettingsButton &&
                 agents &&
                 agents.length > 0 &&
                 settingsButtonElement}
+              {showAgentSelector &&
+                modelsList.length > 0 &&
+                agentSelectorElement}
             </View>
-
-            {/* Center: Model Selector */}
-            {showAgentSelector && modelsList.length > 0 && (
-              <View style={styles.centerContainer}>{agentSelectorElement}</View>
-            )}
 
             {/* Right Side: Action Buttons */}
             <View style={computedStyles.actionsContainer}>

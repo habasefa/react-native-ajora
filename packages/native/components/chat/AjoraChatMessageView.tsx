@@ -183,6 +183,7 @@ export type AjoraChatMessageViewProps = Omit<
       assistantMessage: typeof AjoraChatAssistantMessage;
       userMessage: typeof AjoraChatUserMessage;
       thinkingIndicator: typeof AjoraChatThinkingIndicator;
+      errorMessage: typeof AjoraChatErrorMessage;
     },
     {
       isRunning?: boolean;
@@ -194,6 +195,8 @@ export type AjoraChatMessageViewProps = Omit<
       showThinkingIndicator?: boolean;
       /** Error message to display at the bottom of the chat */
       error?: string | null;
+      /** Callback to retry the agent run upon an error */
+      onRetryError?: () => void;
       style?: StyleProp<ViewStyle>;
     }
   >,
@@ -212,6 +215,7 @@ export function AjoraChatMessageView({
   assistantMessage,
   userMessage,
   thinkingIndicator,
+  errorMessage,
   isRunning = false,
   showThinkingIndicator = true,
 
@@ -221,6 +225,7 @@ export function AjoraChatMessageView({
   children,
   style,
   error,
+  onRetryError,
   ...props
 }: AjoraChatMessageViewProps) {
   const renderCustomMessage = useRenderCustomMessages();
@@ -329,9 +334,18 @@ export function AjoraChatMessageView({
     .filter(Boolean) as React.ReactElement[];
 
   if (error) {
-    messageElements.push(
-      <AjoraChatErrorMessage key="error-message" message={error} />,
-    );
+    const BoundErrorMessage = renderSlot(errorMessage, AjoraChatErrorMessage, {
+      message: error,
+      onRetry: onRetryError,
+    });
+
+    if (BoundErrorMessage) {
+      messageElements.push(
+        <React.Fragment key="error-message">
+          {BoundErrorMessage}
+        </React.Fragment>,
+      );
+    }
   }
 
   if (children) {

@@ -34,6 +34,9 @@ import AjoraChatMessageView from "./AjoraChatMessageView";
 import AjoraChatThinkingIndicator from "./AjoraChatThinkingIndicator";
 import AjoraChatEmptyState from "./AjoraChatEmptyState";
 import AjoraChatLoadingState from "./AjoraChatLoadingState";
+import AjoraChatErrorMessage, {
+  AjoraChatErrorMessageProps,
+} from "./AjoraChatErrorMessage";
 import { useAjoraTheme } from "../../providers/AjoraThemeProvider";
 
 // ============================================================================
@@ -50,6 +53,7 @@ export type AjoraChatViewProps = WithSlots<
     scrollToBottomButton: typeof AjoraChatScrollToBottomButton;
     emptyState: typeof AjoraChatEmptyState;
     loadingState: typeof AjoraChatLoadingState;
+    errorMessage: typeof AjoraChatErrorMessage;
   },
   {
     messages?: Message[];
@@ -59,6 +63,8 @@ export type AjoraChatViewProps = WithSlots<
     isLoading?: boolean;
     /** Error message to display at the bottom of the chat */
     error?: string | null;
+    /** Callback to retry the agent run upon an error */
+    onRetryError?: () => void;
     /** Whether to show the thinking indicator when isRunning is true */
     showThinkingIndicator?: boolean;
     /** Whether to show the empty state when there are no messages */
@@ -120,6 +126,8 @@ export type AjoraChatViewProps = WithSlots<
     LoadingState?: () => React.ReactNode;
     /** Custom thinking indicator component */
     ThinkingIndicator?: () => React.ReactNode;
+    /** Custom error message component */
+    ErrorMessage?: (props: AjoraChatErrorMessageProps) => React.ReactNode;
     /** Custom suggestion component */
     Suggestion?: (props: {
       suggestion: Suggestion;
@@ -417,6 +425,7 @@ function AjoraChatViewInner({
   scrollToBottomButton,
   emptyState,
   loadingState,
+  errorMessage,
   messages = [],
   inputProps,
   isRunning = false,
@@ -430,6 +439,7 @@ function AjoraChatViewInner({
   suggestions,
   suggestionLoadingIndexes,
   onSelectSuggestion,
+  onRetryError,
 
   onRegenerate,
   onMessageLongPress,
@@ -488,8 +498,10 @@ function AjoraChatViewInner({
     messages,
     isRunning,
     error,
+    onRetryError,
     showThinkingIndicator,
     thinkingIndicator,
+    errorMessage,
 
     onRegenerate,
     onMessageLongPress,

@@ -3,6 +3,7 @@ export {
   type NonEmptyRecord,
   type AgentDescription,
   type RuntimeInfo,
+  type RuntimeModelInfo,
 } from "./types";
 
 export * from "./utils";

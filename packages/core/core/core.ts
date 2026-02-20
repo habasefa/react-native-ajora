@@ -1,4 +1,5 @@
 import { AbstractAgent, Context, State } from "@ag-ui/client";
+import type { RuntimeModelInfo } from "../../shared";
 import {
   FrontendTool,
   SuggestionsConfig,
@@ -125,7 +126,7 @@ export class AjoraCore {
    */
   protected async notifySubscribers(
     handler: (subscriber: AjoraCoreSubscriber) => void | Promise<void>,
-    errorMessage: string
+    errorMessage: string,
   ): Promise<void> {
     await Promise.all(
       Array.from(this.subscribers).map(async (subscriber) => {
@@ -134,7 +135,7 @@ export class AjoraCore {
         } catch (error) {
           console.error(errorMessage, error);
         }
-      })
+      }),
     );
   }
 
@@ -158,7 +159,7 @@ export class AjoraCore {
           code,
           context,
         }),
-      "Subscriber onError error:"
+      "Subscriber onError error:",
     );
   }
 
@@ -209,13 +210,21 @@ export class AjoraCore {
     return this.agentRegistry.runtimeConnectionStatus;
   }
 
+  get models(): Readonly<RuntimeModelInfo[]> {
+    return this.agentRegistry.models;
+  }
+
+  get extraData(): Readonly<Record<string, unknown>> {
+    return this.agentRegistry.extraData;
+  }
+
   /**
    * Configuration updates
    */
   setHeaders(headers: Record<string, string>): void {
     this._headers = headers;
     this.agentRegistry.applyHeadersToAgents(
-      this.agentRegistry.agents as Record<string, AbstractAgent>
+      this.agentRegistry.agents as Record<string, AbstractAgent>,
     );
     void this.notifySubscribers(
       (subscriber) =>
@@ -223,7 +232,7 @@ export class AjoraCore {
           ajora: this,
           headers: this.headers,
         }),
-      "Subscriber onHeadersChanged error:"
+      "Subscriber onHeadersChanged error:",
     );
   }
 
@@ -235,7 +244,7 @@ export class AjoraCore {
           ajora: this,
           properties: this.properties,
         }),
-      "Subscriber onPropertiesChanged error:"
+      "Subscriber onPropertiesChanged error:",
     );
   }
 
@@ -296,7 +305,7 @@ export class AjoraCore {
    * Tool management (delegated to RunHandler)
    */
   addTool<T extends Record<string, unknown> = Record<string, unknown>>(
-    tool: FrontendTool<T>
+    tool: FrontendTool<T>,
   ): void {
     this.runHandler.addTool(tool);
   }
@@ -331,7 +340,7 @@ export class AjoraCore {
    * Agent connectivity (delegated to RunHandler)
    */
   async connectAgent(
-    params: AjoraCoreConnectAgentParams
+    params: AjoraCoreConnectAgentParams,
   ): Promise<import("@ag-ui/client").RunAgentResult> {
     return this.runHandler.connectAgent(params);
   }
@@ -341,7 +350,7 @@ export class AjoraCore {
   }
 
   async runAgent(
-    params: AjoraCoreRunAgentParams
+    params: AjoraCoreRunAgentParams,
   ): Promise<import("@ag-ui/client").RunAgentResult> {
     return this.runHandler.runAgent(params);
   }
@@ -352,7 +361,7 @@ export class AjoraCore {
   getStateByRun(
     agentId: string,
     threadId: string,
-    runId: string
+    runId: string,
   ): State | undefined {
     return this.stateManager.getStateByRun(agentId, threadId, runId);
   }
@@ -360,7 +369,7 @@ export class AjoraCore {
   getRunIdForMessage(
     agentId: string,
     threadId: string,
-    messageId: string
+    messageId: string,
   ): string | undefined {
     return this.stateManager.getRunIdForMessage(agentId, threadId, messageId);
   }

@@ -462,7 +462,7 @@ export function AjoraChatAssistantMessage({
 
   return (
     <View style={[styles.container, style]} {...props}>
-      {boundMarkdownRenderer}
+      {hasContent && boundMarkdownRenderer}
       {boundToolCallsView}
       {shouldShowToolbar && boundToolbar}
     </View>
@@ -631,11 +631,11 @@ export namespace AjoraChatAssistantMessage {
 
 const styles = StyleSheet.create({
   container: {
-    paddingVertical: 12,
+    paddingVertical: 6,
     paddingHorizontal: 16,
   },
   markdownContainer: {
-    paddingVertical: 4,
+    paddingVertical: 0,
   },
   toolbar: {
     width: "100%",

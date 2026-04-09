@@ -16,6 +16,8 @@ import {
   NativeScrollEvent,
   LayoutChangeEvent,
   Pressable,
+  ActivityIndicator,
+  Text,
 } from "react-native";
 import Animated, { useAnimatedStyle } from "react-native-reanimated";
 import {
@@ -79,6 +81,17 @@ export type AjoraChatViewProps = WithSlots<
     onMessageLongPress?: (message: Message) => void;
     textRenderer?: (props: { content: string }) => React.ReactNode;
     style?: StyleProp<ViewStyle>;
+
+    // ========================================================================
+    // History Pagination
+    // ========================================================================
+
+    /** True while a "load earlier" page is in flight. */
+    isLoadingEarlier?: boolean;
+    /** Whether there are older messages available beyond the current page. */
+    hasEarlierMessages?: boolean;
+    /** Called when the user taps the "Load earlier" affordance. */
+    onLoadEarlier?: () => void;
 
     // ========================================================================
     // Style Props for Direct Customization
@@ -436,6 +449,9 @@ function AjoraChatViewInner({
   suggestionLoadingIndexes,
   onSelectSuggestion,
   onRetryError,
+  isLoadingEarlier = false,
+  hasEarlierMessages = false,
+  onLoadEarlier,
 
   onRegenerate,
   onMessageLongPress,
@@ -527,6 +543,40 @@ function AjoraChatViewInner({
       })
     : null;
 
+  // "Load earlier messages" banner — only shown when there are older
+  // persisted messages beyond the current page AND we're not in the empty/
+  // loading states (those replace the message list entirely).
+  const showLoadEarlier =
+    !shouldShowLoading &&
+    !shouldShowEmpty &&
+    hasEarlierMessages &&
+    !!onLoadEarlier;
+
+  const LoadEarlierBanner = showLoadEarlier ? (
+    <Pressable
+      onPress={isLoadingEarlier ? undefined : onLoadEarlier}
+      disabled={isLoadingEarlier}
+      style={[
+        styles.loadEarlierButton,
+        {
+          backgroundColor: theme.colors.surface,
+          borderColor: theme.colors.border,
+          opacity: isLoadingEarlier ? 0.6 : 1,
+        },
+      ]}
+      accessibilityRole="button"
+      accessibilityLabel="Load earlier messages"
+    >
+      {isLoadingEarlier ? (
+        <ActivityIndicator size="small" color={theme.colors.iconDefault} />
+      ) : (
+        <Text style={[styles.loadEarlierText, { color: theme.colors.text }]}>
+          Load earlier messages
+        </Text>
+      )}
+    </Pressable>
+  ) : null;
+
   // Render the scroll view with auto-scroll capability
   const BoundScrollView = renderSlot(scrollView, AjoraChatScrollView, {
     autoScroll,
@@ -540,6 +590,8 @@ function AjoraChatViewInner({
         {/* Show empty or loading state when appropriate */}
         {BoundLoadingState}
         {BoundEmptyState}
+        {/* Pagination affordance lives above the message list */}
+        {LoadEarlierBanner}
         {/* Only show messages when not in loading/empty state */}
         {!shouldShowLoading && !shouldShowEmpty && BoundMessageView}
         {BoundSuggestionView}
@@ -639,6 +691,23 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 4,
     borderWidth: 1,
+  },
+  loadEarlierButton: {
+    alignSelf: "center",
+    marginTop: 8,
+    marginBottom: 4,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 16,
+    borderWidth: 1,
+    minHeight: 32,
+    minWidth: 160,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  loadEarlierText: {
+    fontSize: 13,
+    fontWeight: "500",
   },
 });
 

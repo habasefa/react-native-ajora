@@ -4,6 +4,8 @@ export { useRenderActivityMessage } from "./use-render-activity-message";
 export { useFrontendTool } from "./use-frontend-tool";
 export { useHumanInTheLoop } from "./use-human-in-the-loop";
 export { useAgent, UseAgentUpdate } from "./use-agent";
+export { useHistory } from "./use-history";
+export type { UseHistoryProps, UseHistoryResult } from "./use-history";
 export { useAgentContext } from "./use-agent-context";
 export type { AgentContextInput, JsonSerializable } from "./use-agent-context";
 export { useSuggestions } from "./use-suggestions";

@@ -119,21 +119,52 @@ export function patchedRunHttpRequest(
           headers: response.headers,
         };
 
+        // The whole reason this patch exists is that `originalRunHttpRequest`
+        // (from @ag-ui/client) crashes on React Native with
+        // "Failed to getReader() from response". So if expo/fetch hands us
+        // back a response without a usable streaming body, falling back to
+        // the original path is guaranteed to fail — and worse, the failure
+        // mode there is a cryptic runtime error that hides the real cause
+        // (expo/fetch misconfigured, Hermes polyfills missing, etc.).
+        //
+        // Throw a loud, clearly-labeled error so the caller sees what
+        // actually happened. `runAgent` / `connectAgent` will surface it
+        // as a RUN_FAILED / onError and the chat UI can render a real
+        // message instead of silently freezing.
         const body = response.body;
         if (!body) {
-          // Fall back to original implementation (which will use EventSource)
-          return originalRunHttpRequest(url, requestInit);
+          return throwError(
+            () =>
+              new Error(
+                "[ajora] expo/fetch returned a response with no body — " +
+                  "streaming is not available on this runtime. Ensure " +
+                  "`expo/fetch` is installed and that the server is sending " +
+                  "Content-Type: text/event-stream.",
+              ),
+          );
         }
 
         if (typeof body.getReader !== "function") {
-          // Fall back to original implementation (which will use EventSource)
-          return originalRunHttpRequest(url, requestInit);
+          return throwError(
+            () =>
+              new Error(
+                "[ajora] expo/fetch returned a response body without " +
+                  "`getReader()` — streaming is not supported. Check that " +
+                  "`expo` is at a version that exports a WHATWG-compatible " +
+                  "ReadableStream from `expo/fetch`.",
+              ),
+          );
         }
 
         const reader = body.getReader();
         if (!reader) {
-          // Fall back to original implementation (which will use EventSource)
-          return originalRunHttpRequest(url, requestInit);
+          return throwError(
+            () =>
+              new Error(
+                "[ajora] expo/fetch response body.getReader() returned " +
+                  "null/undefined — cannot stream SSE events.",
+              ),
+          );
         }
 
         return new Observable<HttpEvent>((subscriber) => {

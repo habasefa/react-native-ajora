@@ -91,7 +91,7 @@ export const AjoraChatSuggestionView = React.forwardRef<
   const boundContainer = React.cloneElement(
     ContainerElement as React.ReactElement,
     undefined,
-    suggestionElements
+    suggestionElements,
   );
 
   if (typeof children === "function") {

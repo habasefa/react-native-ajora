@@ -83,7 +83,7 @@ const LoadingDots: React.FC<LoadingDotsProps> = ({
     animateDots();
     const interval = setInterval(animateDots, 600);
     return () => clearInterval(interval);
-  }, [dot1, dot2, dot3]);
+  }, []);
 
   const dot1Style = useAnimatedStyle(() => ({
     opacity: interpolate(dot1.value, [0, 1], [0.3, 1]),

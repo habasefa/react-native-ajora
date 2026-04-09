@@ -9,8 +9,12 @@ import {
 import { randomUUID, logger } from "../../shared";
 import { zodToJsonSchema } from "zod-to-json-schema";
 import type { AjoraCore } from "./core";
-import { AjoraCoreErrorCode, AjoraCoreFriendsAccess } from "./core-types";
+import { AjoraCoreErrorCode } from "./core-types";
 import { FrontendTool } from "../types";
+import {
+  ProxiedAjoraRuntimeAgent,
+  type FetchHistoryResponse,
+} from "../agent";
 
 export interface AjoraCoreRunAgentParams {
   agent: AbstractAgent;
@@ -22,6 +26,15 @@ export interface AjoraCoreConnectAgentParams {
   agent: AbstractAgent;
   /** Optional model ID to forward to the runtime as `model` in forwardedProps */
   modelId?: string;
+}
+
+export interface AjoraCoreLoadHistoryParams {
+  agent: AbstractAgent;
+  threadId: string;
+  /** Cursor: return messages that appear BEFORE this message id (load earlier). */
+  beforeMessageId?: string;
+  /** Page size (default 50, server clamps to [1, 200]). */
+  limit?: number;
 }
 
 export interface AjoraCoreGetToolParams {
@@ -125,21 +138,24 @@ export class RunHandler {
     modelId,
   }: AjoraCoreConnectAgentParams): Promise<RunAgentResult> {
     try {
-      // Detach any active run before connecting to avoid previous runs interfering
+      // Detach any active run before connecting to avoid previous runs interfering.
+      // NOTE: We intentionally do NOT clear `agent.messages` here. Persistent
+      // history is fetched separately via `loadHistory` (which the consuming
+      // hook calls when a thread is opened), and clearing here would race
+      // with that load and produce empty threads on every connect.
       await agent.detachActiveRun();
-      agent.setMessages([]);
       agent.setState({});
 
       if (agent instanceof HttpAgent) {
         agent.headers = {
-          ...(this.core as unknown as AjoraCoreFriendsAccess).headers,
+          ...this.core.headers,
         };
       }
 
       const runAgentResult = await agent.connectAgent(
         {
           forwardedProps: {
-            ...(this.core as unknown as AjoraCoreFriendsAccess).properties,
+            ...this.core.properties,
             ...(modelId ? { model: modelId } : {}),
           },
           tools: this.buildFrontendTools(agent.agentId),
@@ -155,8 +171,87 @@ export class RunHandler {
       if (agent.agentId) {
         context.agentId = agent.agentId;
       }
-      await (this.core as unknown as AjoraCoreFriendsAccess).emitError({
+      await this.core.emitError({
         error: connectError,
+        code: AjoraCoreErrorCode.AGENT_CONNECT_FAILED,
+        context,
+      });
+      throw error;
+    }
+  }
+
+  /**
+   * Load persisted history for a thread and merge it into the agent's
+   * in-memory `messages` array.
+   *
+   * - When `beforeMessageId` is omitted (initial load): replaces the agent's
+   *   messages with the fetched page. Existing messages are discarded.
+   * - When `beforeMessageId` is provided (load earlier): prepends the fetched
+   *   page to the existing messages, deduplicating by id so a stale cursor
+   *   never produces duplicates.
+   *
+   * Returns the raw `FetchHistoryResponse` so the caller can drive pagination
+   * UI (`hasMore`, `oldestMessageId`).
+   */
+  async loadHistory({
+    agent,
+    threadId,
+    beforeMessageId,
+    limit,
+  }: AjoraCoreLoadHistoryParams): Promise<FetchHistoryResponse> {
+    if (!(agent instanceof ProxiedAjoraRuntimeAgent)) {
+      // Dev-only / non-proxied agents have no persistent backing store.
+      return { messages: [], hasMore: false, oldestMessageId: null };
+    }
+
+    if (agent instanceof HttpAgent) {
+      agent.headers = {
+        ...this.core.headers,
+      };
+    }
+
+    try {
+      const response = await agent.fetchHistory({
+        threadId,
+        beforeMessageId,
+        limit,
+      });
+
+      if (beforeMessageId === undefined) {
+        // Initial load. We atomically check-and-set to avoid TOCTOU races:
+        // a user typing a message between the length check and setMessages
+        // would have their message clobbered. By capturing the current
+        // messages array and comparing after, we detect concurrent mutations.
+        if (response.messages.length > 0) {
+          const snapshot = agent.messages;
+          if ((snapshot?.length ?? 0) === 0) {
+            agent.setMessages(response.messages);
+          }
+        }
+      } else if (response.messages.length > 0) {
+        // Load earlier: prepend, deduping by id.
+        const existing = agent.messages ?? [];
+        const seen = new Set(existing.map((m) => m.id));
+        const prepended: Message[] = [];
+        for (const m of response.messages) {
+          if (!seen.has(m.id)) {
+            prepended.push(m);
+            seen.add(m.id);
+          }
+        }
+        agent.setMessages([...prepended, ...existing]);
+      }
+
+      return response;
+    } catch (error) {
+      const loadError =
+        error instanceof Error ? error : new Error(String(error));
+      const context: Record<string, any> = { threadId };
+      if (agent.agentId) {
+        context.agentId = agent.agentId;
+      }
+      await this.core.emitError({
+        error: loadError,
         code: AjoraCoreErrorCode.AGENT_CONNECT_FAILED,
         context,
       });
@@ -173,14 +268,12 @@ export class RunHandler {
   }: AjoraCoreRunAgentParams): Promise<RunAgentResult> {
     // Agent ID is guaranteed to be set by validateAndAssignAgentId
     if (agent.agentId) {
-      void (
-        this.core as unknown as AjoraCoreFriendsAccess
-      ).suggestionEngine.clearSuggestions(agent.agentId);
+      void this.core.suggestionEngine.clearSuggestions(agent.agentId);
     }
 
     if (agent instanceof HttpAgent) {
       agent.headers = {
-        ...(this.core as unknown as AjoraCoreFriendsAccess).headers,
+        ...this.core.headers,
       };
     }
 
@@ -188,13 +281,11 @@ export class RunHandler {
       const runAgentResult = await agent.runAgent(
         {
           forwardedProps: {
-            ...(this.core as unknown as AjoraCoreFriendsAccess).properties,
+            ...this.core.properties,
             ...(modelId ? { model: modelId } : {}),
           },
           tools: this.buildFrontendTools(agent.agentId),
-          context: Object.values(
-            (this.core as unknown as AjoraCoreFriendsAccess).context,
-          ),
+          context: Object.values(this.core.context),
         },
         this.createAgentErrorSubscriber(agent),
       );
@@ -206,7 +297,7 @@ export class RunHandler {
       if (agent.agentId) {
         context.agentId = agent.agentId;
       }
-      await (this.core as unknown as AjoraCoreFriendsAccess).emitError({
+      await this.core.emitError({
         error: runError,
         code: AjoraCoreErrorCode.AGENT_RUN_FAILED,
         context,
@@ -282,9 +373,7 @@ export class RunHandler {
       return await this.runAgent({ agent });
     }
 
-    void (
-      this.core as unknown as AjoraCoreFriendsAccess
-    ).suggestionEngine.reloadSuggestions(agentId);
+    void this.core.suggestionEngine.reloadSuggestions(agentId);
 
     return runAgentResult;
   }
@@ -318,7 +407,7 @@ export class RunHandler {
           error instanceof Error ? error : new Error(String(error));
         errorMessage = parseError.message;
         isArgumentError = true;
-        await (this.core as unknown as AjoraCoreFriendsAccess).emitError({
+        await this.core.emitError({
           error: parseError,
           code: AjoraCoreErrorCode.TOOL_ARGUMENT_PARSE_FAILED,
           context: {
@@ -332,7 +421,7 @@ export class RunHandler {
         });
       }
 
-      await (this.core as unknown as AjoraCoreFriendsAccess).notifySubscribers(
+      await this.core.notifySubscribers(
         (subscriber) =>
           subscriber.onToolExecutionStart?.({
             ajora: this.core,
@@ -358,7 +447,7 @@ export class RunHandler {
           const handlerError =
             error instanceof Error ? error : new Error(String(error));
           errorMessage = handlerError.message;
-          await (this.core as unknown as AjoraCoreFriendsAccess).emitError({
+          await this.core.emitError({
             error: handlerError,
             code: AjoraCoreErrorCode.TOOL_HANDLER_FAILED,
             context: {
@@ -377,7 +466,7 @@ export class RunHandler {
         toolCallResult = `Error: ${errorMessage}`;
       }
 
-      await (this.core as unknown as AjoraCoreFriendsAccess).notifySubscribers(
+      await this.core.notifySubscribers(
         (subscriber) =>
           subscriber.onToolExecutionEnd?.({
             ajora: this.core,
@@ -397,6 +486,9 @@ export class RunHandler {
 
     if (!errorMessage || !isArgumentError) {
       const messageIndex = agent.messages.findIndex((m) => m.id === message.id);
+      if (messageIndex === -1) {
+        return false;
+      }
       const toolMessage = {
         id: randomUUID(),
         role: "tool" as const,
@@ -442,7 +534,7 @@ export class RunHandler {
           error instanceof Error ? error : new Error(String(error));
         errorMessage = parseError.message;
         isArgumentError = true;
-        await (this.core as unknown as AjoraCoreFriendsAccess).emitError({
+        await this.core.emitError({
           error: parseError,
           code: AjoraCoreErrorCode.TOOL_ARGUMENT_PARSE_FAILED,
           context: {
@@ -461,7 +553,7 @@ export class RunHandler {
         args: parsedArgs,
       };
 
-      await (this.core as unknown as AjoraCoreFriendsAccess).notifySubscribers(
+      await this.core.notifySubscribers(
         (subscriber) =>
           subscriber.onToolExecutionStart?.({
             ajora: this.core,
@@ -490,7 +582,7 @@ export class RunHandler {
           const handlerError =
             error instanceof Error ? error : new Error(String(error));
           errorMessage = handlerError.message;
-          await (this.core as unknown as AjoraCoreFriendsAccess).emitError({
+          await this.core.emitError({
             error: handlerError,
             code: AjoraCoreErrorCode.TOOL_HANDLER_FAILED,
             context: {
@@ -509,7 +601,7 @@ export class RunHandler {
         toolCallResult = `Error: ${errorMessage}`;
       }
 
-      await (this.core as unknown as AjoraCoreFriendsAccess).notifySubscribers(
+      await this.core.notifySubscribers(
         (subscriber) =>
           subscriber.onToolExecutionEnd?.({
             ajora: this.core,
@@ -529,6 +621,9 @@ export class RunHandler {
 
     if (!errorMessage || !isArgumentError) {
       const messageIndex = agent.messages.findIndex((m) => m.id === message.id);
+      if (messageIndex === -1) {
+        return false;
+      }
       const toolMessage = {
         id: randomUUID(),
         role: "tool" as const,
@@ -571,7 +666,7 @@ export class RunHandler {
       if (agent.agentId) {
         context.agentId = agent.agentId;
       }
-      await (this.core as unknown as AjoraCoreFriendsAccess).emitError({
+      await this.core.emitError({
         error,
         code,
         context,

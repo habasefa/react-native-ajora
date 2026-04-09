@@ -9,6 +9,6 @@ export {
 export * from "./utils";
 
 export { logger } from "./logger";
-export { DEFAULT_AGENT_ID } from "./constants";
+export { DEFAULT_AGENT_ID, DEFAULT_MODEL_ID } from "./constants";
 export { finalizeRunEvents } from "./finalize-events";
 export { patchedRunHttpRequest } from "./http-request-patch";

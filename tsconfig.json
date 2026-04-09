@@ -29,7 +29,13 @@
     "noFallthroughCasesInSwitch": true,
     "strictPropertyInitialization": false,
     "lib": ["ES2020"],
-    "typeRoots": ["./node_modules/@types", "./@types"]
+    "typeRoots": ["./node_modules/@types", "./@types"],
+    "paths": {
+      "@ajora-ai/core": ["./packages/core/index.ts"],
+      "@ajora-ai/shared": ["./packages/shared/index.ts"],
+      "@ajora-ai/native": ["./packages/native/index.ts"],
+      "@ajora-ai/agent": ["./packages/agent/index.ts"]
+    }
   },
   "include": [
     "legacy",
@@ -38,13 +44,5 @@
     "legacy/richText/RichText.tsx",
     "legacy/richText/markdownStyle.tsx"
   ],
-  "exclude": ["node_modules", "legacy/__tests__", "example/node_modules", "lib"],
-  "compilerOptions": {
-    "paths": {
-      "@ajora-ai/core": ["./packages/core/index.ts"],
-      "@ajora-ai/shared": ["./packages/shared/index.ts"],
-      "@ajora-ai/native": ["./packages/native/index.ts"],
-      "@ajora-ai/agent": ["./packages/agent/index.ts"]
-    }
-  }
+  "exclude": ["node_modules", "legacy/__tests__", "example/node_modules", "lib"]
 }

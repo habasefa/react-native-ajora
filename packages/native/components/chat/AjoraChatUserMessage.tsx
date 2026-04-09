@@ -84,7 +84,6 @@ export type AjoraChatUserMessageProps = WithSlots<
     branchIndex?: number;
     numberOfBranches?: number;
     additionalToolbarItems?: React.ReactNode;
-    additionalToolbarItems?: React.ReactNode;
     colors?: AjoraChatUserMessageColorsOverride;
     onLongPress?: (props: { message: UserMessage }) => void;
     style?: StyleProp<ViewStyle>;

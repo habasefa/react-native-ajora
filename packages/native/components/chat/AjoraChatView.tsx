@@ -58,10 +58,6 @@ export type AjoraChatViewProps = WithSlots<
   {
     messages?: Message[];
     inputProps?: Partial<Omit<AjoraChatInputProps, "children">>;
-    isRunning?: boolean;
-    /** Whether the chat is in a loading state (e.g., connecting, loading history) */
-    isLoading?: boolean;
-    /** Error message to display at the bottom of the chat */
     error?: string | null;
     /** Callback to retry the agent run upon an error */
     onRetryError?: () => void;

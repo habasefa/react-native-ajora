@@ -2,11 +2,12 @@ import {
   BaseEvent,
   HttpAgent,
   HttpAgentConfig,
+  Message,
   RunAgentInput,
   runHttpRequest,
   transformHttpEventStream,
 } from "@ag-ui/client";
-import { Observable } from "rxjs";
+import { Observable, catchError, EMPTY, throwError } from "rxjs";
 import { AjoraRuntimeTransport } from "./types";
 import { patchedRunHttpRequest } from "../shared/http-request-patch";
 
@@ -16,6 +17,33 @@ export interface ProxiedAjoraRuntimeAgentConfig extends Omit<
 > {
   runtimeUrl?: string;
   transport?: AjoraRuntimeTransport;
+}
+
+export interface FetchHistoryRequest {
+  threadId: string;
+  /** Cursor: return messages that appear BEFORE this message id. */
+  beforeMessageId?: string;
+  /** Page size (default 50, server clamps to [1, 200]). */
+  limit?: number;
+}
+
+export interface FetchHistoryResponse {
+  /** Messages ordered oldest → newest. */
+  messages: Message[];
+  /** Whether more messages exist before `oldestMessageId`. */
+  hasMore: boolean;
+  /** Cursor to pass as `beforeMessageId` for the next "load earlier" page. */
+  oldestMessageId: string | null;
+}
+
+export class FetchHistoryError extends Error {
+  constructor(
+    message: string,
+    public readonly status: number,
+  ) {
+    super(message);
+    this.name = "FetchHistoryError";
+  }
 }
 
 export class ProxiedAjoraRuntimeAgent extends HttpAgent {
@@ -59,18 +87,31 @@ export class ProxiedAjoraRuntimeAgent extends HttpAgent {
       return;
     }
 
+    const sendStop = (url: string, init: RequestInit): void => {
+      fetch(url, init)
+        .then((response) => {
+          if (!response.ok) {
+            console.warn(
+              `ProxiedAjoraRuntimeAgent: stop request returned ${response.status}`,
+            );
+          }
+        })
+        .catch((error) => {
+          console.error("ProxiedAjoraRuntimeAgent: stop request failed", error);
+        });
+    };
+
     if (this.transport === "single") {
       if (!this.singleEndpointUrl) {
         return;
       }
 
-      const headers = new Headers({
-        ...this.headers,
-        "Content-Type": "application/json",
-      });
-      void fetch(this.singleEndpointUrl, {
+      sendStop(this.singleEndpointUrl, {
         method: "POST",
-        headers,
+        headers: new Headers({
+          ...this.headers,
+          "Content-Type": "application/json",
+        }),
         body: JSON.stringify({
           method: "agent/stop",
           params: {
@@ -78,8 +119,6 @@ export class ProxiedAjoraRuntimeAgent extends HttpAgent {
             threadId: this.threadId,
           },
         }),
-      }).catch((error) => {
-        console.error("ProxiedAjoraRuntimeAgent: stop request failed", error);
       });
       return;
     }
@@ -89,21 +128,16 @@ export class ProxiedAjoraRuntimeAgent extends HttpAgent {
     }
 
     const stopPath = `${this.runtimeUrl}/agent/${encodeURIComponent(this.agentId)}/stop/${encodeURIComponent(this.threadId)}`;
-    const origin =
-      typeof window !== "undefined" && window.location
-        ? window.location.origin
-        : "http://localhost";
+    const origin = "http://localhost";
     const base = new URL(this.runtimeUrl, origin);
     const stopUrl = new URL(stopPath, base);
 
-    void fetch(stopUrl.toString(), {
+    sendStop(stopUrl.toString(), {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         ...this.headers,
       },
-    }).catch((error) => {
-      console.error("ProxiedAjoraRuntimeAgent: stop request failed", error);
     });
   }
 
@@ -125,7 +159,10 @@ export class ProxiedAjoraRuntimeAgent extends HttpAgent {
         requestInit,
         runHttpRequest,
       );
-      return transformHttpEventStream(httpEvents);
+      return withAbortErrorHandling(
+        transformHttpEventStream(httpEvents),
+        this.abortController.signal,
+      );
     }
 
     const httpEvents = patchedRunHttpRequest(
@@ -133,7 +170,10 @@ export class ProxiedAjoraRuntimeAgent extends HttpAgent {
       this.requestInit(input),
       runHttpRequest,
     );
-    return transformHttpEventStream(httpEvents);
+    return withAbortErrorHandling(
+      transformHttpEventStream(httpEvents),
+      this.abortController.signal,
+    );
   }
 
   public run(input: RunAgentInput): Observable<BaseEvent> {
@@ -154,10 +194,113 @@ export class ProxiedAjoraRuntimeAgent extends HttpAgent {
         requestInit,
         runHttpRequest,
       );
-      return transformHttpEventStream(httpEvents);
+      return withAbortErrorHandling(
+        transformHttpEventStream(httpEvents),
+        this.abortController.signal,
+      );
     }
 
-    return super.run(input);
+    return withAbortErrorHandling(super.run(input), this.abortController.signal);
+  }
+
+  /**
+   * Fetch persisted messages for a thread from the runtime's history endpoint.
+   *
+   * Unlike `connect()`/`run()`, this is a plain JSON POST (not SSE) and does
+   * not feed events into the agent's internal `apply` pipeline. The caller
+   * (typically `AjoraCore.loadHistory`) decides how to merge the returned
+   * messages into the in-memory `messages` array.
+   *
+   * Throws `FetchHistoryError` for any non-2xx response so the caller can
+   * surface auth failures (401/403) distinctly from network errors.
+   */
+  async fetchHistory(
+    request: FetchHistoryRequest,
+  ): Promise<FetchHistoryResponse> {
+    if (typeof fetch === "undefined") {
+      throw new FetchHistoryError("fetch is not available", 0);
+    }
+    if (!this.agentId) {
+      throw new FetchHistoryError(
+        "ProxiedAjoraRuntimeAgent requires agentId to fetch history",
+        0,
+      );
+    }
+
+    const headers = new Headers({
+      ...(this.headers ?? {}),
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    });
+
+    let url: string;
+    let body: string;
+    if (this.transport === "single") {
+      if (!this.singleEndpointUrl) {
+        throw new FetchHistoryError(
+          "Single endpoint transport requires a runtimeUrl",
+          0,
+        );
+      }
+      url = this.singleEndpointUrl;
+      body = JSON.stringify({
+        method: "agent/history",
+        params: { agentId: this.agentId },
+        body: {
+          threadId: request.threadId,
+          beforeMessageId: request.beforeMessageId,
+          limit: request.limit,
+        },
+      });
+    } else {
+      if (!this.runtimeUrl) {
+        throw new FetchHistoryError("REST transport requires a runtimeUrl", 0);
+      }
+      url = `${this.runtimeUrl}/agent/${encodeURIComponent(this.agentId)}/history`;
+      body = JSON.stringify({
+        threadId: request.threadId,
+        beforeMessageId: request.beforeMessageId,
+        limit: request.limit,
+      });
+    }
+
+    let response: Response;
+    try {
+      response = await fetch(url, { method: "POST", headers, body });
+    } catch (error) {
+      throw new FetchHistoryError(
+        error instanceof Error ? error.message : "Network error",
+        0,
+      );
+    }
+
+    if (!response.ok) {
+      let message = `History request failed with status ${response.status}`;
+      try {
+        const payload = (await response.json()) as { message?: string };
+        if (payload?.message) message = payload.message;
+      } catch {
+        // body wasn't JSON; keep default message
+      }
+      throw new FetchHistoryError(message, response.status);
+    }
+
+    const payload = (await response.json()) as Partial<FetchHistoryResponse>;
+    if (
+      !payload ||
+      !Array.isArray(payload.messages) ||
+      typeof payload.hasMore !== "boolean"
+    ) {
+      throw new FetchHistoryError(
+        "History response was malformed",
+        response.status,
+      );
+    }
+    return {
+      messages: payload.messages,
+      hasMore: payload.hasMore,
+      oldestMessageId: payload.oldestMessageId ?? null,
+    };
   }
 
   public override clone(): ProxiedAjoraRuntimeAgent {
@@ -215,4 +358,41 @@ export class ProxiedAjoraRuntimeAgent extends HttpAgent {
       body: JSON.stringify(envelope),
     };
   }
+}
+
+function isZodError(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "name" in error &&
+    (error as { name: string }).name === "ZodError"
+  );
+}
+
+/**
+ * Wrap an Observable to catch and suppress ZodErrors that occur during stream
+ * abort. These errors are expected when the connection is cancelled mid-stream
+ * and the SSE parser gets handed a truncated event.
+ *
+ * IMPORTANT: we only swallow the ZodError when the abort signal has actually
+ * fired. Previously this suppressed *all* ZodErrors unconditionally, which
+ * turned real server protocol bugs (malformed SSE, schema drift, corrupt
+ * payloads) into a silent empty-stream. On the consumer side that manifests
+ * as `lastValueFrom` throwing `EmptyError` — exactly the "click does nothing,
+ * then freeze" symptom we chased through magnus.tsx. Re-raising Zod errors
+ * from non-aborted streams lets `onRunFailed` / `onError` surface a real
+ * message to the UI instead.
+ */
+function withAbortErrorHandling(
+  observable: Observable<BaseEvent>,
+  abortSignal: AbortSignal,
+): Observable<BaseEvent> {
+  return observable.pipe(
+    catchError((error) => {
+      if (isZodError(error) && abortSignal.aborted) {
+        return EMPTY;
+      }
+      throw error;
+    }),
+  );
 }

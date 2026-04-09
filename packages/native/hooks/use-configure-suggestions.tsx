@@ -86,6 +86,7 @@ export function useConfigureSuggestions(
     normalizationCacheRef.current = { serialized, config: built };
     return { normalizedConfig: built, serializedConfig: serialized };
   }, [config, resolvedConsumerAgentId, ...extraDeps]);
+
   const latestConfigRef = useRef<SuggestionsConfig | null>(null);
   latestConfigRef.current = normalizedConfig;
   const previousSerializedConfigRef = useRef<string | null>(null);

@@ -1,7 +1,6 @@
 import { AbstractAgent, Message, Tool, Context } from "@ag-ui/client";
 import { randomUUID, partialJSONParse } from "../../shared";
 import type { AjoraCore } from "./core";
-import { AjoraCoreFriendsAccess } from "./core-types";
 import {
   DynamicSuggestionsConfig,
   StaticSuggestionsConfig,
@@ -61,8 +60,8 @@ export class SuggestionEngine {
     this.clearSuggestions(agentId);
 
     // Get agent to check message count for availability filtering
-    const agent = (this.core as unknown as AjoraCoreFriendsAccess).getAgent(
-      agentId
+    const agent = this.core.getAgent(
+      agentId,
     );
     if (!agent) {
       return;
@@ -93,7 +92,16 @@ export class SuggestionEngine {
           hasAnySuggestions = true;
           void this.notifySuggestionsStartedLoading(agentId);
         }
-        void this.generateSuggestions(suggestionId, config, agentId);
+        this.generateSuggestions(suggestionId, config, agentId).catch((error) => {
+          console.warn("Error generating suggestions:", error);
+          // Ensure loading state is cleared even on unhandled errors.
+          this.finalizeSuggestions(suggestionId, agentId);
+          const running = this._runningSuggestions[agentId];
+          if (!running || running.length === 0) {
+            delete this._runningSuggestions[agentId];
+            void this.notifySuggestionsFinishedLoading(agentId);
+          }
+        });
       } else if (isStaticSuggestionsConfig(config)) {
         this.addStaticSuggestions(suggestionId, config, agentId);
       }
@@ -131,37 +139,31 @@ export class SuggestionEngine {
   private async generateSuggestions(
     suggestionId: string,
     config: DynamicSuggestionsConfig,
-    consumerAgentId: string
+    consumerAgentId: string,
   ): Promise<void> {
     let agent: AbstractAgent | undefined = undefined;
     try {
-      const suggestionsProviderAgent = (
-        this.core as unknown as AjoraCoreFriendsAccess
-      ).getAgent(config.providerAgentId ?? "default");
+      const suggestionsProviderAgent = this.core.getAgent(
+        config.providerAgentId ?? "default",
+      );
       if (!suggestionsProviderAgent) {
         throw new Error(
-          `Suggestions provider agent not found: ${config.providerAgentId}`
+          `Suggestions provider agent not found: ${config.providerAgentId}`,
         );
       }
-      const suggestionsConsumerAgent = (
-        this.core as unknown as AjoraCoreFriendsAccess
-      ).getAgent(consumerAgentId);
+      const suggestionsConsumerAgent = this.core.getAgent(consumerAgentId);
       if (!suggestionsConsumerAgent) {
         throw new Error(
-          `Suggestions consumer agent not found: ${consumerAgentId}`
+          `Suggestions consumer agent not found: ${consumerAgentId}`,
         );
       }
 
       const clonedAgent: AbstractAgent = suggestionsProviderAgent.clone();
       agent = clonedAgent;
-      //agent.agentId = suggestionId;
-      agent.threadId = suggestionId;
-      agent.messages = JSON.parse(
-        JSON.stringify(suggestionsConsumerAgent.messages)
-      );
-      agent.state = JSON.parse(JSON.stringify(suggestionsConsumerAgent.state));
 
-      // Initialize suggestion storage for this agent/suggestion combo
+      // Initialize suggestion storage BEFORE configuring the cloned agent.
+      // The agent's addMessage/setMessages can synchronously trigger
+      // onMessagesChanged → extractSuggestions, which reads these maps.
       this._suggestions[consumerAgentId] = {
         ...(this._suggestions[consumerAgentId] ?? {}),
         [suggestionId]: [],
@@ -171,13 +173,19 @@ export class SuggestionEngine {
         agent,
       ];
 
+      agent.threadId = suggestionId;
+      agent.messages = JSON.parse(
+        JSON.stringify(suggestionsConsumerAgent.messages),
+      );
+      agent.state = JSON.parse(JSON.stringify(suggestionsConsumerAgent.state));
+
       agent.addMessage({
         id: suggestionId,
         role: "user",
         content: [
           `Suggest what the user could say next. Provide clear, highly relevant suggestions by calling the \`ajoraSuggest\` tool.`,
           `Provide at least ${config.minSuggestions ?? 1} and at most ${config.maxSuggestions ?? 3} suggestions.`,
-          `The user has the following tools available: ${JSON.stringify((this.core as unknown as AjoraCoreFriendsAccess).buildFrontendTools(consumerAgentId))}.`,
+          `The user has the following tools available: ${JSON.stringify(this.core.buildFrontendTools(consumerAgentId))}.`,
           ` ${config.instructions}`,
         ].join("\n"),
       });
@@ -185,10 +193,11 @@ export class SuggestionEngine {
       await agent.runAgent(
         {
           context: Object.values(
-            (this.core as unknown as AjoraCoreFriendsAccess).context
+            this.core.context,
           ),
           forwardedProps: {
-            ...(this.core as unknown as AjoraCoreFriendsAccess).properties,
+            ...this.core.properties,
+            isEphemeral: true,
             toolChoice: {
               type: "function",
               function: { name: "ajoraSuggest" },
@@ -202,10 +211,10 @@ export class SuggestionEngine {
               messages,
               suggestionId,
               consumerAgentId,
-              true
+              true,
             );
           },
-        }
+        },
       );
     } catch (error) {
       console.warn("Error generating suggestions:", error);
@@ -233,7 +242,7 @@ export class SuggestionEngine {
    */
   private finalizeSuggestions(
     suggestionId: string,
-    consumerAgentId: string
+    consumerAgentId: string,
   ): void {
     const agentSuggestions = this._suggestions[consumerAgentId];
     const currentSuggestions = agentSuggestions?.[suggestionId];
@@ -246,7 +255,7 @@ export class SuggestionEngine {
       // Filter out empty suggestions and mark remaining as no longer loading
       const finalizedSuggestions = currentSuggestions
         .filter(
-          (suggestion) => suggestion.title !== "" || suggestion.message !== ""
+          (suggestion) => suggestion.title !== "" || suggestion.message !== "",
         )
         .map((suggestion) => ({
           ...suggestion,
@@ -261,13 +270,13 @@ export class SuggestionEngine {
 
       // Get all aggregated suggestions for this agent
       const allSuggestions = Object.values(
-        this._suggestions[consumerAgentId] ?? {}
+        this._suggestions[consumerAgentId] ?? {},
       ).flat();
 
       void this.notifySuggestionsChanged(
         consumerAgentId,
         allSuggestions,
-        "finalized"
+        "finalized",
       );
     }
   }
@@ -279,7 +288,7 @@ export class SuggestionEngine {
     messages: Message[],
     suggestionId: string,
     consumerAgentId: string,
-    isRunning: boolean
+    isRunning: boolean,
   ): void {
     const idx = messages.findIndex((message) => message.id === suggestionId);
     if (idx == -1) {
@@ -333,13 +342,13 @@ export class SuggestionEngine {
 
       // Get all aggregated suggestions for this agent
       const allSuggestions = Object.values(
-        this._suggestions[consumerAgentId] ?? {}
+        this._suggestions[consumerAgentId] ?? {},
       ).flat();
 
       void this.notifySuggestionsChanged(
         consumerAgentId,
         allSuggestions,
-        "suggestions changed"
+        "suggestions changed",
       );
     }
   }
@@ -348,13 +357,13 @@ export class SuggestionEngine {
    * Notify subscribers of suggestions config changes
    */
   private async notifySuggestionsConfigChanged(): Promise<void> {
-    await (this.core as unknown as AjoraCoreFriendsAccess).notifySubscribers(
+    await this.core.notifySubscribers(
       (subscriber) =>
         subscriber.onSuggestionsConfigChanged?.({
           ajora: this.core,
           suggestionsConfig: this._suggestionsConfig,
         }),
-      "Subscriber onSuggestionsConfigChanged error:"
+      "Subscriber onSuggestionsConfigChanged error:",
     );
   }
 
@@ -364,16 +373,16 @@ export class SuggestionEngine {
   private async notifySuggestionsChanged(
     agentId: string,
     suggestions: Suggestion[],
-    context: string = ""
+    context: string = "",
   ): Promise<void> {
-    await (this.core as unknown as AjoraCoreFriendsAccess).notifySubscribers(
+    await this.core.notifySubscribers(
       (subscriber) =>
         subscriber.onSuggestionsChanged?.({
           ajora: this.core,
           agentId,
           suggestions,
         }),
-      `Subscriber onSuggestionsChanged error: ${context}`
+      `Subscriber onSuggestionsChanged error: ${context}`,
     );
   }
 
@@ -381,15 +390,15 @@ export class SuggestionEngine {
    * Notify subscribers that suggestions started loading
    */
   private async notifySuggestionsStartedLoading(
-    agentId: string
+    agentId: string,
   ): Promise<void> {
-    await (this.core as unknown as AjoraCoreFriendsAccess).notifySubscribers(
+    await this.core.notifySubscribers(
       (subscriber) =>
         subscriber.onSuggestionsStartedLoading?.({
           ajora: this.core,
           agentId,
         }),
-      "Subscriber onSuggestionsStartedLoading error:"
+      "Subscriber onSuggestionsStartedLoading error:",
     );
   }
 
@@ -397,15 +406,15 @@ export class SuggestionEngine {
    * Notify subscribers that suggestions finished loading
    */
   private async notifySuggestionsFinishedLoading(
-    agentId: string
+    agentId: string,
   ): Promise<void> {
-    await (this.core as unknown as AjoraCoreFriendsAccess).notifySubscribers(
+    await this.core.notifySubscribers(
       (subscriber) =>
         subscriber.onSuggestionsFinishedLoading?.({
           ajora: this.core,
           agentId,
         }),
-      "Subscriber onSuggestionsFinishedLoading error:"
+      "Subscriber onSuggestionsFinishedLoading error:",
     );
   }
 
@@ -414,7 +423,7 @@ export class SuggestionEngine {
    */
   private shouldShowSuggestions(
     config: SuggestionsConfig,
-    messageCount: number
+    messageCount: number,
   ): boolean {
     const availability = config.available;
 
@@ -447,7 +456,7 @@ export class SuggestionEngine {
   private addStaticSuggestions(
     suggestionId: string,
     config: StaticSuggestionsConfig,
-    consumerAgentId: string
+    consumerAgentId: string,
   ): void {
     // Mark all as not loading since they're static
     const suggestions = config.suggestions.map((s) => ({
@@ -463,13 +472,13 @@ export class SuggestionEngine {
 
     // Notify subscribers
     const allSuggestions = Object.values(
-      this._suggestions[consumerAgentId] ?? {}
+      this._suggestions[consumerAgentId] ?? {},
     ).flat();
 
     void this.notifySuggestionsChanged(
       consumerAgentId,
       allSuggestions,
-      "static suggestions added"
+      "static suggestions added",
     );
   }
 }
@@ -478,7 +487,7 @@ export class SuggestionEngine {
  * Type guard for dynamic suggestions config
  */
 function isDynamicSuggestionsConfig(
-  config: SuggestionsConfig
+  config: SuggestionsConfig,
 ): config is DynamicSuggestionsConfig {
   return "instructions" in config;
 }
@@ -487,7 +496,7 @@ function isDynamicSuggestionsConfig(
  * Type guard for static suggestions config
  */
 function isStaticSuggestionsConfig(
-  config: SuggestionsConfig
+  config: SuggestionsConfig,
 ): config is StaticSuggestionsConfig {
   return "suggestions" in config;
 }

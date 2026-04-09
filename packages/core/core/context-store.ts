@@ -1,7 +1,6 @@
 import { Context } from "@ag-ui/client";
 import { randomUUID } from "../../shared";
 import type { AjoraCore } from "./core";
-import { AjoraCoreFriendsAccess } from "./core-types";
 
 /**
  * Manages context storage and lifecycle for AjoraCore.
@@ -42,7 +41,7 @@ export class ContextStore {
    * Notify all subscribers of context changes
    */
   private async notifySubscribers(): Promise<void> {
-    await (this.core as unknown as AjoraCoreFriendsAccess).notifySubscribers(
+    await this.core.notifySubscribers(
       (subscriber) =>
         subscriber.onContextChanged?.({
           ajora: this.core,

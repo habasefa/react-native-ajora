@@ -1,20 +1,19 @@
-// @ts-nocheck
 import { useAgent } from "../../hooks/use-agent";
+import { useHistory } from "../../hooks/use-history";
 import { useSuggestions } from "../../hooks/use-suggestions";
 import { AjoraChatView, AjoraChatViewProps } from "./AjoraChatView";
-import AjoraChatInput, { AjoraChatInputProps } from "./AjoraChatInput";
+import { AjoraChatInputProps } from "./AjoraChatInput";
 import {
   AjoraChatConfigurationProvider,
   AjoraChatLabels,
   useAjoraChatConfiguration,
 } from "../../providers/AjoraChatConfigurationProvider";
 import { DEFAULT_AGENT_ID, randomUUID } from "../../../shared";
-import { AjoraCoreRuntimeConnectionStatus, Suggestion } from "../../../core";
+import { Suggestion } from "../../../core";
 import React, {
   useCallback,
   useEffect,
   useMemo,
-  useReducer,
   useState,
 } from "react";
 import { merge } from "ts-deepmerge";
@@ -26,6 +25,8 @@ import { BottomSheetModal } from "@gorhom/bottom-sheet";
 import * as Clipboard from "expo-clipboard";
 import { UserMessage } from "@ag-ui/core";
 import { AjoraChatError } from "../../types";
+import { DEFAULT_MODEL_ID } from "../../../shared/constants";
+import { AjoraChatErrorBoundary } from "../AjoraChatErrorBoundary";
 
 export type AjoraChatProps = Omit<
   AjoraChatViewProps,
@@ -36,15 +37,12 @@ export type AjoraChatProps = Omit<
   | "onSelectSuggestion"
 > & {
   agentId?: string;
-  /** Model ID to forward to the runtime for model selection */
   modelId?: string;
   threadId?: string;
   labels?: Partial<AjoraChatLabels>;
   chatView?: SlotValue<typeof AjoraChatView>;
   isModalDefaultOpen?: boolean;
-  /** Whether the chat is in a loading state (e.g., connecting, loading history) */
   isLoading?: boolean;
-  /** Starter suggestions to show in the empty state */
   starterSuggestions?: Suggestion[];
 
   // ========================================================================
@@ -97,15 +95,46 @@ export function AjoraChat({
   // Apply priority: props > existing config > defaults
   const resolvedAgentId =
     agentId ?? existingConfig?.agentId ?? DEFAULT_AGENT_ID;
+
   const resolvedThreadId = useMemo(
     () => threadId ?? existingConfig?.threadId ?? randomUUID(),
     [threadId, existingConfig?.threadId],
   );
+
   const { agent } = useAgent({ agentId: resolvedAgentId });
   const { ajora } = useAjora();
 
+  // Resolve a real model id. Consumers (e.g. magnus.tsx) commonly initialise
+  // their model selection state to the placeholder string `"default"` and
+  // rely on us to fall back to a real registered model. A naive
+  // `modelId ?? DEFAULT_MODEL_ID` chain returns `"default"` verbatim — which
+  // gets forwarded to the runtime as `model: "default"` and silently fails
+  // the request, manifesting as "click does nothing" in the chat UI.
+  const resolvedModelId = useMemo(() => {
+    const candidate = modelId ?? existingConfig?.modelId;
+    if (candidate && candidate !== DEFAULT_MODEL_ID) return candidate;
+
+    const proModel = ajora.models?.find(
+      (m) => m.tier !== "free" && m.tier?.toLowerCase() !== "free",
+    );
+    return proModel?.id ?? ajora.models?.[0]?.id ?? candidate ?? DEFAULT_MODEL_ID;
+  }, [modelId, existingConfig?.modelId, ajora.models]);
+
+  // Load persisted messages for the active thread. The hook handles initial
+  // load on threadId change, pagination via loadMore, and stale-thread races.
+  const {
+    isLoading: isLoadingHistory,
+    isLoadingMore: isLoadingMoreHistory,
+    hasMore: hasMoreHistory,
+    loadMore: loadEarlierMessages,
+  } = useHistory({
+    agentId: resolvedAgentId,
+    threadId: resolvedThreadId,
+  });
+
   const { suggestions: autoSuggestions } = useSuggestions({
     agentId: resolvedAgentId,
+    modelId: resolvedModelId,
   });
 
   const {
@@ -115,18 +144,6 @@ export function AjoraChat({
     textRenderer,
     ...restProps
   } = props;
-
-  const resolvedModelId = useMemo(() => {
-    if (modelId && modelId !== "default") return modelId;
-
-    // Fallback to a pro model if none is selected
-    // Models without a tier or with tier "pro" are preferred over "free" models
-    const proModel = ajora.models?.find(
-      (m) => m.tier !== "free" && m.tier?.toLowerCase() !== "free",
-    );
-
-    return proModel?.id || ajora.models?.[0]?.id;
-  }, [modelId, ajora.models]);
 
   // Sheet ref
   const userMessageSheetRef = React.useRef<BottomSheetModal>(null);
@@ -192,26 +209,61 @@ export function AjoraChat({
   ]);
 
   useEffect(() => {
+    // Guard against the common "provisional agent is still the stand-in"
+    // case: if the real agent for `resolvedAgentId` isn't in the registry
+    // yet (runtime `/info` hasn't resolved), skip this run — a subsequent
+    // render, triggered by `onAgentsChanged`, will retry against the real
+    // agent. Without this gate, we'd fire `connectAgent` against a short-
+    // lived provisional, then fire it AGAIN against the real agent on the
+    // very next render, racing two HTTP requests for the same thread.
+    const knownAgents = Object.keys(ajora.agents ?? {});
+    const isRegistered = knownAgents.includes(resolvedAgentId);
+    if (!isRegistered && knownAgents.length === 0 && ajora.runtimeUrl) {
+      // Runtime is configured but hasn't finished its initial fetch yet.
+      // Bail out and wait for the agents map to populate.
+      return;
+    }
+
+    let cancelled = false;
     const connect = async (agent: AbstractAgent) => {
       try {
         await ajora.connectAgent({ agent, modelId: resolvedModelId });
       } catch (error) {
-        console.warn("Connect error", error);
+        if (!cancelled) {
+          console.warn("Connect error", error);
+        }
       }
     };
     agent.threadId = resolvedThreadId;
     connect(agent);
-    return () => {};
-  }, [resolvedThreadId, agent, ajora, resolvedAgentId, resolvedModelId]);
+
+    return () => {
+      cancelled = true;
+      // Detach the active run so the in-flight stream stops pushing events
+      // into an agent we're about to swap out. `detachActiveRun` is the
+      // ag-ui idiomatic way to cancel a running subscription without
+      // tearing down the agent itself.
+      void agent.detachActiveRun?.().catch(() => {
+        /* swallow: detach races are benign on unmount */
+      });
+    };
+  }, [
+    resolvedThreadId,
+    agent,
+    ajora,
+    resolvedAgentId,
+    resolvedModelId,
+    ajora.agents,
+    ajora.runtimeUrl,
+  ]);
 
   const onSubmitInput = useCallback(
-    async (value: string, attachments?: any[]) => {
+    async (value: string) => {
       setError(null);
       agent.addMessage({
         id: randomUUID(),
         role: "user",
         content: value,
-        attachments,
       });
       try {
         await ajora.runAgent({ agent, modelId: resolvedModelId });
@@ -338,7 +390,12 @@ export function AjoraChat({
   const mergedProps = merge(
     {
       isRunning: agent.isRunning,
-      isLoading,
+      // Surface initial-load progress to the chat view so it can show a
+      // loading indicator instead of an empty-state flash on thread switch.
+      isLoading: isLoading || isLoadingHistory,
+      isLoadingEarlier: isLoadingMoreHistory,
+      hasEarlierMessages: hasMoreHistory,
+      onLoadEarlier: hasMoreHistory ? loadEarlierMessages : undefined,
       suggestions: autoSuggestions,
       starterSuggestions,
       onSelectSuggestion: handleSelectSuggestion,
@@ -380,13 +437,18 @@ export function AjoraChat({
     ? "processing"
     : (finalInputProps.mode ?? "input");
 
-  // Memoize messages array - only create new reference when content actually changes
-  // (agent.messages is mutated in place, so we need a new reference for React to detect changes)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const messages = useMemo(
-    () => [...agent.messages],
-    [JSON.stringify(agent.messages)],
-  );
+  // `agent.messages` is mutated in place by @ag-ui/client during streaming,
+  // and `useAgent`'s `onMessagesChanged` subscription calls `forceUpdate()`
+  // on every mutation — so we get a fresh render any time the content
+  // changes. Previously this used `JSON.stringify(agent.messages)` as the
+  // memo dep, which is O(n * avgContentLength) on every render and turned
+  // into a hot path as conversations grew (dropping frames during streaming
+  // and contributing to the "stuck / crash" symptom in magnus.tsx).
+  //
+  // Just allocate a fresh array every render instead. The spread is O(n)
+  // with a tiny constant factor (pointer copies) and React's VDOM diff on
+  // the resulting props is what actually prevents unnecessary child work.
+  const messages = [...agent.messages];
 
   const finalProps = merge(mergedProps, {
     messages,
@@ -398,20 +460,22 @@ export function AjoraChat({
   const RenderedChatView = renderSlot(chatView, AjoraChatView, finalProps);
 
   return (
-    <AjoraChatConfigurationProvider
-      agentId={resolvedAgentId}
-      threadId={resolvedThreadId}
-      labels={labels}
-      isModalDefaultOpen={isModalDefaultOpen}
-    >
-      {RenderedChatView}
-      <UserMessageActionSheet
-        ref={userMessageSheetRef}
-        message={selectedUserMessage}
-        onRegenerate={handleActionRegenerate}
-        onCopy={handleCopyMessage}
-      />
-    </AjoraChatConfigurationProvider>
+    <AjoraChatErrorBoundary>
+      <AjoraChatConfigurationProvider
+        agentId={resolvedAgentId}
+        threadId={resolvedThreadId}
+        labels={labels}
+        isModalDefaultOpen={isModalDefaultOpen}
+      >
+        {RenderedChatView}
+        <UserMessageActionSheet
+          ref={userMessageSheetRef}
+          message={selectedUserMessage}
+          onRegenerate={handleActionRegenerate}
+          onCopy={handleCopyMessage}
+        />
+      </AjoraChatConfigurationProvider>
+    </AjoraChatErrorBoundary>
   );
 }
 

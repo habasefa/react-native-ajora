@@ -38,7 +38,7 @@ export function useRenderCustomMessages() {
     const runId = ajora.getRunIdForMessage(agentId, threadId, message.id)!;
     const agent = ajora.getAgent(agentId);
     if (!agent) {
-      throw new Error("Agent not found");
+      return null;
     }
 
     const messagesIdsInRun = agent.messages
@@ -49,7 +49,7 @@ export function useRenderCustomMessages() {
 
     const messageIndex =
       agent.messages.findIndex((msg) => msg.id === message.id) ?? 0;
-    const messageIndexInRun = Math.min(messagesIdsInRun.indexOf(message.id), 0);
+    const messageIndexInRun = Math.max(messagesIdsInRun.indexOf(message.id), 0);
     const numberOfMessagesInRun = messagesIdsInRun.length;
     const stateSnapshot = ajora.getStateByRun(agentId, threadId, runId);
 

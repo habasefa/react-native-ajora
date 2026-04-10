@@ -242,7 +242,6 @@ export const AjoraProvider: React.FC<AjoraProviderProps> = ({
 
     return () => {
       subscription.unsubscribe();
-      ajora.dispose();
     };
   }, [ajora]);
 
@@ -275,45 +274,13 @@ export const AjoraProvider: React.FC<AjoraProviderProps> = ({
     };
   }, [ajora]);
 
-  // Stabilise the local-agents reference. The default `agents = {}` from the
-  // destructure creates a brand-new object every render, which would make the
-  // sync effect below run on every render and re-fire `setAgents__unsafe_dev_only`
-  // (which itself notifies subscribers — easy way to flood the system with
-  // spurious updates and even loop on re-renders).
-  const stableAgents = useMemo(() => agents, [
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    JSON.stringify(Object.keys(agents ?? {})),
-  ]);
-
   useEffect(() => {
-    console.log("[ajora:debug] AjoraProvider sync effect", {
-      chatApiEndpoint,
-      useSingleEndpoint,
-      headerKeys: Object.keys(mergedHeaders ?? {}),
-      propertyKeys: Object.keys(properties ?? {}),
-      localAgentIds: Object.keys(stableAgents ?? {}),
-      runtimeUrlProp: runtimeUrl,
-      resolvedPublicKey: !!resolvedPublicKey,
-    });
     ajora.setRuntimeUrl(chatApiEndpoint);
     ajora.setRuntimeTransport(useSingleEndpoint ? "single" : "rest");
     ajora.setHeaders(mergedHeaders);
     ajora.setProperties(properties);
-    // Only push local agents if the consumer actually provided some. Calling
-    // `setAgents__unsafe_dev_only({})` is a no-op for the merged map (it
-    // preserves remoteAgents) but it still fires `onAgentsChanged`, which is
-    // wasted work and a re-render trigger.
-    if (Object.keys(stableAgents ?? {}).length > 0) {
-      ajora.setAgents__unsafe_dev_only(stableAgents);
-    }
-  }, [
-    ajora,
-    chatApiEndpoint,
-    mergedHeaders,
-    properties,
-    stableAgents,
-    useSingleEndpoint,
-  ]);
+    ajora.setAgents__unsafe_dev_only(agents);
+  }, [chatApiEndpoint, mergedHeaders, properties, agents, useSingleEndpoint]);
 
   return (
     <AjoraContext.Provider
@@ -335,25 +302,15 @@ export const useAjora = (): AjoraContextValue => {
     throw new Error("useAjora must be used within AjoraProvider");
   }
   useEffect(() => {
-    // Subscribe to BOTH status and agent changes. The runtime fetch fires
-    // a status change (Connecting → Connected) AND an agents change, but a
-    // re-render needs to happen in either case so consumers see the
-    // populated `ajora.agents` / `ajora.models`. Without the agents
-    // subscription, any code path that updates `agents` without a status
-    // flip silently fails to refresh the UI.
     const subscription = context.ajora.subscribe({
       onRuntimeConnectionStatusChanged: () => {
-        forceUpdate();
-      },
-      onAgentsChanged: () => {
         forceUpdate();
       },
     });
     return () => {
       subscription.unsubscribe();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [context.ajora]);
+  }, []);
 
   return context;
 };

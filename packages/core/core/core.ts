@@ -41,29 +41,6 @@ export {
   AjoraCoreSubscription,
 } from "./core-types";
 
-/**
- * Shallow equality check used to short-circuit `setHeaders` / `setProperties`
- * when React callers pass freshly-constructed objects on every render. Without
- * this guard, every parent render would cascade into an
- * `onHeadersChanged`/`onPropertiesChanged` notification → `useAjora`
- * forceUpdate → `useAgent` memo recompute → connect effect re-fire, which is
- * one of the root causes of the connect/run storm in AjoraChat.
- */
-function shallowEqual(
-  a: Record<string, unknown> | null | undefined,
-  b: Record<string, unknown> | null | undefined,
-): boolean {
-  if (a === b) return true;
-  if (!a || !b) return false;
-  const aKeys = Object.keys(a);
-  const bKeys = Object.keys(b);
-  if (aKeys.length !== bKeys.length) return false;
-  for (const key of aKeys) {
-    if (a[key] !== b[key]) return false;
-  }
-  return true;
-}
-
 /** Configuration options for `AjoraCore`. */
 export interface AjoraCoreConfig {
   /** The endpoint of the AjoraRuntime. */
@@ -101,14 +78,10 @@ export class AjoraCore {
 
   private subscribers: Set<AjoraCoreSubscriber> = new Set();
 
-  /** Cleanup handle for the internal onAgentsChanged subscription. */
-  private _agentsChangedSubscription: AjoraCoreSubscription | undefined;
-
   // Delegate classes
   private agentRegistry: AgentRegistry;
   private contextStore: ContextStore;
-  /** @internal — accessed by delegate classes via `AjoraCoreFriendsAccess`. */
-  public readonly suggestionEngine: SuggestionEngine;
+  private suggestionEngine: SuggestionEngine;
   private runHandler: RunHandler;
   private stateManager: StateManager;
 
@@ -121,15 +94,6 @@ export class AjoraCore {
     tools = [],
     suggestionsConfig = [],
   }: AjoraCoreConfig) {
-    console.log("[ajora:debug] AjoraCore constructor", {
-      runtimeUrl,
-      runtimeTransport,
-      headerKeys: Object.keys(headers),
-      propertyKeys: Object.keys(properties),
-      localAgentIds: Object.keys(agents__unsafe_dev_only),
-      toolCount: tools.length,
-      suggestionsConfigCount: suggestionsConfig.length,
-    });
     this._headers = headers;
     this._properties = properties;
 
@@ -146,11 +110,11 @@ export class AjoraCore {
     this.suggestionEngine.initialize(suggestionsConfig);
     this.stateManager.initialize();
 
-    // Subscribe to agent changes BEFORE kicking off the initial runtime
-    // connection so the state manager picks up agents from the very first
-    // notification (otherwise the first batch of remote agents arrives before
-    // anyone is listening and never gets registered with the state manager).
-    this._agentsChangedSubscription = this.subscribe({
+    this.agentRegistry.setRuntimeTransport(runtimeTransport);
+    this.agentRegistry.setRuntimeUrl(runtimeUrl);
+
+    // Subscribe to agent changes to track state for new agents
+    this.subscribe({
       onAgentsChanged: ({ agents }) => {
         Object.values(agents).forEach((agent) => {
           if (agent.agentId) {
@@ -159,33 +123,12 @@ export class AjoraCore {
         });
       },
     });
-
-    // Order matters: stash the transport first so the very first
-    // `updateRuntimeConnection` (kicked off by `setRuntimeUrl`) reads the
-    // correct transport. We pass `{ skipUpdate: true }` so setting the
-    // transport does not itself fire a connection attempt while
-    // `runtimeUrl` is still undefined — that would race with the real fetch
-    // from `setRuntimeUrl`, leaving two concurrent updateRuntimeConnection
-    // promises mutating the same state.
-    this.agentRegistry.setRuntimeTransport(runtimeTransport, {
-      skipUpdate: true,
-    });
-    this.agentRegistry.setRuntimeUrl(runtimeUrl);
   }
 
   /**
-   * Tear down internal subscriptions. Call this when the AjoraCore instance
-   * is no longer needed (e.g. on provider unmount) to avoid memory leaks.
+   * Internal method used by delegate classes and subclasses to notify subscribers
    */
-  dispose(): void {
-    this._agentsChangedSubscription?.unsubscribe();
-    this._agentsChangedSubscription = undefined;
-  }
-
-  /**
-   * @internal — used by delegate classes to notify subscribers.
-   */
-  public async notifySubscribers(
+  protected async notifySubscribers(
     handler: (subscriber: AjoraCoreSubscriber) => void | Promise<void>,
     errorMessage: string,
   ): Promise<void> {
@@ -201,9 +144,9 @@ export class AjoraCore {
   }
 
   /**
-   * @internal — used by delegate classes to emit errors.
+   * Internal method used by delegate classes to emit errors
    */
-  public async emitError({
+  private async emitError({
     error,
     code,
     context = {},
@@ -281,19 +224,8 @@ export class AjoraCore {
 
   /**
    * Configuration updates
-   *
-   * Both `setHeaders` and `setProperties` short-circuit on shallow equality.
-   * React callers typically pass freshly-constructed objects on every render
-   * (e.g. `{ Authorization: ... }`), and the consumer expects the subscribers
-   * to only fire on semantic changes — not on reference-only updates. Without
-   * the shallow check, every render would cascade into
-   * `onHeadersChanged`/`onPropertiesChanged` → `useAjora` forceUpdate →
-   * `useAgent` memo recompute → AjoraChat connect effect re-fire.
    */
   setHeaders(headers: Record<string, string>): void {
-    if (shallowEqual(this._headers, headers)) {
-      return;
-    }
     this._headers = headers;
     this.agentRegistry.applyHeadersToAgents(
       this.agentRegistry.agents as Record<string, AbstractAgent>,
@@ -309,9 +241,6 @@ export class AjoraCore {
   }
 
   setProperties(properties: Record<string, unknown>): void {
-    if (shallowEqual(this._properties, properties)) {
-      return;
-    }
     this._properties = properties;
     void this.notifySubscribers(
       (subscriber) =>
@@ -464,9 +393,9 @@ export class AjoraCore {
   }
 
   /**
-   * @internal — used by delegate classes to build frontend tools.
+   * Internal method used by RunHandler to build frontend tools
    */
-  public buildFrontendTools(agentId?: string): import("@ag-ui/client").Tool[] {
+  private buildFrontendTools(agentId?: string): import("@ag-ui/client").Tool[] {
     return this.runHandler.buildFrontendTools(agentId);
   }
 }

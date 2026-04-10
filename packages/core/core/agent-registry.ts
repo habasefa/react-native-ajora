@@ -10,6 +10,7 @@ import type { AjoraCore } from "./core";
 import {
   AjoraCoreErrorCode,
   AjoraCoreRuntimeConnectionStatus,
+  AjoraCoreFriendsAccess,
 } from "./core-types";
 import { AjoraRuntimeTransport } from "../types";
 
@@ -34,9 +35,6 @@ export class AgentRegistry {
   private _runtimeConnectionStatus: AjoraCoreRuntimeConnectionStatus =
     AjoraCoreRuntimeConnectionStatus.Disconnected;
   private _runtimeTransport: AjoraRuntimeTransport = "rest";
-
-  /** Monotonic counter used to cancel stale `updateRuntimeConnection` calls. */
-  private _connectionGeneration = 0;
 
   constructor(private core: AjoraCore) {}
 
@@ -94,16 +92,6 @@ export class AgentRegistry {
       ? runtimeUrl.replace(/\/$/, "")
       : undefined;
 
-    console.log(
-      "[ajora:debug] AgentRegistry.setRuntimeUrl",
-      {
-        incoming: runtimeUrl,
-        normalized: normalizedRuntimeUrl,
-        previous: this._runtimeUrl,
-        isNoOp: this._runtimeUrl === normalizedRuntimeUrl,
-      },
-    );
-
     if (this._runtimeUrl === normalizedRuntimeUrl) {
       return;
     }
@@ -112,28 +100,12 @@ export class AgentRegistry {
     void this.updateRuntimeConnection();
   }
 
-  setRuntimeTransport(
-    runtimeTransport: AjoraRuntimeTransport,
-    options?: { skipUpdate?: boolean },
-  ): void {
-    console.log(
-      "[ajora:debug] AgentRegistry.setRuntimeTransport",
-      {
-        incoming: runtimeTransport,
-        previous: this._runtimeTransport,
-        skipUpdate: options?.skipUpdate ?? false,
-        isNoOp: this._runtimeTransport === runtimeTransport,
-      },
-    );
-
+  setRuntimeTransport(runtimeTransport: AjoraRuntimeTransport): void {
     if (this._runtimeTransport === runtimeTransport) {
       return;
     }
 
     this._runtimeTransport = runtimeTransport;
-    if (options?.skipUpdate) {
-      return;
-    }
     void this.updateRuntimeConnection();
   }
 
@@ -202,7 +174,7 @@ export class AgentRegistry {
   applyHeadersToAgent(agent: AbstractAgent): void {
     if (agent instanceof HttpAgent) {
       agent.headers = {
-        ...this.core.headers,
+        ...(this.core as unknown as AjoraCoreFriendsAccess).headers,
       };
     }
   }
@@ -217,46 +189,26 @@ export class AgentRegistry {
   }
 
   /**
-   * Update runtime connection and fetch remote agents.
-   *
-   * Uses a generation counter to cancel stale calls: if `setRuntimeUrl` or
-   * `setRuntimeTransport` fires while a previous `updateRuntimeConnection`
-   * is in flight, the new call increments the generation and the old call
-   * bails at every await point where it checks `myGeneration`.
+   * Update runtime connection and fetch remote agents
    */
   private async updateRuntimeConnection(): Promise<void> {
-    const myGeneration = ++this._connectionGeneration;
-
+    // Skip fetching on the server (SSR). React Native does not define
+    // `window`, so a naive `typeof window === "undefined"` check would also
+    // skip the fetch on RN — which is exactly the place we *most* need it,
+    // since RN has no static prerender path. Detect RN explicitly via the
+    // `navigator.product` UA marker, and only bail when we're in a Node
+    // environment with no `window` (true SSR).
     const g = globalThis as {
       window?: unknown;
       navigator?: { product?: string };
     };
     const isReactNative = g.navigator?.product === "ReactNative";
     const isBrowser = typeof g.window !== "undefined";
-
-    console.log("[ajora:debug] updateRuntimeConnection: entry", {
-      generation: myGeneration,
-      runtimeUrl: this._runtimeUrl,
-      transport: this._runtimeTransport,
-      isReactNative,
-      isBrowser,
-      navigatorProduct: g.navigator?.product,
-      currentStatus: this._runtimeConnectionStatus,
-      localAgentCount: Object.keys(this.localAgents).length,
-      remoteAgentCount: Object.keys(this.remoteAgents).length,
-    });
-
     if (!isReactNative && !isBrowser) {
-      console.log(
-        "[ajora:debug] updateRuntimeConnection: skipping — not RN, not browser (SSR path)",
-      );
       return;
     }
 
     if (!this.runtimeUrl) {
-      console.log(
-        "[ajora:debug] updateRuntimeConnection: no runtimeUrl — marking Disconnected",
-      );
       this._runtimeConnectionStatus =
         AjoraCoreRuntimeConnectionStatus.Disconnected;
       this._runtimeVersion = undefined;
@@ -278,30 +230,7 @@ export class AgentRegistry {
     );
 
     try {
-      console.log(
-        "[ajora:debug] updateRuntimeConnection: calling fetchRuntimeInfo()",
-      );
       const runtimeInfoResponse = await this.fetchRuntimeInfo();
-
-      // Bail if a newer call superseded us while we were awaiting the fetch.
-      if (myGeneration !== this._connectionGeneration) {
-        console.log(
-          "[ajora:debug] updateRuntimeConnection: stale generation after fetch, bailing",
-          { myGeneration, current: this._connectionGeneration },
-        );
-        return;
-      }
-
-      console.log(
-        "[ajora:debug] updateRuntimeConnection: fetchRuntimeInfo resolved",
-        {
-          version: runtimeInfoResponse.version,
-          agentIds: Object.keys(runtimeInfoResponse.agents ?? {}),
-          modelCount: (runtimeInfoResponse.models ?? []).length,
-          modelIds: (runtimeInfoResponse.models ?? []).map((m) => m.id),
-          hasExtraData: !!runtimeInfoResponse.extraData,
-        },
-      );
       const {
         version,
         agents: agentDescriptions,
@@ -330,16 +259,6 @@ export class AgentRegistry {
         AjoraCoreRuntimeConnectionStatus.Connected;
       this._runtimeVersion = version;
 
-      console.log(
-        "[ajora:debug] updateRuntimeConnection: populated registry",
-        {
-          mergedAgentIds: Object.keys(this._agents),
-          modelCount: this._models.length,
-          status: "Connected",
-          version,
-        },
-      );
-
       await this.notifyRuntimeStatusChanged(
         AjoraCoreRuntimeConnectionStatus.Connected,
       );
@@ -351,18 +270,6 @@ export class AgentRegistry {
       this._agents = this.localAgents;
       this._models = [];
       this._extraData = {};
-
-      console.error(
-        "[ajora:debug] updateRuntimeConnection: FAILED",
-        {
-          runtimeUrl: this.runtimeUrl,
-          transport: this._runtimeTransport,
-          errorName: error instanceof Error ? error.name : typeof error,
-          errorMessage:
-            error instanceof Error ? error.message : JSON.stringify(error),
-          errorStack: error instanceof Error ? error.stack : undefined,
-        },
-      );
 
       await this.notifyRuntimeStatusChanged(
         AjoraCoreRuntimeConnectionStatus.Error,
@@ -376,7 +283,7 @@ export class AgentRegistry {
       );
       const runtimeError =
         error instanceof Error ? error : new Error(String(error));
-      await this.core.emitError({
+      await (this.core as unknown as AjoraCoreFriendsAccess).emitError({
         error: runtimeError,
         code: AjoraCoreErrorCode.RUNTIME_INFO_FETCH_FAILED,
         context: {
@@ -391,132 +298,38 @@ export class AgentRegistry {
       throw new Error("Runtime URL is not set");
     }
 
-    const baseHeaders = this.core.headers;
+    const baseHeaders = (this.core as unknown as AjoraCoreFriendsAccess)
+      .headers;
     const headers: Record<string, string> = {
       ...baseHeaders,
     };
-
-    // Redacted header view for logs — show keys but not auth token values.
-    const redactedHeaders = Object.fromEntries(
-      Object.entries(headers).map(([k, v]) => [
-        k,
-        /auth|token|key|secret/i.test(k) && typeof v === "string"
-          ? `<redacted:${v.length}>`
-          : v,
-      ]),
-    );
-
-    // Abort the fetch after 15s so a hung connection surfaces as a visible
-    // error in the logs instead of silently leaving status=Connecting forever.
-    // (15s is long enough to cover normal LAN latency + cold-start Mastra
-    // agent instantiation but short enough that a user sees *something*
-    // before giving up on the app.)
-    const INFO_FETCH_TIMEOUT_MS = 15_000;
-    const timeoutController = new AbortController();
-    const timeoutHandle = setTimeout(() => {
-      console.warn(
-        `[ajora:debug] fetchRuntimeInfo: ${INFO_FETCH_TIMEOUT_MS}ms timeout — aborting`,
-      );
-      timeoutController.abort();
-    }, INFO_FETCH_TIMEOUT_MS);
 
     if (this._runtimeTransport === "single") {
       if (!headers["Content-Type"]) {
         headers["Content-Type"] = "application/json";
       }
-      console.log("[ajora:debug] fetchRuntimeInfo: POST single-route", {
-        url: this.runtimeUrl,
-        headers: redactedHeaders,
-        timeoutMs: INFO_FETCH_TIMEOUT_MS,
+      const response = await fetch(this.runtimeUrl, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ method: "info" }),
       });
-      let response: Response;
-      try {
-        response = (await fetch(this.runtimeUrl, {
-          method: "POST",
-          headers,
-          body: JSON.stringify({ method: "info" }),
-          signal: timeoutController.signal,
-        })) as Response;
-      } catch (err) {
-        clearTimeout(timeoutHandle);
-        console.error("[ajora:debug] fetchRuntimeInfo: fetch() threw", {
-          url: this.runtimeUrl,
-          errorName: err instanceof Error ? err.name : typeof err,
-          errorMessage: err instanceof Error ? err.message : String(err),
-          wasAborted: timeoutController.signal.aborted,
-        });
-        throw err;
-      }
-      clearTimeout(timeoutHandle);
-      console.log("[ajora:debug] fetchRuntimeInfo: response (single)", {
-        status: response.status,
-        ok: response.ok,
-        contentType: response.headers?.get?.("content-type"),
-      });
-      if ("ok" in response && !response.ok) {
-        const bodyText = await response.text().catch(() => "<unreadable>");
-        console.error(
-          "[ajora:debug] fetchRuntimeInfo: non-OK response body",
-          { status: response.status, body: bodyText.slice(0, 500) },
-        );
+      if ("ok" in response && !(response as Response).ok) {
         throw new Error(
-          `Runtime info request failed with status ${response.status}: ${bodyText.slice(0, 200)}`,
+          `Runtime info request failed with status ${response.status}`,
         );
       }
-      const parsed = (await response.json()) as RuntimeInfo;
-      console.log("[ajora:debug] fetchRuntimeInfo: parsed payload (single)", {
-        version: parsed.version,
-        agentIds: Object.keys(parsed.agents ?? {}),
-        modelCount: (parsed.models ?? []).length,
-      });
-      return parsed;
+      return (await response.json()) as RuntimeInfo;
     }
 
-    const infoUrl = `${this.runtimeUrl}/info`;
-    console.log("[ajora:debug] fetchRuntimeInfo: GET REST", {
-      url: infoUrl,
-      headers: redactedHeaders,
-      timeoutMs: INFO_FETCH_TIMEOUT_MS,
+    const response = await fetch(`${this.runtimeUrl}/info`, {
+      headers,
     });
-    let response: Response;
-    try {
-      response = (await fetch(infoUrl, {
-        headers,
-        signal: timeoutController.signal,
-      })) as Response;
-    } catch (err) {
-      clearTimeout(timeoutHandle);
-      console.error("[ajora:debug] fetchRuntimeInfo: fetch() threw", {
-        url: infoUrl,
-        errorName: err instanceof Error ? err.name : typeof err,
-        errorMessage: err instanceof Error ? err.message : String(err),
-        wasAborted: timeoutController.signal.aborted,
-      });
-      throw err;
-    }
-    clearTimeout(timeoutHandle);
-    console.log("[ajora:debug] fetchRuntimeInfo: response (REST)", {
-      status: response.status,
-      ok: response.ok,
-      contentType: response.headers?.get?.("content-type"),
-    });
-    if ("ok" in response && !response.ok) {
-      const bodyText = await response.text().catch(() => "<unreadable>");
-      console.error("[ajora:debug] fetchRuntimeInfo: non-OK response body", {
-        status: response.status,
-        body: bodyText.slice(0, 500),
-      });
+    if ("ok" in response && !(response as Response).ok) {
       throw new Error(
-        `Runtime info request failed with status ${response.status}: ${bodyText.slice(0, 200)}`,
+        `Runtime info request failed with status ${response.status}`,
       );
     }
-    const parsed = (await response.json()) as RuntimeInfo;
-    console.log("[ajora:debug] fetchRuntimeInfo: parsed payload (REST)", {
-      version: parsed.version,
-      agentIds: Object.keys(parsed.agents ?? {}),
-      modelCount: (parsed.models ?? []).length,
-    });
-    return parsed;
+    return (await response.json()) as RuntimeInfo;
   }
 
   /**
@@ -557,7 +370,7 @@ export class AgentRegistry {
   private async notifyRuntimeStatusChanged(
     status: AjoraCoreRuntimeConnectionStatus,
   ): Promise<void> {
-    await this.core.notifySubscribers(
+    await (this.core as unknown as AjoraCoreFriendsAccess).notifySubscribers(
       (subscriber) =>
         subscriber.onRuntimeConnectionStatusChanged?.({
           ajora: this.core,
@@ -571,7 +384,7 @@ export class AgentRegistry {
    * Notify subscribers of agent changes
    */
   private async notifyAgentsChanged(): Promise<void> {
-    await this.core.notifySubscribers(
+    await (this.core as unknown as AjoraCoreFriendsAccess).notifySubscribers(
       (subscriber) =>
         subscriber.onAgentsChanged?.({
           ajora: this.core,
@@ -585,7 +398,7 @@ export class AgentRegistry {
    * Notify subscribers of model changes
    */
   private async notifyModelsChanged(): Promise<void> {
-    await this.core.notifySubscribers(
+    await (this.core as unknown as AjoraCoreFriendsAccess).notifySubscribers(
       (subscriber) =>
         subscriber.onModelsChanged?.({
           ajora: this.core,

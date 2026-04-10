@@ -13,6 +13,7 @@ import { AjoraCoreErrorCode } from "./core-types";
 import { FrontendTool } from "../types";
 import {
   ProxiedAjoraRuntimeAgent,
+  FetchHistoryError,
   type FetchHistoryResponse,
 } from "../agent";
 
@@ -35,6 +36,8 @@ export interface AjoraCoreLoadHistoryParams {
   beforeMessageId?: string;
   /** Page size (default 50, server clamps to [1, 200]). */
   limit?: number;
+  /** Optional signal to abort the request (e.g. on thread switch). */
+  signal?: AbortSignal;
 }
 
 export interface AjoraCoreGetToolParams {
@@ -198,6 +201,7 @@ export class RunHandler {
     threadId,
     beforeMessageId,
     limit,
+    signal,
   }: AjoraCoreLoadHistoryParams): Promise<FetchHistoryResponse> {
     if (!(agent instanceof ProxiedAjoraRuntimeAgent)) {
       // Dev-only / non-proxied agents have no persistent backing store.
@@ -215,18 +219,19 @@ export class RunHandler {
         threadId,
         beforeMessageId,
         limit,
+        signal,
       });
 
       if (beforeMessageId === undefined) {
-        // Initial load. We atomically check-and-set to avoid TOCTOU races:
-        // a user typing a message between the length check and setMessages
-        // would have their message clobbered. By capturing the current
-        // messages array and comparing after, we detect concurrent mutations.
+        // Initial load: merge server history with any messages the agent
+        // already has (e.g., from a connect() that finished first or a
+        // user-typed message). Server messages come first (they're older),
+        // then any local-only messages that aren't in the server response.
         if (response.messages.length > 0) {
-          const snapshot = agent.messages;
-          if ((snapshot?.length ?? 0) === 0) {
-            agent.setMessages(response.messages);
-          }
+          const existing = agent.messages ?? [];
+          const serverIds = new Set(response.messages.map((m) => m.id));
+          const localOnly = existing.filter((m) => !serverIds.has(m.id));
+          agent.setMessages([...response.messages, ...localOnly]);
         }
       } else if (response.messages.length > 0) {
         // Load earlier: prepend, deduping by id.
@@ -246,13 +251,20 @@ export class RunHandler {
     } catch (error) {
       const loadError =
         error instanceof Error ? error : new Error(String(error));
+      const errorCode =
+        error instanceof FetchHistoryError
+          ? error.code
+          : AjoraCoreErrorCode.HISTORY_LOAD_FAILED;
       const context: Record<string, any> = { threadId };
       if (agent.agentId) {
         context.agentId = agent.agentId;
       }
+      if (error instanceof FetchHistoryError) {
+        context.status = error.status;
+      }
       await this.core.emitError({
         error: loadError,
-        code: AjoraCoreErrorCode.AGENT_CONNECT_FAILED,
+        code: errorCode,
         context,
       });
       throw error;
@@ -495,7 +507,12 @@ export class RunHandler {
         toolCallId: toolCall.id,
         content: toolCallResult,
       };
-      agent.messages.splice(messageIndex + 1, 0, toolMessage);
+      const msgs = agent.messages;
+      agent.setMessages([
+        ...msgs.slice(0, messageIndex + 1),
+        toolMessage,
+        ...msgs.slice(messageIndex + 1),
+      ]);
 
       if (!errorMessage && tool?.followUp !== false) {
         return true; // Needs follow-up
@@ -630,7 +647,12 @@ export class RunHandler {
         toolCallId: toolCall.id,
         content: toolCallResult,
       };
-      agent.messages.splice(messageIndex + 1, 0, toolMessage);
+      const msgs = agent.messages;
+      agent.setMessages([
+        ...msgs.slice(0, messageIndex + 1),
+        toolMessage,
+        ...msgs.slice(messageIndex + 1),
+      ]);
 
       if (!errorMessage && wildcardTool?.followUp !== false) {
         return true; // Needs follow-up

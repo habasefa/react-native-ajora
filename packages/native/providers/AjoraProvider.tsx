@@ -20,8 +20,6 @@ import {
   ReactHumanInTheLoop,
 } from "../types";
 
-const HEADER_NAME = "X-CopilotCloud-Public-Api-Key";
-const COPILOT_CLOUD_CHAT_URL = "https://api.cloud.copilotkit.ai/copilotkit/v1";
 
 export interface AjoraContextValue {
   ajora: AjoraCoreReact;
@@ -39,8 +37,6 @@ export interface AjoraProviderProps {
   children: ReactNode;
   runtimeUrl?: string;
   headers?: Record<string, string>;
-  publicApiKey?: string;
-  publicLicenseKey?: string;
   properties?: Record<string, unknown>;
   useSingleEndpoint?: boolean;
   agents__unsafe_dev_only?: Record<string, AbstractAgent>;
@@ -77,8 +73,6 @@ export const AjoraProvider: React.FC<AjoraProviderProps> = ({
   children,
   runtimeUrl,
   headers = {},
-  publicApiKey,
-  publicLicenseKey,
   properties = {},
   agents__unsafe_dev_only: agents = {},
   renderToolCalls,
@@ -114,21 +108,11 @@ export const AjoraProvider: React.FC<AjoraProviderProps> = ({
     ReactActivityMessageRenderer<any>
   >(renderActivityMessages, "renderActivityMessages must be a stable array.");
 
-  const resolvedPublicKey = publicApiKey ?? publicLicenseKey;
   const hasLocalAgents = agents && Object.keys(agents).length > 0;
 
-  const mergedHeaders = useMemo(() => {
-    if (!resolvedPublicKey) return headers;
-    if (headers[HEADER_NAME]) return headers;
-    return {
-      ...headers,
-      [HEADER_NAME]: resolvedPublicKey,
-    };
-  }, [headers, resolvedPublicKey]);
-
-  if (!runtimeUrl && !resolvedPublicKey && !hasLocalAgents) {
+  if (!runtimeUrl && !hasLocalAgents) {
     const message =
-      "Missing required prop: 'runtimeUrl' or 'publicApiKey' or 'publicLicenseKey'";
+      "Missing required prop: 'runtimeUrl' or 'agents__unsafe_dev_only'";
     if (process.env.NODE_ENV === "production") {
       throw new Error(message);
     } else {
@@ -136,8 +120,7 @@ export const AjoraProvider: React.FC<AjoraProviderProps> = ({
     }
   }
 
-  const chatApiEndpoint =
-    runtimeUrl ?? (resolvedPublicKey ? COPILOT_CLOUD_CHAT_URL : undefined);
+  const chatApiEndpoint = runtimeUrl;
 
   const frontendToolsList = useStableArrayProp<ReactFrontendTool>(
     frontendTools,
@@ -213,7 +196,7 @@ export const AjoraProvider: React.FC<AjoraProviderProps> = ({
     const ajora = new AjoraCoreReact({
       runtimeUrl: chatApiEndpoint,
       runtimeTransport: useSingleEndpoint ? "single" : "rest",
-      headers: mergedHeaders,
+      headers: headers,
       properties,
       agents__unsafe_dev_only: agents,
       tools: allTools,
@@ -277,10 +260,10 @@ export const AjoraProvider: React.FC<AjoraProviderProps> = ({
   useEffect(() => {
     ajora.setRuntimeUrl(chatApiEndpoint);
     ajora.setRuntimeTransport(useSingleEndpoint ? "single" : "rest");
-    ajora.setHeaders(mergedHeaders);
+    ajora.setHeaders(headers);
     ajora.setProperties(properties);
     ajora.setAgents__unsafe_dev_only(agents);
-  }, [chatApiEndpoint, mergedHeaders, properties, agents, useSingleEndpoint]);
+  }, [chatApiEndpoint, headers, properties, agents, useSingleEndpoint]);
 
   return (
     <AjoraContext.Provider
@@ -310,7 +293,7 @@ export const useAjora = (): AjoraContextValue => {
     return () => {
       subscription.unsubscribe();
     };
-  }, []);
+  }, [context.ajora]);
 
   return context;
 };

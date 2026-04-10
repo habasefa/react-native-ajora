@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { DEFAULT_AGENT_ID } from "../../shared";
+import { AjoraCoreRuntimeConnectionStatus } from "../../core";
 import { useAjora } from "../providers/AjoraProvider";
 import { useAgent } from "./use-agent";
 
@@ -61,6 +62,12 @@ export function useHistory({
   const [oldestMessageId, setOldestMessageId] = useState<string | null>(null);
   const [error, setError] = useState<Error | null>(null);
 
+  // Refs for guard checks so loadMore doesn't need state in its dep array.
+  const isLoadingRef = useRef(false);
+  const isLoadingMoreRef = useRef(false);
+  const hasMoreRef = useRef(false);
+  const oldestMessageIdRef = useRef<string | null>(null);
+
   // Track which threadId the most recent request was for so we can drop
   // results that arrive after the user has switched threads.
   const activeThreadRef = useRef<string | null | undefined>(threadId);
@@ -77,13 +84,36 @@ export function useHistory({
   agentRef.current = agent;
   const pageSizeRef = useRef(pageSize);
   pageSizeRef.current = pageSize;
+  isLoadingRef.current = isLoading;
+  isLoadingMoreRef.current = isLoadingMore;
+  hasMoreRef.current = hasMore;
+  oldestMessageIdRef.current = oldestMessageId;
 
   // Track which threadId we've already kicked off a load for. We never want
   // to fire the initial load more than once for the same threadId — repeated
   // loads can clobber in-memory messages added by the user between fetches.
   const loadedThreadRef = useRef<string | null | undefined>(null);
 
+  // AbortController for in-flight history fetches. Aborted on thread switch
+  // and component unmount so stale network requests don't waste bandwidth.
+  const abortRef = useRef<AbortController | null>(null);
+
+  // Determine if the runtime is ready (connected, or no runtime configured).
+  // We must NOT fire the initial load while the runtime is still Connecting
+  // because `agent` would be a provisional stub whose `messages` array will
+  // be discarded once the real agent arrives.
+  const runtimeStatus = ajora.runtimeConnectionStatus;
+  const runtimeReady =
+    !ajora.runtimeUrl ||
+    runtimeStatus === AjoraCoreRuntimeConnectionStatus.Connected ||
+    runtimeStatus === AjoraCoreRuntimeConnectionStatus.Error;
+
   const runInitialLoad = useCallback(async (target: string) => {
+    // Cancel any previous in-flight request.
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+
     setIsLoading(true);
     setError(null);
     try {
@@ -91,11 +121,13 @@ export function useHistory({
         agent: agentRef.current,
         threadId: target,
         limit: pageSizeRef.current,
+        signal: controller.signal,
       });
       if (activeThreadRef.current !== target) return; // stale
       setHasMore(response.hasMore);
       setOldestMessageId(response.oldestMessageId);
     } catch (err) {
+      if (controller.signal.aborted) return; // intentionally cancelled
       if (activeThreadRef.current !== target) return; // stale
       setError(err instanceof Error ? err : new Error(String(err)));
       setHasMore(false);
@@ -107,10 +139,12 @@ export function useHistory({
     }
   }, []);
 
-  // Initial load on threadId change. Deliberately depends only on `threadId`
-  // (not on `runInitialLoad` or `agent`) so it fires exactly once per thread.
+  // Initial load on threadId change. Waits for the runtime to be ready so
+  // we use the real agent, not the provisional stub. Re-fires when
+  // `runtimeReady` flips to true for the current threadId.
   useEffect(() => {
     if (!threadId) {
+      abortRef.current?.abort();
       loadedThreadRef.current = null;
       setIsLoading(false);
       setIsLoadingMore(false);
@@ -119,26 +153,36 @@ export function useHistory({
       setError(null);
       return;
     }
+    if (!runtimeReady) return; // wait until runtime is connected
     if (loadedThreadRef.current === threadId) return;
     loadedThreadRef.current = threadId;
     void runInitialLoad(threadId);
+
+    return () => {
+      abortRef.current?.abort();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [threadId]);
+  }, [threadId, runtimeReady]);
 
   const loadMore = useCallback(async () => {
-    if (!threadId) return;
-    if (isLoading || isLoadingMore) return;
-    if (!hasMore || !oldestMessageId) return;
+    const target = activeThreadRef.current;
+    if (!target) return;
+    if (isLoadingRef.current || isLoadingMoreRef.current) return;
+    if (!hasMoreRef.current || !oldestMessageIdRef.current) return;
 
-    const target = threadId;
+    const cursor = oldestMessageIdRef.current;
+    const controller = new AbortController();
+    abortRef.current = controller;
+
     setIsLoadingMore(true);
     setError(null);
     try {
-      const response = await ajora.loadHistory({
-        agent,
+      const response = await ajoraRef.current.loadHistory({
+        agent: agentRef.current,
         threadId: target,
-        beforeMessageId: oldestMessageId,
-        limit: pageSize,
+        beforeMessageId: cursor,
+        limit: pageSizeRef.current,
+        signal: controller.signal,
       });
       if (activeThreadRef.current !== target) return; // stale
       setHasMore(response.hasMore);
@@ -148,6 +192,7 @@ export function useHistory({
         setOldestMessageId(response.oldestMessageId);
       }
     } catch (err) {
+      if (controller.signal.aborted) return; // intentionally cancelled
       if (activeThreadRef.current !== target) return; // stale
       setError(err instanceof Error ? err : new Error(String(err)));
     } finally {
@@ -155,16 +200,7 @@ export function useHistory({
         setIsLoadingMore(false);
       }
     }
-  }, [
-    ajora,
-    agent,
-    threadId,
-    isLoading,
-    isLoadingMore,
-    hasMore,
-    oldestMessageId,
-    pageSize,
-  ]);
+  }, []);
 
   const reload = useCallback(async () => {
     if (!threadId) return;

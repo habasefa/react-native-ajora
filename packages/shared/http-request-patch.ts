@@ -26,9 +26,10 @@ interface HttpHeadersEvent {
 type HttpEvent = HttpDataEvent | HttpHeadersEvent;
 
 /**
- * Detects if we're in a React Native environment
+ * Detects if we're in a React Native environment.
+ * Cached at module level — the runtime environment never changes.
  */
-function isReactNative(): boolean {
+const _isReactNative: boolean = (() => {
   return (
     (typeof navigator !== "undefined" && navigator.product === "ReactNative") ||
     (typeof global !== "undefined" &&
@@ -47,13 +48,14 @@ function isReactNative(): boolean {
         }
       })())
   );
-}
+})();
 
 /**
- * Gets expo/fetch if available, otherwise returns null
+ * Resolves expo/fetch once at module load. Cached so we don't pay the
+ * try/catch cost on every HTTP request.
  */
-function getExpoFetch(): typeof fetch | null {
-  if (!isReactNative()) {
+const _expoFetch: typeof fetch | null = (() => {
+  if (!_isReactNative) {
     return null;
   }
 
@@ -71,7 +73,7 @@ function getExpoFetch(): typeof fetch | null {
   }
 
   return null;
-}
+})();
 
 /**
  * Patched version of runHttpRequest that uses expo/fetch in React Native
@@ -86,10 +88,9 @@ export function patchedRunHttpRequest(
   ) => Observable<HttpEvent>
 ): Observable<HttpEvent> {
   // In React Native, try to use expo/fetch for streaming support
-  const expoFetch = getExpoFetch();
-  if (expoFetch) {
+  if (_expoFetch) {
     // Use expo/fetch which supports streaming
-    return defer(() => from(expoFetch(url, requestInit))).pipe(
+    return defer(() => from(_expoFetch(url, requestInit))).pipe(
       switchMap((response) => {
         if (!response.ok) {
           const contentType = response.headers.get("content-type") || "";
@@ -192,7 +193,9 @@ export function patchedRunHttpRequest(
               if ((error as DOMException)?.name === "AbortError") {
                 return;
               }
-              throw error;
+              // Log instead of throw — throwing inside an RxJS teardown
+              // causes an unhandled exception that crashes the app.
+              console.error("[ajora] reader.cancel() failed:", error);
             });
           };
         });

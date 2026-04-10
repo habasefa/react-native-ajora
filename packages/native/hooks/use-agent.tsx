@@ -1,5 +1,5 @@
 import { useAjora } from "../providers/AjoraProvider";
-import { useMemo, useEffect, useReducer } from "react";
+import { useMemo, useEffect, useReducer, useRef } from "react";
 import { DEFAULT_AGENT_ID } from "../../shared";
 import { AbstractAgent } from "@ag-ui/client";
 import {
@@ -17,8 +17,7 @@ try {
   // eslint-disable-next-line @typescript-eslint/no-var-requires
   Haptics = require("expo-haptics");
 } catch {
-  // expo-haptics not available
-  console.warn("expo-haptics not available");
+  // expo-haptics not available — no warning needed, haptics are optional
 }
 
 export enum UseAgentUpdate {
@@ -44,10 +43,30 @@ export function useAgent({ agentId, updates }: UseAgentProps = {}) {
   const { ajora } = useAjora();
   const [, forceUpdate] = useReducer((x) => x + 1, 0);
 
+  // Stabilize the updates array so callers don't need to memoize it.
+  const updatesRef = useRef(updates);
+  const updatesJson = JSON.stringify(updates);
+  const prevUpdatesJson = useRef(updatesJson);
+  if (prevUpdatesJson.current !== updatesJson) {
+    prevUpdatesJson.current = updatesJson;
+    updatesRef.current = updates;
+  }
+
   const updateFlags = useMemo(
-    () => updates ?? ALL_UPDATES,
-    [JSON.stringify(updates)],
+    () => updatesRef.current ?? ALL_UPDATES,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [updatesRef.current],
   );
+
+  // Stabilize headers so the agent memo doesn't re-fire on every render.
+  const headersRef = useRef(ajora.headers);
+  const headersJson = JSON.stringify(ajora.headers);
+  const prevHeadersJson = useRef(headersJson);
+  if (prevHeadersJson.current !== headersJson) {
+    prevHeadersJson.current = headersJson;
+    headersRef.current = ajora.headers;
+  }
+  const stableHeaders = headersRef.current;
 
   const agent: AbstractAgent = useMemo(() => {
     const existing = ajora.getAgent(agentId);
@@ -72,13 +91,12 @@ export function useAgent({ agentId, updates }: UseAgentProps = {}) {
       });
       // Apply current headers so runs/connects inherit them
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (provisional as any).headers = { ...ajora.headers };
+      (provisional as any).headers = { ...stableHeaders };
       return provisional;
     }
 
-    // If no runtime is configured (dev/local), return a no-op agent to satisfy the
-    // non-undefined contract without forcing network behavior.
-    // After runtime has synced (Connected or Error) or no runtime configured and the agent doesn't exist, throw a descriptive error
+    // After runtime has synced (Connected or Error) or no runtime configured
+    // and the agent doesn't exist, throw a descriptive error
     const knownAgents = Object.keys(ajora.agents ?? {});
     const runtimePart = isRuntimeConfigured
       ? `runtimeUrl=${ajora.runtimeUrl}`
@@ -90,14 +108,13 @@ export function useAgent({ agentId, updates }: UseAgentProps = {}) {
           : "No agents registered.") +
         " Verify your runtime /info and/or agents__unsafe_dev_only.",
     );
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     agentId,
     ajora.agents,
     ajora.runtimeConnectionStatus,
     ajora.runtimeUrl,
     ajora.runtimeTransport,
-    JSON.stringify(ajora.headers),
+    stableHeaders,
     ajora,
   ]);
 
@@ -134,8 +151,7 @@ export function useAgent({ agentId, updates }: UseAgentProps = {}) {
 
     const subscription = agent.subscribe(handlers);
     return () => subscription.unsubscribe();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [agent, forceUpdate, JSON.stringify(updateFlags)]);
+  }, [agent, forceUpdate, updateFlags]);
 
   return {
     agent,

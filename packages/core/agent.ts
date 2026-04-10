@@ -9,6 +9,7 @@ import {
 } from "@ag-ui/client";
 import { Observable, catchError, EMPTY, throwError } from "rxjs";
 import { AjoraRuntimeTransport } from "./types";
+import { AjoraCoreErrorCode } from "./core/core-types";
 import { patchedRunHttpRequest } from "../shared/http-request-patch";
 
 export interface ProxiedAjoraRuntimeAgentConfig extends Omit<
@@ -25,6 +26,8 @@ export interface FetchHistoryRequest {
   beforeMessageId?: string;
   /** Page size (default 50, server clamps to [1, 200]). */
   limit?: number;
+  /** Optional signal to abort the request (e.g. on thread switch). */
+  signal?: AbortSignal;
 }
 
 export interface FetchHistoryResponse {
@@ -37,12 +40,27 @@ export interface FetchHistoryResponse {
 }
 
 export class FetchHistoryError extends Error {
+  public readonly code: AjoraCoreErrorCode;
+
   constructor(
     message: string,
     public readonly status: number,
   ) {
     super(message);
     this.name = "FetchHistoryError";
+    this.code = FetchHistoryError.statusToCode(status);
+  }
+
+  private static statusToCode(status: number): AjoraCoreErrorCode {
+    switch (status) {
+      case 401:
+      case 403:
+        return AjoraCoreErrorCode.HISTORY_UNAUTHORIZED;
+      case 429:
+        return AjoraCoreErrorCode.HISTORY_RATE_LIMITED;
+      default:
+        return AjoraCoreErrorCode.HISTORY_LOAD_FAILED;
+    }
   }
 }
 
@@ -127,12 +145,9 @@ export class ProxiedAjoraRuntimeAgent extends HttpAgent {
       return;
     }
 
-    const stopPath = `${this.runtimeUrl}/agent/${encodeURIComponent(this.agentId)}/stop/${encodeURIComponent(this.threadId)}`;
-    const origin = "http://localhost";
-    const base = new URL(this.runtimeUrl, origin);
-    const stopUrl = new URL(stopPath, base);
+    const stopUrl = `${this.runtimeUrl}/agent/${encodeURIComponent(this.agentId)}/stop/${encodeURIComponent(this.threadId)}`;
 
-    sendStop(stopUrl.toString(), {
+    sendStop(stopUrl, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -266,7 +281,12 @@ export class ProxiedAjoraRuntimeAgent extends HttpAgent {
 
     let response: Response;
     try {
-      response = await fetch(url, { method: "POST", headers, body });
+      response = await fetch(url, {
+        method: "POST",
+        headers,
+        body,
+        signal: request.signal,
+      });
     } catch (error) {
       throw new FetchHistoryError(
         error instanceof Error ? error.message : "Network error",

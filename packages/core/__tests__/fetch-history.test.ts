@@ -1,4 +1,3 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { ProxiedAjoraRuntimeAgent, FetchHistoryError } from "../agent";
 
 const REST_URL = "https://runtime.example/rest";

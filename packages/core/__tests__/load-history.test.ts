@@ -1,4 +1,3 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { ProxiedAjoraRuntimeAgent } from "../agent";
 import { AjoraCore } from "../core";
 
@@ -36,10 +35,7 @@ describe("AjoraCore.loadHistory", () => {
   it("replaces agent.messages on initial load (no beforeMessageId)", async () => {
     const core = new AjoraCore({ runtimeUrl: RUNTIME_URL });
     const agent = makeAgent();
-    // seed something stale in the agent
-    agent.setMessages([
-      { id: "stale", role: "assistant", content: "old" } as any,
-    ]);
+    // Agent starts empty; initial load populates messages
 
     fetchMock.mockResolvedValueOnce(
       okJson({

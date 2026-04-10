@@ -1,7 +1,6 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { ProxiedAjoraRuntimeAgent } from "../agent";
 import { AjoraCore } from "../core";
-import { createSuggestionsConfig, MockAgent } from "./test-utils";
+import { createSuggestionsConfig, MockAgent, waitFor} from "./test-utils";
 
 type TransportMatrixEntry = {
   label: string;
@@ -258,7 +257,7 @@ describe("Suggestions engine with single-endpoint runtime agents", () => {
     core.reloadSuggestions("consumer");
 
     const fetchMock = global.fetch as ReturnType<typeof vi.fn>;
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(fetchMock).toHaveBeenCalled();
     });
 
@@ -362,7 +361,7 @@ describe("AgentRegistry runtime info requests", () => {
         headers: { Authorization: "Bearer token" },
       });
 
-      await vi.waitFor(() => {
+      await waitFor(() => {
         expect(fetchMock).toHaveBeenCalled();
       });
 

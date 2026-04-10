@@ -1,11 +1,9 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
 import { AjoraCore } from "../core";
 import { DynamicSuggestionsConfig, StaticSuggestionsConfig } from "../types";
 import {
   MockAgent,
   createSuggestionsConfig,
-  createAssistantMessage,
-} from "./test-utils";
+  createAssistantMessage, waitFor} from "./test-utils";
 
 describe("AjoraCore - Suggestions Config Management", () => {
   let ajoraCore: AjoraCore;
@@ -33,7 +31,7 @@ describe("AjoraCore - Suggestions Config Management", () => {
       const config = createSuggestionsConfig();
       const id = ajoraCore.addSuggestionsConfig(config);
 
-      await vi.waitFor(() => {
+      await waitFor(() => {
         expect(onConfigChanged).toHaveBeenCalledWith({
           ajora: ajoraCore,
           suggestionsConfig: expect.objectContaining({
@@ -83,7 +81,7 @@ describe("AjoraCore - Suggestions Config Management", () => {
 
       ajoraCore.removeSuggestionsConfig(id);
 
-      await vi.waitFor(() => {
+      await waitFor(() => {
         expect(onConfigChanged).toHaveBeenCalledWith({
           ajora: ajoraCore,
           suggestionsConfig: expect.not.objectContaining({
@@ -135,7 +133,7 @@ describe("AjoraCore - Suggestions Config Management", () => {
 
       ajoraCore.clearSuggestions("test");
 
-      await vi.waitFor(() => {
+      await waitFor(() => {
         expect(onSuggestionsChanged).toHaveBeenCalledWith({
           ajora: ajoraCore,
           agentId: "test",
@@ -323,7 +321,7 @@ describe("AjoraCore - Suggestions Config Management", () => {
 
       ajoraCore.reloadSuggestions("consumer");
 
-      await vi.waitFor(() => {
+      await waitFor(() => {
         expect(onLoadingStart).toHaveBeenCalledWith({
           ajora: ajoraCore,
           agentId: "consumer",
@@ -370,7 +368,7 @@ describe("AjoraCore - Suggestions Config Management", () => {
 
       ajoraCore.reloadSuggestions("consumer");
 
-      await vi.waitFor(() => {
+      await waitFor(() => {
         expect(onLoadingEnd).toHaveBeenCalledWith({
           ajora: ajoraCore,
           agentId: "consumer",
@@ -419,7 +417,7 @@ describe("AjoraCore - Suggestions Config Management", () => {
 
       ajoraCore.reloadSuggestions("consumer");
 
-      await vi.waitFor(() => {
+      await waitFor(() => {
         expect(providerAgent.runAgentCalls.length).toBeGreaterThanOrEqual(2);
       });
 
@@ -468,7 +466,7 @@ describe("AjoraCore - Suggestions Config Management", () => {
 
       ajoraCore.reloadSuggestions("consumer");
 
-      await vi.waitFor(() => {
+      await waitFor(() => {
         expect(onLoadingEnd).toHaveBeenCalled();
       });
 
@@ -500,7 +498,7 @@ describe("AjoraCore - Suggestions Config Management", () => {
 
       ajoraCore.reloadSuggestions("consumer");
 
-      await vi.waitFor(() => {
+      await waitFor(() => {
         expect(onLoadingEnd).toHaveBeenCalledWith({
           ajora: ajoraCore,
           agentId: "consumer",

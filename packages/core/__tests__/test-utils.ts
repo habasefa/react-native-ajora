@@ -1,5 +1,4 @@
 import { Message } from "@ag-ui/client";
-import { vi } from "vitest";
 import { DynamicSuggestionsConfig, FrontendTool } from "../types";
 
 export interface MockAgentOptions {
@@ -71,11 +70,18 @@ export class MockAgent {
       throw this.error;
     }
 
+    // Simulate real AbstractAgent behaviour: newMessages are appended to
+    // the agent's messages array during the run so that processAgentResult
+    // can find them when splicing tool results.
+    if (this.newMessages.length > 0) {
+      this.messages.push(...this.newMessages);
+    }
+
     // If there's a subscriber with onMessagesChanged, call it with the messages
     if (subscriber?.onMessagesChanged && this.newMessages.length > 0) {
       // Trigger the subscriber callback with messages
       subscriber.onMessagesChanged({
-        messages: [...this.messages, ...this.newMessages],
+        messages: [...this.messages],
       });
     }
 
@@ -206,6 +212,27 @@ export async function waitForCondition(
     }
     await new Promise((resolve) => setTimeout(resolve, interval));
   }
+}
+
+/**
+ * Retry a callback until it stops throwing, similar to @testing-library waitFor.
+ */
+export async function waitFor(
+  callback: () => void | Promise<void>,
+  { timeout = 2000, interval = 50 }: { timeout?: number; interval?: number } = {}
+): Promise<void> {
+  const start = Date.now();
+  let lastError: unknown;
+  while (Date.now() - start < timeout) {
+    try {
+      await callback();
+      return;
+    } catch (e) {
+      lastError = e;
+    }
+    await new Promise((resolve) => setTimeout(resolve, interval));
+  }
+  throw lastError;
 }
 
 /**

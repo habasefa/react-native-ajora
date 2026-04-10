@@ -1,12 +1,10 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
 import { AjoraCore } from "../core";
 import { Suggestion } from "../types";
 import {
   MockAgent,
   createSuggestionsConfig,
   createMessage,
-  createAssistantMessage,
-} from "./test-utils";
+  createAssistantMessage, waitFor} from "./test-utils";
 
 describe("AjoraCore - Suggestions E2E", () => {
   let ajoraCore: AjoraCore;
@@ -74,7 +72,7 @@ describe("AjoraCore - Suggestions E2E", () => {
       ajoraCore.reloadSuggestions("consumer");
 
       // Wait for suggestions to be generated
-      await vi.waitFor(() => {
+      await waitFor(() => {
         const result = ajoraCore.getSuggestions("consumer");
         expect(result.suggestions.length).toBeGreaterThan(0);
       });
@@ -94,7 +92,7 @@ describe("AjoraCore - Suggestions E2E", () => {
       });
 
       // Verify subscriber was notified
-      await vi.waitFor(() => {
+      await waitFor(() => {
         expect(onSuggestionsChanged).toHaveBeenCalled();
       });
     });
@@ -140,7 +138,7 @@ describe("AjoraCore - Suggestions E2E", () => {
       ajoraCore.reloadSuggestions("consumer");
 
       // Check that the cloned agent received the correct prompt
-      await vi.waitFor(() => {
+      await waitFor(() => {
         expect(providerAgent.addMessage).toHaveBeenCalled();
       });
 
@@ -192,7 +190,7 @@ describe("AjoraCore - Suggestions E2E", () => {
       ajoraCore.reloadSuggestions("consumer");
 
       // Verify runAgent was called with forced tool choice
-      await vi.waitFor(() => {
+      await waitFor(() => {
         expect(providerAgent.runAgentCalls.length).toBeGreaterThan(0);
       });
 
@@ -249,7 +247,7 @@ describe("AjoraCore - Suggestions E2E", () => {
       // Reload for target agent - should generate
       ajoraCore.reloadSuggestions("target");
 
-      await vi.waitFor(() => {
+      await waitFor(() => {
         expect(providerAgent.runAgentCalls.length).toBeGreaterThan(0);
       });
 
@@ -306,14 +304,14 @@ describe("AjoraCore - Suggestions E2E", () => {
 
       // Should generate for both agents
       ajoraCore.reloadSuggestions("agent1");
-      await vi.waitFor(() => {
+      await waitFor(() => {
         expect(providerAgent.runAgentCalls.length).toBeGreaterThan(0);
       });
 
       const callCountAfterFirst = providerAgent.runAgentCalls.length;
 
       ajoraCore.reloadSuggestions("agent2");
-      await vi.waitFor(() => {
+      await waitFor(() => {
         expect(providerAgent.runAgentCalls.length).toBeGreaterThan(
           callCountAfterFirst
         );
@@ -358,7 +356,7 @@ describe("AjoraCore - Suggestions E2E", () => {
 
       ajoraCore.reloadSuggestions("consumer");
 
-      await vi.waitFor(() => {
+      await waitFor(() => {
         expect(providerAgent.runAgentCalls.length).toBeGreaterThan(0);
       });
     });
@@ -410,7 +408,7 @@ describe("AjoraCore - Suggestions E2E", () => {
       providerAgent.setNewMessages([partialToolCall]);
       ajoraCore.reloadSuggestions("consumer");
 
-      await vi.waitFor(() => {
+      await waitFor(() => {
         expect(suggestionUpdates.length).toBeGreaterThanOrEqual(2);
       });
 
@@ -426,7 +424,7 @@ describe("AjoraCore - Suggestions E2E", () => {
       });
 
       // After finalization, isLoading should be false
-      await vi.waitFor(() => {
+      await waitFor(() => {
         const lastUpdate = suggestionUpdates[suggestionUpdates.length - 1];
         expect(lastUpdate.length).toBeGreaterThan(0);
         expect(lastUpdate[0].isLoading).toBe(false);
@@ -486,7 +484,7 @@ describe("AjoraCore - Suggestions E2E", () => {
       providerAgent.setNewMessages([streamingToolCall]);
       ajoraCore.reloadSuggestions("consumer");
 
-      await vi.waitFor(() => {
+      await waitFor(() => {
         const result = ajoraCore.getSuggestions("consumer");
         expect(result.suggestions.length).toBe(2);
       });
@@ -545,7 +543,7 @@ describe("AjoraCore - Suggestions E2E", () => {
       ajoraCore.reloadSuggestions("consumer");
 
       // Should have called runAgent twice (once per config)
-      await vi.waitFor(() => {
+      await waitFor(() => {
         expect(providerAgent.runAgentCalls.length).toBeGreaterThanOrEqual(2);
       });
     });
@@ -596,7 +594,7 @@ describe("AjoraCore - Suggestions E2E", () => {
       ajoraCore.reloadSuggestions("agent2");
 
       // Both should have suggestions
-      await vi.waitFor(() => {
+      await waitFor(() => {
         const result1 = ajoraCore.getSuggestions("agent1");
         const result2 = ajoraCore.getSuggestions("agent2");
         expect(result1.suggestions.length).toBeGreaterThan(0);
@@ -644,7 +642,7 @@ describe("AjoraCore - Suggestions E2E", () => {
       ajoraCore.reloadSuggestions("consumer");
 
       // Wait for both configs to be called
-      await vi.waitFor(() => {
+      await waitFor(() => {
         expect(providerAgent.runAgentCalls.length).toBeGreaterThanOrEqual(2);
       });
 
@@ -699,7 +697,7 @@ describe("AjoraCore - Suggestions E2E", () => {
 
       ajoraCore.reloadSuggestions("consumer");
 
-      await vi.waitFor(() => {
+      await waitFor(() => {
         expect(providerAgent.runAgentCalls.length).toBeGreaterThan(0);
       });
 
@@ -755,7 +753,7 @@ describe("AjoraCore - Suggestions E2E", () => {
 
       core.reloadSuggestions("consumer");
 
-      await vi.waitFor(() => {
+      await waitFor(() => {
         expect(providerAgent.runAgentCalls.length).toBeGreaterThan(0);
       });
 
@@ -812,7 +810,7 @@ describe("AjoraCore - Suggestions E2E", () => {
 
       ajoraCore.reloadSuggestions("consumer");
 
-      await vi.waitFor(() => {
+      await waitFor(() => {
         expect(providerAgent.addMessage).toHaveBeenCalled();
       });
 
@@ -844,7 +842,7 @@ describe("AjoraCore - Suggestions E2E", () => {
 
       ajoraCore.reloadSuggestions("consumer");
 
-      await vi.waitFor(() => {
+      await waitFor(() => {
         expect(providerAgent.clone).toHaveBeenCalled();
       });
     });
@@ -875,7 +873,7 @@ describe("AjoraCore - Suggestions E2E", () => {
       ajoraCore.reloadSuggestions("consumer");
 
       // The cloned agent should receive the consumer's message history
-      await vi.waitFor(() => {
+      await waitFor(() => {
         expect(providerAgent.clone).toHaveBeenCalled();
       });
 
@@ -904,7 +902,7 @@ describe("AjoraCore - Suggestions E2E", () => {
 
       ajoraCore.reloadSuggestions("consumer");
 
-      await vi.waitFor(() => {
+      await waitFor(() => {
         expect(providerAgent.clone).toHaveBeenCalled();
       });
 
@@ -931,7 +929,7 @@ describe("AjoraCore - Suggestions E2E", () => {
       ajoraCore.reloadSuggestions("consumer");
 
       // The cloned agent should have a unique ID
-      await vi.waitFor(() => {
+      await waitFor(() => {
         expect(providerAgent.clone).toHaveBeenCalled();
       });
 
@@ -965,7 +963,7 @@ describe("AjoraCore - Suggestions E2E", () => {
 
       // Begin generating suggestions and wait until the provider is cloned (run in progress)
       ajoraCore.reloadSuggestions("consumer");
-      await vi.waitFor(() => {
+      await waitFor(() => {
         expect(providerAgent.clone).toHaveBeenCalled();
       });
 
@@ -975,7 +973,7 @@ describe("AjoraCore - Suggestions E2E", () => {
       expect(clonedSuggestionAgent).toBeDefined();
 
       // Ensure loading state is on before user submits new message
-      await vi.waitFor(() => {
+      await waitFor(() => {
         const result = ajoraCore.getSuggestions("consumer");
         expect(result.isLoading).toBe(true);
       });
@@ -995,7 +993,7 @@ describe("AjoraCore - Suggestions E2E", () => {
       expect(clonedSuggestionAgent.abortRun).toHaveBeenCalled();
 
       // Suggestions should be cleared and isLoading turned off
-      await vi.waitFor(() => {
+      await waitFor(() => {
         const result = ajoraCore.getSuggestions("consumer");
         expect(result.isLoading).toBe(false);
         expect(result.suggestions).toEqual([]);
@@ -1038,7 +1036,7 @@ describe("AjoraCore - Suggestions E2E", () => {
       // Start generation
       ajoraCore.reloadSuggestions("consumer");
 
-      await vi.waitFor(() => {
+      await waitFor(() => {
         expect(providerAgent.runAgentCalls.length).toBeGreaterThan(0);
       });
 
@@ -1087,7 +1085,7 @@ describe("AjoraCore - Suggestions E2E", () => {
 
       // First reload
       ajoraCore.reloadSuggestions("consumer");
-      await vi.waitFor(() => {
+      await waitFor(() => {
         expect(providerAgent.clone).toHaveBeenCalledTimes(1);
       });
 
@@ -1096,7 +1094,7 @@ describe("AjoraCore - Suggestions E2E", () => {
 
       // Second reload - should clone again
       ajoraCore.reloadSuggestions("consumer");
-      await vi.waitFor(() => {
+      await waitFor(() => {
         expect(providerAgent.clone).toHaveBeenCalledTimes(2);
       });
     });
@@ -1140,14 +1138,14 @@ describe("AjoraCore - Suggestions E2E", () => {
 
       ajoraCore.reloadSuggestions("consumer");
 
-      await vi.waitFor(() => {
+      await waitFor(() => {
         expect(providerAgent.runAgentCalls.length).toBeGreaterThan(0);
       });
 
       // Clear and verify notification
       ajoraCore.clearSuggestions("consumer");
 
-      await vi.waitFor(() => {
+      await waitFor(() => {
         const clearCall = onSuggestionsChanged.mock.calls.find(
           (call) =>
             call[0].suggestions.length === 0 && call[0].agentId === "consumer"
@@ -1280,13 +1278,13 @@ describe("AjoraCore - Suggestions E2E", () => {
       ajoraCore.reloadSuggestions("consumer");
 
       // During generation, isLoading should be true
-      await vi.waitFor(() => {
+      await waitFor(() => {
         result = ajoraCore.getSuggestions("consumer");
         expect(result.isLoading).toBe(true);
       });
 
       // After generation completes, isLoading should be false
-      await vi.waitFor(() => {
+      await waitFor(() => {
         result = ajoraCore.getSuggestions("consumer");
         expect(result.isLoading).toBe(false);
       });
@@ -1340,7 +1338,7 @@ describe("AjoraCore - Suggestions E2E", () => {
 
       ajoraCore.reloadSuggestions("consumer");
 
-      await vi.waitFor(() => {
+      await waitFor(() => {
         expect(events).toContain("start");
         expect(events).toContain("end");
       });
@@ -1392,13 +1390,13 @@ describe("AjoraCore - Suggestions E2E", () => {
       ajoraCore.reloadSuggestions("consumer");
 
       // During generation, isLoading should be true
-      await vi.waitFor(() => {
+      await waitFor(() => {
         const result = ajoraCore.getSuggestions("consumer");
         expect(result.isLoading).toBe(true);
       });
 
       // After all complete, isLoading should be false
-      await vi.waitFor(() => {
+      await waitFor(() => {
         const result = ajoraCore.getSuggestions("consumer");
         expect(result.isLoading).toBe(false);
       });
@@ -1426,7 +1424,7 @@ describe("AjoraCore - Suggestions E2E", () => {
       ajoraCore.reloadSuggestions("consumer");
 
       // After error, isLoading should be false
-      await vi.waitFor(() => {
+      await waitFor(() => {
         const result = ajoraCore.getSuggestions("consumer");
         expect(result.isLoading).toBe(false);
       });
@@ -1477,7 +1475,7 @@ describe("AjoraCore - Suggestions E2E", () => {
 
       // Should show suggestions when messages are empty
       ajoraCore.reloadSuggestions("consumer");
-      await vi.waitFor(() => {
+      await waitFor(() => {
         const result = ajoraCore.getSuggestions("consumer");
         expect(result.suggestions.length).toBeGreaterThan(0);
       });
@@ -1544,7 +1542,7 @@ describe("AjoraCore - Suggestions E2E", () => {
       consumerAgent.messages = [createMessage({ content: "First message" })];
       ajoraCore.reloadSuggestions("consumer");
 
-      await vi.waitFor(() => {
+      await waitFor(() => {
         const result = ajoraCore.getSuggestions("consumer");
         expect(result.suggestions.length).toBeGreaterThan(0);
       });
@@ -1597,7 +1595,7 @@ describe("AjoraCore - Suggestions E2E", () => {
 
       // Should show when empty
       ajoraCore.reloadSuggestions("consumer");
-      await vi.waitFor(() => {
+      await waitFor(() => {
         const result = ajoraCore.getSuggestions("consumer");
         expect(result.suggestions.length).toBeGreaterThan(0);
       });
@@ -1609,7 +1607,7 @@ describe("AjoraCore - Suggestions E2E", () => {
       consumerAgent.messages = [createMessage({ content: "Message" })];
       ajoraCore.reloadSuggestions("consumer");
 
-      await vi.waitFor(() => {
+      await waitFor(() => {
         const result = ajoraCore.getSuggestions("consumer");
         expect(result.suggestions.length).toBeGreaterThan(0);
       });

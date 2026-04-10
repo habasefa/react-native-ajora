@@ -1,7 +1,6 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { AjoraCore, AjoraCoreErrorCode } from "../core";
 import { ProxiedAjoraRuntimeAgent } from "../agent";
-import { createAssistantMessage } from "./test-utils";
+import { createAssistantMessage, waitFor} from "./test-utils";
 
 describe("AjoraCore error handling", () => {
   describe("agent error events", () => {
@@ -148,7 +147,7 @@ describe("AjoraCore error handling", () => {
       }> = [];
       const sub = core.subscribe({ onError: (e) => void errors.push(e) });
 
-      await vi.waitFor(() => {
+      await waitFor(() => {
         expect(
           errors.some(
             (e) => e.code === AjoraCoreErrorCode.RUNTIME_INFO_FETCH_FAILED
@@ -293,6 +292,7 @@ describe("AjoraCore error handling", () => {
         clone: () => agent,
         subscribe: () => ({ unsubscribe() {} }),
         async runAgent() {
+          agent.messages.push(assistant);
           return { newMessages: [assistant] };
         },
       } as any;

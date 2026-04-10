@@ -1,4 +1,3 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
 import { AjoraCore } from "../core";
 import { FrontendTool } from "../types";
 import { MockAgent, createAssistantMessage } from "./test-utils";

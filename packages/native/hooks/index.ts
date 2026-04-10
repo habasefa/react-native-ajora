@@ -6,6 +6,8 @@ export { useHumanInTheLoop } from "./use-human-in-the-loop";
 export { useAgent, UseAgentUpdate } from "./use-agent";
 export { useHistory } from "./use-history";
 export type { UseHistoryProps, UseHistoryResult } from "./use-history";
+export { useThreads } from "./use-threads";
+export type { UseThreadsProps, UseThreadsResult } from "./use-threads";
 export { useAgentContext } from "./use-agent-context";
 export type { AgentContextInput, JsonSerializable } from "./use-agent-context";
 export { useSuggestions } from "./use-suggestions";

@@ -22,7 +22,14 @@ import {
   AjoraCoreLoadHistoryParams,
   AjoraCoreGetToolParams,
 } from "./run-handler";
-import type { FetchHistoryResponse } from "../agent";
+import {
+  ProxiedAjoraRuntimeAgent,
+  type FetchHistoryResponse,
+  type CreateThreadRequest,
+  type ListThreadsRequest,
+  type ListThreadsResponse,
+  type ThreadRecord,
+} from "../agent";
 import { StateManager } from "./state-manager";
 import {
   AjoraCoreErrorCode,
@@ -66,7 +73,13 @@ export type {
   AjoraCoreLoadHistoryParams,
   AjoraCoreGetToolParams,
 };
-export type { FetchHistoryResponse } from "../agent";
+export type {
+  FetchHistoryResponse,
+  ThreadRecord,
+  CreateThreadRequest,
+  ListThreadsRequest,
+  ListThreadsResponse,
+} from "../agent";
 
 export interface AjoraCoreStopAgentParams {
   agent: AbstractAgent;
@@ -349,8 +362,11 @@ export class AjoraCore {
     return this.runHandler.connectAgent(params);
   }
 
-  stopAgent(params: AjoraCoreStopAgentParams): void {
-    params.agent.abortRun();
+  async stopAgent(params: AjoraCoreStopAgentParams): Promise<boolean> {
+    const result = await (params.agent.abortRun() as
+      | Promise<boolean>
+      | void);
+    return result ?? false;
   }
 
   async runAgent(
@@ -367,6 +383,39 @@ export class AjoraCore {
     params: AjoraCoreLoadHistoryParams,
   ): Promise<FetchHistoryResponse> {
     return this.runHandler.loadHistory(params);
+  }
+
+  /**
+   * Create a new thread on the server. Requires a runtime agent to derive
+   * the server base URL and auth headers.
+   */
+  async createThread(
+    agentId: string,
+    request: CreateThreadRequest,
+  ): Promise<ThreadRecord> {
+    const agent = this.getAgent(agentId);
+    if (!(agent instanceof ProxiedAjoraRuntimeAgent)) {
+      throw new Error(
+        `createThread requires a runtime-proxied agent (got ${agent?.constructor.name ?? "null"} for "${agentId}")`,
+      );
+    }
+    return agent.createThread(request);
+  }
+
+  /**
+   * List threads for a given resource (user) from the server.
+   */
+  async listThreads(
+    agentId: string,
+    request: ListThreadsRequest,
+  ): Promise<ListThreadsResponse> {
+    const agent = this.getAgent(agentId);
+    if (!(agent instanceof ProxiedAjoraRuntimeAgent)) {
+      throw new Error(
+        `listThreads requires a runtime-proxied agent (got ${agent?.constructor.name ?? "null"} for "${agentId}")`,
+      );
+    }
+    return agent.listThreads(request);
   }
 
   /**

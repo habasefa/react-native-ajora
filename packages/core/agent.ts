@@ -39,16 +39,79 @@ export interface FetchHistoryResponse {
   oldestMessageId: string | null;
 }
 
+// ============================================================================
+// Thread management types
+// ============================================================================
+
+export interface ThreadRecord {
+  id: string;
+  title: string;
+  resource_id: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateThreadRequest {
+  title?: string;
+  subject?: string;
+  userId?: string | number;
+  id?: string;
+  modelId?: string;
+  agentId?: string;
+  signal?: AbortSignal;
+}
+
+export interface ListThreadsRequest {
+  resourceId: string;
+  cursor?: string;
+  limit?: number;
+  signal?: AbortSignal;
+}
+
+export interface ListThreadsResponse {
+  threads: ThreadRecord[];
+  nextCursor: string | null;
+  hasMore: boolean;
+}
+
 export class FetchHistoryError extends Error {
   public readonly code: AjoraCoreErrorCode;
+  /** Milliseconds until the client should retry (from Retry-After header). Null if not rate-limited. */
+  public readonly retryAfterMs: number | null;
 
   constructor(
     message: string,
     public readonly status: number,
+    retryAfterMs?: number | null,
   ) {
     super(message);
     this.name = "FetchHistoryError";
     this.code = FetchHistoryError.statusToCode(status);
+    this.retryAfterMs = retryAfterMs ?? null;
+  }
+
+  /**
+   * Parse the Retry-After response header into milliseconds.
+   * Handles both `Retry-After: <seconds>` and `Retry-After: <HTTP-date>`.
+   * Returns null if the header is missing or unparseable.
+   */
+  static parseRetryAfter(headers: Headers): number | null {
+    const value = headers.get("Retry-After");
+    if (!value) return null;
+
+    // Try as integer seconds first (most common for 429).
+    const seconds = Number(value);
+    if (!isNaN(seconds) && seconds >= 0) {
+      return seconds * 1000;
+    }
+
+    // Try as HTTP-date.
+    const date = Date.parse(value);
+    if (!isNaN(date)) {
+      return Math.max(0, date - Date.now());
+    }
+
+    return null;
   }
 
   private static statusToCode(status: number): AjoraCoreErrorCode {
@@ -96,35 +159,43 @@ export class ProxiedAjoraRuntimeAgent extends HttpAgent {
     }
   }
 
-  abortRun(): void {
+  async abortRun(): Promise<boolean> {
     if (!this.agentId || !this.threadId) {
-      return;
+      return false;
     }
 
     if (typeof fetch === "undefined") {
-      return;
+      return false;
     }
 
-    const sendStop = (url: string, init: RequestInit): void => {
-      fetch(url, init)
-        .then((response) => {
-          if (!response.ok) {
-            console.warn(
-              `ProxiedAjoraRuntimeAgent: stop request returned ${response.status}`,
-            );
-          }
-        })
-        .catch((error) => {
-          console.error("ProxiedAjoraRuntimeAgent: stop request failed", error);
-        });
+    const sendStop = async (
+      url: string,
+      init: RequestInit,
+    ): Promise<boolean> => {
+      try {
+        const response = await fetch(url, init);
+        if (!response.ok) {
+          console.warn(
+            `ProxiedAjoraRuntimeAgent: stop request returned ${response.status}`,
+          );
+          return false;
+        }
+        return true;
+      } catch (error) {
+        console.error(
+          "ProxiedAjoraRuntimeAgent: stop request failed",
+          error,
+        );
+        return false;
+      }
     };
 
     if (this.transport === "single") {
       if (!this.singleEndpointUrl) {
-        return;
+        return false;
       }
 
-      sendStop(this.singleEndpointUrl, {
+      return sendStop(this.singleEndpointUrl, {
         method: "POST",
         headers: new Headers({
           ...this.headers,
@@ -138,16 +209,15 @@ export class ProxiedAjoraRuntimeAgent extends HttpAgent {
           },
         }),
       });
-      return;
     }
 
     if (!this.runtimeUrl) {
-      return;
+      return false;
     }
 
     const stopUrl = `${this.runtimeUrl}/agent/${encodeURIComponent(this.agentId)}/stop/${encodeURIComponent(this.threadId)}`;
 
-    sendStop(stopUrl, {
+    return sendStop(stopUrl, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -302,7 +372,8 @@ export class ProxiedAjoraRuntimeAgent extends HttpAgent {
       } catch {
         // body wasn't JSON; keep default message
       }
-      throw new FetchHistoryError(message, response.status);
+      const retryAfterMs = FetchHistoryError.parseRetryAfter(response.headers);
+      throw new FetchHistoryError(message, response.status, retryAfterMs);
     }
 
     const payload = (await response.json()) as Partial<FetchHistoryResponse>;
@@ -320,6 +391,109 @@ export class ProxiedAjoraRuntimeAgent extends HttpAgent {
       messages: payload.messages,
       hasMore: payload.hasMore,
       oldestMessageId: payload.oldestMessageId ?? null,
+    };
+  }
+
+  /**
+   * Derive the base URL for thread management endpoints.
+   *
+   * For the single-endpoint transport the runtimeUrl IS the single route,
+   * so we strip the last path segment to get the server origin/base.
+   * For REST transport the runtimeUrl is already the server base.
+   */
+  private get threadsBaseUrl(): string | null {
+    if (!this.runtimeUrl) return null;
+    if (this.transport === "single") {
+      // e.g. "https://host/api/copilotkit" → "https://host"
+      try {
+        const url = new URL(this.runtimeUrl);
+        return url.origin;
+      } catch {
+        // runtimeUrl may be a relative path in dev — strip the last segment.
+        const idx = this.runtimeUrl.lastIndexOf("/");
+        return idx > 0 ? this.runtimeUrl.slice(0, idx) : this.runtimeUrl;
+      }
+    }
+    return this.runtimeUrl;
+  }
+
+  /**
+   * Create a new thread on the server.
+   */
+  async createThread(
+    request: CreateThreadRequest,
+  ): Promise<ThreadRecord> {
+    const base = this.threadsBaseUrl;
+    if (!base) {
+      throw new FetchHistoryError("No runtimeUrl configured for thread management", 0);
+    }
+
+    const headers = new Headers({
+      ...(this.headers ?? {}),
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    });
+
+    const { signal, ...body } = request;
+    const response = await fetch(`${base}/magnus/threads`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(body),
+      signal,
+    });
+
+    if (!response.ok) {
+      let message = `Create thread failed with status ${response.status}`;
+      try {
+        const payload = (await response.json()) as { message?: string };
+        if (payload?.message) message = payload.message;
+      } catch { /* keep default message */ }
+      throw new FetchHistoryError(message, response.status);
+    }
+
+    return (await response.json()) as ThreadRecord;
+  }
+
+  /**
+   * List threads for a given resource (user).
+   */
+  async listThreads(
+    request: ListThreadsRequest,
+  ): Promise<ListThreadsResponse> {
+    const base = this.threadsBaseUrl;
+    if (!base) {
+      throw new FetchHistoryError("No runtimeUrl configured for thread management", 0);
+    }
+
+    const headers = new Headers({
+      ...(this.headers ?? {}),
+      Accept: "application/json",
+    });
+
+    const params = new URLSearchParams();
+    params.set("resourceId", request.resourceId);
+    if (request.cursor) params.set("cursor", request.cursor);
+    if (request.limit != null) params.set("limit", String(request.limit));
+
+    const response = await fetch(
+      `${base}/magnus/threads?${params.toString()}`,
+      { method: "GET", headers, signal: request.signal },
+    );
+
+    if (!response.ok) {
+      let message = `List threads failed with status ${response.status}`;
+      try {
+        const payload = (await response.json()) as { message?: string };
+        if (payload?.message) message = payload.message;
+      } catch { /* keep default message */ }
+      throw new FetchHistoryError(message, response.status);
+    }
+
+    const payload = (await response.json()) as Partial<ListThreadsResponse>;
+    return {
+      threads: payload.threads ?? [],
+      nextCursor: payload.nextCursor ?? null,
+      hasMore: payload.hasMore ?? false,
     };
   }
 

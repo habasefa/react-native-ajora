@@ -261,6 +261,9 @@ export class RunHandler {
       }
       if (error instanceof FetchHistoryError) {
         context.status = error.status;
+        if (error.retryAfterMs != null) {
+          context.retryAfterMs = error.retryAfterMs;
+        }
       }
       await this.core.emitError({
         error: loadError,
@@ -277,7 +280,10 @@ export class RunHandler {
   async runAgent({
     agent,
     modelId,
-  }: AjoraCoreRunAgentParams): Promise<RunAgentResult> {
+    executedToolCallIds,
+  }: AjoraCoreRunAgentParams & {
+    executedToolCallIds?: Set<string>;
+  }): Promise<RunAgentResult> {
     // Agent ID is guaranteed to be set by validateAndAssignAgentId
     if (agent.agentId) {
       void this.core.suggestionEngine.clearSuggestions(agent.agentId);
@@ -301,7 +307,11 @@ export class RunHandler {
         },
         this.createAgentErrorSubscriber(agent),
       );
-      return this.processAgentResult({ runAgentResult, agent });
+      return this.processAgentResult({
+        runAgentResult,
+        agent,
+        executedToolCallIds,
+      });
     } catch (error) {
       const runError =
         error instanceof Error ? error : new Error(String(error));
@@ -319,14 +329,21 @@ export class RunHandler {
   }
 
   /**
-   * Process agent result and execute tools
+   * Process agent result and execute tools.
+   *
+   * `executedToolCallIds` tracks tool call IDs that have already been executed
+   * across the entire run chain (including follow-up runs). This prevents
+   * duplicate execution if the server sends the same TOOL_CALL_START event
+   * twice (e.g. retry/resend after a network hiccup).
    */
   private async processAgentResult({
     runAgentResult,
     agent,
+    executedToolCallIds = new Set<string>(),
   }: {
     runAgentResult: RunAgentResult;
     agent: AbstractAgent;
+    executedToolCallIds?: Set<string>;
   }): Promise<RunAgentResult> {
     const { newMessages } = runAgentResult;
     // Agent ID is guaranteed to be set by validateAndAssignAgentId
@@ -337,18 +354,43 @@ export class RunHandler {
     for (const message of newMessages) {
       if (message.role === "assistant") {
         for (const toolCall of message.toolCalls || []) {
+          // Skip if already executed in this run chain or if a response
+          // already exists in the current batch.
+          if (executedToolCallIds.has(toolCall.id)) continue;
           if (
             newMessages.findIndex(
               (m) => m.role === "tool" && m.toolCallId === toolCall.id,
-            ) === -1
+            ) !== -1
           ) {
-            const tool = this.getTool({
-              toolName: toolCall.function.name,
+            continue;
+          }
+
+          executedToolCallIds.add(toolCall.id);
+
+          const tool = this.getTool({
+            toolName: toolCall.function.name,
+            agentId: agent.agentId,
+          });
+          if (tool) {
+            const followUp = await this.executeSpecificTool(
+              tool,
+              toolCall,
+              message,
+              agent,
+              agentId,
+            );
+            if (followUp) {
+              needsFollowUp = true;
+            }
+          } else {
+            // Wildcard fallback for undefined tools
+            const wildcardTool = this.getTool({
+              toolName: "*",
               agentId: agent.agentId,
             });
-            if (tool) {
-              const followUp = await this.executeSpecificTool(
-                tool,
+            if (wildcardTool) {
+              const followUp = await this.executeWildcardTool(
+                wildcardTool,
                 toolCall,
                 message,
                 agent,
@@ -357,24 +399,6 @@ export class RunHandler {
               if (followUp) {
                 needsFollowUp = true;
               }
-            } else {
-              // Wildcard fallback for undefined tools
-              const wildcardTool = this.getTool({
-                toolName: "*",
-                agentId: agent.agentId,
-              });
-              if (wildcardTool) {
-                const followUp = await this.executeWildcardTool(
-                  wildcardTool,
-                  toolCall,
-                  message,
-                  agent,
-                  agentId,
-                );
-                if (followUp) {
-                  needsFollowUp = true;
-                }
-              }
             }
           }
         }
@@ -382,7 +406,7 @@ export class RunHandler {
     }
 
     if (needsFollowUp) {
-      return await this.runAgent({ agent });
+      return await this.runAgent({ agent, executedToolCallIds });
     }
 
     void this.core.suggestionEngine.reloadSuggestions(agentId);

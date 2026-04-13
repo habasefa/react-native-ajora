@@ -151,12 +151,16 @@
     "react": ">=18.0.0",
     "react-native": ">=0.81.0",
     "react-native-enriched-markdown": ">=0.1.0",
+    "react-native-streamdown": ">=0.1.0",
     "react-native-keyboard-controller": ">=1.0.0",
     "react-native-reanimated": ">=3.0.0",
     "react-native-svg": "*"
   },
   "peerDependenciesMeta": {
     "react-native-enriched-markdown": {
+      "optional": true
+    },
+    "react-native-streamdown": {
       "optional": true
     }
   },

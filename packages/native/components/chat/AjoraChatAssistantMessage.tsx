@@ -11,6 +11,7 @@ import {
 import * as Clipboard from "expo-clipboard";
 import { Ionicons } from "@expo/vector-icons";
 import RichText from "../../../markdown/RichText";
+import type { MarkdownTheme } from "../../../markdown/markdownStyle";
 
 // Optional haptics import - gracefully handle if not available
 let Haptics: {
@@ -72,6 +73,7 @@ export type AjoraChatAssistantMessageProps = WithSlots<
     showReadAloudButton?: boolean;
     showRegenerateButton?: boolean;
     textRenderer?: (props: { content: string }) => React.ReactNode;
+    onLinkPress?: (url: string) => void;
     style?: StyleProp<ViewStyle>;
   }
 >;
@@ -205,6 +207,7 @@ export function AjoraChatAssistantMessage({
   regenerateButton,
   toolCallsView,
   textRenderer,
+  onLinkPress,
   children,
   style,
   ...props
@@ -346,6 +349,8 @@ export function AjoraChatAssistantMessage({
   // Render Slots
   // ========================================================================
 
+  const isStreaming = !!(isRunning && isLastInSequence && hasContent);
+
   const boundMarkdownRenderer = renderSlot(
     markdownRenderer,
     AjoraChatAssistantMessage.MarkdownRenderer,
@@ -353,6 +358,8 @@ export function AjoraChatAssistantMessage({
       content: message.content || "",
       colors,
       textRenderer,
+      streaming: isStreaming,
+      onLinkPress,
     },
   );
 
@@ -478,34 +485,48 @@ export namespace AjoraChatAssistantMessage {
   export const MarkdownRenderer: React.FC<{
     content: string;
     style?: StyleProp<ViewStyle>;
-    textStyle?: StyleProp<TextStyle>;
-    textColor?: string;
-    fontSize?: number;
-    lineHeight?: number;
+    streaming?: boolean;
     colors?: AjoraChatAssistantMessageColors;
-    textRenderer?: (props: { content: string }) => React.ReactNode; // Add textRenderer prop
+    textRenderer?: (props: { content: string }) => React.ReactNode;
+    onLinkPress?: (url: string) => void;
   }> = ({
     content,
     style,
     colors,
-    textColor,
-    fontSize = 16,
-    lineHeight = 24,
-    textRenderer, // Destructure textRenderer
-  }) => (
-    <View style={[styles.markdownContainer, style]}>
-      {textRenderer ? ( // Use textRenderer if available
-        textRenderer({ content })
-      ) : (
-        <RichText
-          text={content}
-          textColor={textColor ?? colors?.text}
-          fontSize={fontSize}
-          lineHeight={lineHeight}
-        />
-      )}
-    </View>
-  );
+    streaming,
+    textRenderer,
+    onLinkPress,
+  }) => {
+    const ajoraTheme = useAjoraTheme();
+
+    const markdownTheme = React.useMemo<MarkdownTheme>(
+      () => ({
+        textColor: colors?.text ?? ajoraTheme.colors.text,
+        mutedColor: ajoraTheme.colors.textSecondary,
+        codeBg: ajoraTheme.colors.surface,
+        borderColor: ajoraTheme.colors.border,
+        linkColor: ajoraTheme.colors.primary,
+        fontSize: ajoraTheme.typography.sizes.lg,
+        lineHeight: ajoraTheme.typography.sizes.lg * ajoraTheme.typography.lineHeights.normal,
+      }),
+      [ajoraTheme, colors?.text],
+    );
+
+    return (
+      <View style={[styles.markdownContainer, style]}>
+        {textRenderer ? (
+          textRenderer({ content })
+        ) : (
+          <RichText
+            text={content}
+            theme={markdownTheme}
+            streaming={streaming}
+            onLinkPress={onLinkPress}
+          />
+        )}
+      </View>
+    );
+  };
 
   export const Toolbar: React.FC<{
     children: React.ReactNode;

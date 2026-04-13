@@ -17,6 +17,7 @@ import {
 import { UserMessage } from "@ag-ui/core";
 import { renderSlot, WithSlots } from "../../lib/slots";
 import RichText from "../../../markdown/RichText";
+import type { MarkdownTheme } from "../../../markdown/markdownStyle";
 import { useAjoraTheme } from "../../providers/AjoraThemeProvider";
 
 function flattenUserMessageContent(content?: UserMessage["content"]): string {
@@ -223,11 +224,6 @@ export namespace AjoraChatUserMessage {
   export const MessageRenderer: React.FC<{
     content: string;
     style?: StyleProp<ViewStyle>;
-    textStyle?: StyleProp<TextStyle>;
-    textColor?: string;
-    fontSize?: number;
-    lineHeight?: number;
-
     colors?: AjoraChatUserMessageColors;
     onLongPress?: () => void;
     textRenderer?: (props: { content: string }) => React.ReactNode;
@@ -235,34 +231,48 @@ export namespace AjoraChatUserMessage {
     content,
     style,
     colors,
-    textColor,
-    fontSize = 16,
-    lineHeight = 22,
     onLongPress,
     textRenderer,
-  }) => (
-    <Pressable
-      onLongPress={onLongPress}
-      delayLongPress={500}
-      style={({ pressed }) => [
-        styles.messageBubble,
-        { backgroundColor: colors?.bubbleBackground ?? "#007AFF" },
-        style,
-        pressed && { opacity: 0.8 },
-      ]}
-    >
-      {textRenderer ? (
-        textRenderer({ content })
-      ) : (
-        <RichText
-          text={content}
-          textColor={textColor ?? colors?.text ?? "#FFFFFF"}
-          fontSize={fontSize}
-          lineHeight={lineHeight}
-        />
-      )}
-    </Pressable>
-  );
+  }) => {
+    const ajoraTheme = useAjoraTheme();
+
+    const markdownTheme = React.useMemo<MarkdownTheme>(
+      () => ({
+        textColor: colors?.text ?? ajoraTheme.colors.userBubbleText,
+        mutedColor: colors?.text
+          ? colors.text + "99"  // 60% opacity fallback
+          : ajoraTheme.colors.userBubbleText + "99",
+        codeBg: "rgba(255,255,255,0.15)",
+        borderColor: "rgba(255,255,255,0.25)",
+        linkColor: colors?.text ?? ajoraTheme.colors.userBubbleText,
+        fontSize: ajoraTheme.typography.sizes.lg,
+        lineHeight: ajoraTheme.typography.sizes.lg * ajoraTheme.typography.lineHeights.normal,
+      }),
+      [ajoraTheme, colors?.text],
+    );
+
+    return (
+      <Pressable
+        onLongPress={onLongPress}
+        delayLongPress={500}
+        style={({ pressed }) => [
+          styles.messageBubble,
+          { backgroundColor: colors?.bubbleBackground ?? ajoraTheme.colors.userBubble },
+          style,
+          pressed && { opacity: 0.8 },
+        ]}
+      >
+        {textRenderer ? (
+          textRenderer({ content })
+        ) : (
+          <RichText
+            text={content}
+            theme={markdownTheme}
+          />
+        )}
+      </Pressable>
+    );
+  };
 
   export const Toolbar: React.FC<{
     children: React.ReactNode;

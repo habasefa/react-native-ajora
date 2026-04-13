@@ -1,8 +1,48 @@
 import { Platform } from "react-native";
 
-/**
- * Style shape for EnrichedMarkdownText's `markdownStyle` prop.
- */
+// ---------------------------------------------------------------------------
+// MarkdownTheme — the semantic colors/sizes that markdown rendering needs.
+// Defined here so packages/markdown/ stays independent of packages/native/.
+// Upstream components map their app theme → MarkdownTheme at the boundary.
+// ---------------------------------------------------------------------------
+
+export interface MarkdownTheme {
+  /** Primary text color for headings, paragraphs, lists, etc. */
+  textColor: string;
+  /** Muted text color (thinking state, secondary info) */
+  mutedColor: string;
+  /** Background for code blocks and inline code */
+  codeBg: string;
+  /** Border color shared by code blocks, blockquotes, tables, hr */
+  borderColor: string;
+  /** Link color */
+  linkColor: string;
+  /** Base font size for body text */
+  fontSize: number;
+  /** Base line height for body text */
+  lineHeight: number;
+}
+
+/** Sensible default for when no theme is provided (visible on any background). */
+export const DEFAULT_MARKDOWN_THEME: MarkdownTheme = {
+  textColor: "#09090B",
+  mutedColor: "#71717A",
+  codeBg: "#F4F4F5",
+  borderColor: "#E4E4E7",
+  linkColor: "#18181B",
+  fontSize: 16,
+  lineHeight: 24,
+};
+
+// ---------------------------------------------------------------------------
+// MarkdownStyle — maps to EnrichedMarkdownText's `markdownStyle` prop.
+//
+// We maintain our own interface rather than importing from
+// react-native-enriched-markdown because it is an optional peer dep —
+// a static `import type` would break builds for consumers who use
+// their own textRenderer and don't install the library.
+// ---------------------------------------------------------------------------
+
 export interface MarkdownStyle {
   h1?: { fontSize?: number; fontWeight?: string; color?: string; marginTop?: number; marginBottom?: number };
   h2?: { fontSize?: number; fontWeight?: string; color?: string; marginTop?: number; marginBottom?: number };
@@ -51,66 +91,47 @@ const monoFont = Platform.select({
   default: "monospace",
 });
 
-export const baseStyles: MarkdownStyle = {
-  h1: { fontSize: 32, fontWeight: "bold" },
-  h2: { fontSize: 24, fontWeight: "bold" },
-  h3: { fontSize: 18, fontWeight: "bold" },
-  h4: { fontSize: 16, fontWeight: "bold" },
-  h5: { fontSize: 13, fontWeight: "bold" },
-  h6: { fontSize: 11, fontWeight: "bold" },
-  paragraph: { fontSize: 16, marginTop: 10, marginBottom: 10 },
-  strong: { fontWeight: "bold" },
-  emphasis: { fontStyle: "italic" },
-  blockquote: { borderColor: "#CCC", borderWidth: 4 },
-  list: { marginLeft: 10 },
-  inlineCode: {
-    fontFamily: monoFont,
-    backgroundColor: "#f5f5f5",
-    borderColor: "#CCCCCC",
-  },
-  codeBlock: {
-    fontFamily: monoFont,
-    backgroundColor: "#f5f5f5",
-    borderColor: "#CCCCCC",
-    borderRadius: 4,
-    padding: 10,
-  },
-  link: { color: "blue", underline: true },
-  table: { borderColor: "white" },
-  thematicBreak: { color: "#000000", height: 1 },
-};
-
 /**
- * Keys whose `color` property should be set to the given text color.
- */
-const textColorKeys: (keyof MarkdownStyle)[] = [
-  "h1", "h2", "h3", "h4", "h5", "h6",
-  "paragraph", "strong", "emphasis", "strikethrough",
-  "blockquote", "list", "inlineCode", "codeBlock",
-];
-
-/**
- * Returns a MarkdownStyle object with the given text color applied to
- * all text-bearing keys, merged with optional overrides.
+ * Derives a full MarkdownStyle from a MarkdownTheme.
+ * Every visual token is pulled from the theme — no hardcoded colors.
  */
 export function createMarkdownStyles(
-  color: string,
+  theme: MarkdownTheme,
   overrides: Partial<MarkdownStyle> = {},
 ): MarkdownStyle {
+  const { textColor, mutedColor, codeBg, borderColor, linkColor, fontSize, lineHeight } = theme;
+
+  const base: MarkdownStyle = {
+    h1: { fontSize: fontSize * 2, fontWeight: "bold", color: textColor },
+    h2: { fontSize: fontSize * 1.5, fontWeight: "bold", color: textColor },
+    h3: { fontSize: fontSize * 1.125, fontWeight: "bold", color: textColor },
+    h4: { fontSize, fontWeight: "bold", color: textColor },
+    h5: { fontSize: fontSize * 0.8125, fontWeight: "bold", color: textColor },
+    h6: { fontSize: fontSize * 0.6875, fontWeight: "bold", color: textColor },
+    paragraph: { fontSize, color: textColor, lineHeight, marginTop: 10, marginBottom: 10 },
+    strong: { fontWeight: "bold", color: textColor },
+    emphasis: { fontStyle: "italic", color: textColor },
+    strikethrough: { color: mutedColor },
+    blockquote: { borderColor, borderWidth: 4, color: mutedColor },
+    list: { marginLeft: 10, bulletColor: mutedColor, markerColor: mutedColor, color: textColor },
+    inlineCode: { fontFamily: monoFont, color: textColor, backgroundColor: codeBg, borderColor },
+    codeBlock: { fontFamily: monoFont, color: textColor, backgroundColor: codeBg, borderColor, borderRadius: 4, padding: 10 },
+    link: { color: linkColor, underline: true },
+    table: { borderColor },
+    thematicBreak: { color: borderColor, height: 1 },
+    math: { color: textColor },
+    inlineMath: { color: textColor },
+    taskList: { checkedColor: linkColor, borderColor },
+  };
+
+  // Merge overrides on top of themed base
   const result: Record<string, any> = {};
-
-  for (const key of Object.keys(baseStyles) as (keyof MarkdownStyle)[]) {
-    const base = baseStyles[key] ?? {};
-    const override = overrides[key] ?? {};
-    const colorPatch = textColorKeys.includes(key) ? { color } : {};
-    result[key] = { ...base, ...colorPatch, ...override };
+  for (const key of Object.keys(base) as (keyof MarkdownStyle)[]) {
+    result[key] = { ...base[key], ...(overrides[key] ?? {}) };
   }
-
-  // Apply any override keys that aren't in baseStyles (e.g. math, inlineMath)
   for (const key of Object.keys(overrides) as (keyof MarkdownStyle)[]) {
     if (!result[key]) {
-      const colorPatch = textColorKeys.includes(key) ? { color } : {};
-      result[key] = { ...colorPatch, ...overrides[key] };
+      result[key] = overrides[key];
     }
   }
 

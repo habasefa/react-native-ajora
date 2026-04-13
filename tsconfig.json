@@ -33,8 +33,7 @@
     "paths": {
       "@ajora-ai/core": ["./packages/core/index.ts"],
       "@ajora-ai/shared": ["./packages/shared/index.ts"],
-      "@ajora-ai/native": ["./packages/native/index.ts"],
-      "@ajora-ai/agent": ["./packages/agent/index.ts"]
+      "@ajora-ai/native": ["./packages/native/index.ts"]
     }
   },
   "include": [

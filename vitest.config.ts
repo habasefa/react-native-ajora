@@ -27,7 +27,6 @@ export default defineConfig({
       "@ajora-ai/core": path.resolve(__dirname, "packages/core/index.ts"),
       "@ajora-ai/shared": path.resolve(__dirname, "packages/shared/index.ts"),
       "@ajora-ai/native": path.resolve(__dirname, "packages/native/index.ts"),
-      "@ajora-ai/agent": path.resolve(__dirname, "packages/agent/index.ts"),
     },
   },
 });

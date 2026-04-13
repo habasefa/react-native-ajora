@@ -97,14 +97,12 @@ describe("AjoraProvider", () => {
     });
 
     it("throws when useAjora is used outside provider", () => {
-      // The context default has `ajora: null!`, so the hook errors when it
-      // tries to call methods on the null core instance.
       consoleErrorSpy.mockRestore();
       const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
       expect(() => {
         renderHook(() => useAjora());
-      }).toThrow();
+      }).toThrow("useAjora must be used within AjoraProvider");
 
       errorSpy.mockRestore();
       consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});

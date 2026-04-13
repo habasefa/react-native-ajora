@@ -26,12 +26,7 @@ export interface AjoraContextValue {
   executingToolCallIds: ReadonlySet<string>;
 }
 
-const EMPTY_SET: ReadonlySet<string> = new Set();
-
-const AjoraContext = createContext<AjoraContextValue>({
-  ajora: null!,
-  executingToolCallIds: EMPTY_SET,
-});
+const AjoraContext = createContext<AjoraContextValue | null>(null);
 
 export interface AjoraProviderProps {
   children: ReactNode;
@@ -90,14 +85,6 @@ export const AjoraProvider: React.FC<AjoraProviderProps> = ({
   humanInTheLoop,
   useSingleEndpoint = false,
 }) => {
-  // DEBUG: provider render counter
-  const providerRenderRef = useRef(0);
-  providerRenderRef.current++;
-  const pr = providerRenderRef.current;
-  if (pr <= 3 || pr === 10 || pr === 50 || pr % 100 === 0) {
-    console.log(`[AjoraProvider render #${pr}]`);
-  }
-
   const renderToolCallsList = useStableArrayProp<ReactToolCallRenderer<any>>(
     renderToolCalls,
     "renderToolCalls must be a stable array. If you want to dynamically add or remove tools, use `useFrontendTool` instead.",
@@ -230,14 +217,11 @@ export const AjoraProvider: React.FC<AjoraProviderProps> = ({
     useSingleEndpoint,
   ]);
 
-  const [providerForceCount, forceUpdate] = useReducer((x) => x + 1, 0);
+  const [, forceUpdate] = useReducer((x) => x + 1, 0);
 
   useEffect(() => {
     const subscription = ajora.subscribe({
-      onRenderToolCallsChanged: () => {
-        console.log("[AjoraProvider] onRenderToolCallsChanged → forceUpdate");
-        forceUpdate();
-      },
+      onRenderToolCallsChanged: () => forceUpdate(),
     });
 
     return () => {
@@ -274,10 +258,7 @@ export const AjoraProvider: React.FC<AjoraProviderProps> = ({
     };
   }, [ajora]);
 
-  const configSyncCountRef = useRef(0);
   useEffect(() => {
-    configSyncCountRef.current++;
-    console.log(`[AjoraProvider] config-sync effect #${configSyncCountRef.current}`);
     ajora.setRuntimeUrl(chatApiEndpoint);
     ajora.setRuntimeTransport(useSingleEndpoint ? "single" : "rest");
     ajora.setHeaders(headers);
@@ -297,8 +278,6 @@ export const AjoraProvider: React.FC<AjoraProviderProps> = ({
   );
 };
 
-const _useAjoraRenderCounts = new Map<string, number>();
-
 export const useAjora = (): AjoraContextValue => {
   const context = useContext(AjoraContext);
   const [, forceUpdate] = useReducer((x) => x + 1, 0);
@@ -307,24 +286,9 @@ export const useAjora = (): AjoraContextValue => {
     throw new Error("useAjora must be used within AjoraProvider");
   }
 
-  // DEBUG: track renders per caller
-  const callerRef = useRef<string>("");
-  if (!callerRef.current) {
-    callerRef.current = new Error().stack?.split("\n")[2]?.trim().slice(0, 60) ?? "unknown";
-  }
-  const countRef = useRef(0);
-  countRef.current++;
-  const c = countRef.current;
-  if (c <= 3 || c === 10 || c === 50 || c % 100 === 0) {
-    console.log(`[useAjora #${c}] ${callerRef.current}`);
-  }
-
   useEffect(() => {
     const subscription = context.ajora.subscribe({
-      onRuntimeConnectionStatusChanged: ({ status }) => {
-        console.log(`[useAjora] onRuntimeConnectionStatusChanged → ${status}, forcing update`);
-        forceUpdate();
-      },
+      onRuntimeConnectionStatusChanged: () => forceUpdate(),
     });
     return () => {
       subscription.unsubscribe();

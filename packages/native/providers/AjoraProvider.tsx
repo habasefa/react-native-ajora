@@ -47,6 +47,14 @@ export interface AjoraProviderProps {
   humanInTheLoop?: ReactHumanInTheLoop[];
 }
 
+// Stable defaults — inline `= {}` creates a new object every render, which
+// destabilises useEffect/useMemo dependency arrays and causes infinite
+// re-render loops (the config-sync effect fires, replaces _agents, notifies
+// subscribers, triggers re-renders, which re-create `{}`, ad infinitum).
+const EMPTY_AGENTS: Record<string, AbstractAgent> = {};
+const EMPTY_HEADERS: Record<string, string> = {};
+const EMPTY_PROPERTIES: Record<string, unknown> = {};
+
 function useStableArrayProp<T>(
   prop: T[] | undefined,
   warningMessage?: string,
@@ -72,9 +80,9 @@ function useStableArrayProp<T>(
 export const AjoraProvider: React.FC<AjoraProviderProps> = ({
   children,
   runtimeUrl,
-  headers = {},
-  properties = {},
-  agents__unsafe_dev_only: agents = {},
+  headers = EMPTY_HEADERS,
+  properties = EMPTY_PROPERTIES,
+  agents__unsafe_dev_only: agents = EMPTY_AGENTS,
   renderToolCalls,
   renderActivityMessages,
   renderCustomMessages,
@@ -82,6 +90,14 @@ export const AjoraProvider: React.FC<AjoraProviderProps> = ({
   humanInTheLoop,
   useSingleEndpoint = false,
 }) => {
+  // DEBUG: provider render counter
+  const providerRenderRef = useRef(0);
+  providerRenderRef.current++;
+  const pr = providerRenderRef.current;
+  if (pr <= 3 || pr === 10 || pr === 50 || pr % 100 === 0) {
+    console.log(`[AjoraProvider render #${pr}]`);
+  }
+
   const renderToolCallsList = useStableArrayProp<ReactToolCallRenderer<any>>(
     renderToolCalls,
     "renderToolCalls must be a stable array. If you want to dynamically add or remove tools, use `useFrontendTool` instead.",
@@ -214,11 +230,12 @@ export const AjoraProvider: React.FC<AjoraProviderProps> = ({
     useSingleEndpoint,
   ]);
 
-  const [, forceUpdate] = useReducer((x) => x + 1, 0);
+  const [providerForceCount, forceUpdate] = useReducer((x) => x + 1, 0);
 
   useEffect(() => {
     const subscription = ajora.subscribe({
       onRenderToolCallsChanged: () => {
+        console.log("[AjoraProvider] onRenderToolCallsChanged → forceUpdate");
         forceUpdate();
       },
     });
@@ -257,7 +274,10 @@ export const AjoraProvider: React.FC<AjoraProviderProps> = ({
     };
   }, [ajora]);
 
+  const configSyncCountRef = useRef(0);
   useEffect(() => {
+    configSyncCountRef.current++;
+    console.log(`[AjoraProvider] config-sync effect #${configSyncCountRef.current}`);
     ajora.setRuntimeUrl(chatApiEndpoint);
     ajora.setRuntimeTransport(useSingleEndpoint ? "single" : "rest");
     ajora.setHeaders(headers);
@@ -265,17 +285,19 @@ export const AjoraProvider: React.FC<AjoraProviderProps> = ({
     ajora.setAgents__unsafe_dev_only(agents);
   }, [chatApiEndpoint, headers, properties, agents, useSingleEndpoint]);
 
+  const contextValue = useMemo<AjoraContextValue>(
+    () => ({ ajora, executingToolCallIds }),
+    [ajora, executingToolCallIds],
+  );
+
   return (
-    <AjoraContext.Provider
-      value={{
-        ajora,
-        executingToolCallIds,
-      }}
-    >
+    <AjoraContext.Provider value={contextValue}>
       {children}
     </AjoraContext.Provider>
   );
 };
+
+const _useAjoraRenderCounts = new Map<string, number>();
 
 export const useAjora = (): AjoraContextValue => {
   const context = useContext(AjoraContext);
@@ -284,9 +306,23 @@ export const useAjora = (): AjoraContextValue => {
   if (!context) {
     throw new Error("useAjora must be used within AjoraProvider");
   }
+
+  // DEBUG: track renders per caller
+  const callerRef = useRef<string>("");
+  if (!callerRef.current) {
+    callerRef.current = new Error().stack?.split("\n")[2]?.trim().slice(0, 60) ?? "unknown";
+  }
+  const countRef = useRef(0);
+  countRef.current++;
+  const c = countRef.current;
+  if (c <= 3 || c === 10 || c === 50 || c % 100 === 0) {
+    console.log(`[useAjora #${c}] ${callerRef.current}`);
+  }
+
   useEffect(() => {
     const subscription = context.ajora.subscribe({
-      onRuntimeConnectionStatusChanged: () => {
+      onRuntimeConnectionStatusChanged: ({ status }) => {
+        console.log(`[useAjora] onRuntimeConnectionStatusChanged → ${status}, forcing update`);
         forceUpdate();
       },
     });

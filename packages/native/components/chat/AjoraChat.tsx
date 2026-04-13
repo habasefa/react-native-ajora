@@ -89,6 +89,14 @@ export function AjoraChat({
   starterSuggestions,
   ...props
 }: AjoraChatProps) {
+  // DEBUG: render counter
+  const chatRenderRef = React.useRef(0);
+  chatRenderRef.current++;
+  const cr = chatRenderRef.current;
+  if (cr <= 5 || cr === 10 || cr === 25 || cr === 50 || cr % 100 === 0) {
+    console.log(`[AjoraChat render #${cr}] agentId=${agentId} modelId=${modelId} threadId=${threadId}`);
+  }
+
   // Check for existing configuration provider
   const existingConfig = useAjoraChatConfiguration();
 
@@ -185,7 +193,14 @@ export function AjoraChat({
     return { type: "runtime", message: errorMessage, code: errorCode, details };
   }, []);
 
+  const modelSelectCountRef = React.useRef(0);
   useEffect(() => {
+    modelSelectCountRef.current++;
+    console.log(
+      `[AjoraChat] model-select effect #${modelSelectCountRef.current} ` +
+      `modelId=${modelId} resolvedModelId=${resolvedModelId} ` +
+      `selectedModelId=${providedInputProps?.selectedModelId}`
+    );
     if (
       (!modelId || modelId === "default") &&
       resolvedModelId &&
@@ -196,38 +211,67 @@ export function AjoraChat({
           (m) => m.id === resolvedModelId,
         );
         if (fallbackModel) {
+          console.log(`[AjoraChat] auto-selecting model: ${fallbackModel.id}`);
           providedInputProps.onModelSelect(fallbackModel);
         }
       }
     }
+  // NOTE: `ajora.models` is intentionally excluded — it's a getter whose
+  // reference changes whenever the internal array is replaced.
+  // `resolvedModelId` already depends on `ajora.models` via its own useMemo,
+  // so changes propagate through `resolvedModelId` without needing the
+  // unstable getter here.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     modelId,
     resolvedModelId,
-    ajora.models,
     providedInputProps?.selectedModelId,
     providedInputProps?.onModelSelect,
   ]);
 
+  // Use a ref for resolvedModelId so the connect effect reads the latest
+  // value without re-firing when the user picks a different model. Model
+  // changes only matter for `runAgent`, not `connectAgent`.
+  const resolvedModelIdRef = React.useRef(resolvedModelId);
+  resolvedModelIdRef.current = resolvedModelId;
+
+  const connectCountRef = React.useRef(0);
   useEffect(() => {
-    // Guard against the common "provisional agent is still the stand-in"
-    // case: if the real agent for `resolvedAgentId` isn't in the registry
-    // yet (runtime `/info` hasn't resolved), skip this run — a subsequent
-    // render, triggered by `onAgentsChanged`, will retry against the real
-    // agent. Without this gate, we'd fire `connectAgent` against a short-
-    // lived provisional, then fire it AGAIN against the real agent on the
-    // very next render, racing two HTTP requests for the same thread.
+    connectCountRef.current++;
     const knownAgents = Object.keys(ajora.agents ?? {});
     const isRegistered = knownAgents.includes(resolvedAgentId);
+    console.log(
+      `[AjoraChat] connect effect #${connectCountRef.current} ` +
+      `agentId=${resolvedAgentId} threadId=${resolvedThreadId} ` +
+      `knownAgents=[${knownAgents}] isRegistered=${isRegistered}`
+    );
     if (!isRegistered && knownAgents.length === 0 && ajora.runtimeUrl) {
-      // Runtime is configured but hasn't finished its initial fetch yet.
-      // Bail out and wait for the agents map to populate.
+      console.log("[AjoraChat] connect effect: bailing — agents not populated yet");
       return;
     }
 
     let cancelled = false;
+
+    // EVENT LOOP PROBE: if the JS thread is blocked synchronously after this
+    // point, this timeout will never fire.
+    const probeTimer = setTimeout(() => {
+      console.log("[PROBE] event loop alive after connect effect setup");
+    }, 0);
+    const probeTimer2 = setTimeout(() => {
+      console.log("[PROBE] event loop alive after 500ms");
+    }, 500);
+    const probeTimer3 = setTimeout(() => {
+      console.log("[PROBE] event loop alive after 2000ms");
+    }, 2000);
+
     const connect = async (agent: AbstractAgent) => {
+      console.log(`[AjoraChat] connectAgent START model=${resolvedModelIdRef.current}`);
       try {
-        await ajora.connectAgent({ agent, modelId: resolvedModelId });
+        await ajora.connectAgent({
+          agent,
+          modelId: resolvedModelIdRef.current,
+        });
+        console.log("[AjoraChat] connectAgent DONE");
       } catch (error) {
         if (!cancelled) {
           console.warn("Connect error", error);
@@ -239,6 +283,9 @@ export function AjoraChat({
 
     return () => {
       cancelled = true;
+      clearTimeout(probeTimer);
+      clearTimeout(probeTimer2);
+      clearTimeout(probeTimer3);
       // Detach the active run so the in-flight stream stops pushing events
       // into an agent we're about to swap out. `detachActiveRun` is the
       // ag-ui idiomatic way to cancel a running subscription without
@@ -247,14 +294,22 @@ export function AjoraChat({
         /* swallow: detach races are benign on unmount */
       });
     };
+    // NOTE: resolvedModelId is intentionally excluded — it's read via ref.
+    // Re-connecting on model change is wasteful (model only matters for
+    // runAgent) and causes isRunning to stay true, blocking input.
+    //
+    // NOTE: `ajora.agents` and `ajora.runtimeUrl` are intentionally excluded.
+    // They are getters whose references change when the internal object is
+    // replaced (e.g. after runtime /info). The `agent` dep already captures
+    // the agents-populated transition because useAgent recalculates its memo
+    // on `ajora.agents` change, returning a new (real) agent instance. Adding
+    // the raw getters here creates a duplicate trigger that races the connect.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     resolvedThreadId,
     agent,
     ajora,
     resolvedAgentId,
-    resolvedModelId,
-    ajora.agents,
-    ajora.runtimeUrl,
   ]);
 
   const onSubmitInput = useCallback(

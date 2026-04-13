@@ -41,7 +41,15 @@ export function useAgent({ agentId, updates }: UseAgentProps = {}) {
   agentId ??= DEFAULT_AGENT_ID;
 
   const { ajora } = useAjora();
-  const [, forceUpdate] = useReducer((x) => x + 1, 0);
+  const [forceUpdateCount, forceUpdate] = useReducer((x) => x + 1, 0);
+
+  // DEBUG: track agent renders and forceUpdates
+  const agentRenderRef = useRef(0);
+  agentRenderRef.current++;
+  const rc = agentRenderRef.current;
+  if (rc <= 3 || rc === 10 || rc === 50 || rc % 100 === 0) {
+    console.log(`[useAgent "${agentId}" render #${rc}] forceUpdates=${forceUpdateCount}`);
+  }
 
   // Stabilize the updates array so callers don't need to memoize it.
   const updatesRef = useRef(updates);
@@ -67,6 +75,18 @@ export function useAgent({ agentId, updates }: UseAgentProps = {}) {
     headersRef.current = ajora.headers;
   }
   const stableHeaders = headersRef.current;
+
+  // Stabilize the agents dependency: `ajora.agents` is a getter that returns
+  // the internal `_agents` object. Its *reference* changes whenever the
+  // registry replaces the object (e.g. `setAgents__unsafe_dev_only`,
+  // `updateRuntimeConnection`) even when the *logical content* (set of agent
+  // ids) hasn't changed. Using the raw getter as a useMemo dep causes the
+  // agent memo to recalculate on every such replacement — creating new
+  // provisional or looked-up agent instances — which cascades into the
+  // connect effect and subscription lifecycle. Instead, derive a primitive
+  // string key from the agent ids. The memo only re-fires when agents are
+  // actually added or removed.
+  const agentKeys = Object.keys(ajora.agents ?? {}).sort().join(",");
 
   const agent: AbstractAgent = useMemo(() => {
     const existing = ajora.getAgent(agentId);
@@ -110,7 +130,7 @@ export function useAgent({ agentId, updates }: UseAgentProps = {}) {
     );
   }, [
     agentId,
-    ajora.agents,
+    agentKeys,
     ajora.runtimeConnectionStatus,
     ajora.runtimeUrl,
     ajora.runtimeTransport,
@@ -122,12 +142,17 @@ export function useAgent({ agentId, updates }: UseAgentProps = {}) {
     if (updateFlags.length === 0) {
       return;
     }
+    console.log(`[useAgent "${agentId}"] subscription effect fired, agent.agentId=${agent.agentId}`);
 
+    let msgCount = 0;
     const handlers: Parameters<AbstractAgent["subscribe"]>[0] = {};
 
     if (updateFlags.includes(UseAgentUpdate.OnMessagesChanged)) {
-      // Content stripping for immutableContent renderers is handled by AjoraCoreReact
       handlers.onMessagesChanged = () => {
+        msgCount++;
+        if (msgCount <= 5 || msgCount === 20 || msgCount % 100 === 0) {
+          console.log(`[useAgent "${agentId}"] onMessagesChanged #${msgCount}, isRunning=${agent.isRunning}`);
+        }
         forceUpdate();
         if (
           Haptics.impactAsync &&

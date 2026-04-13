@@ -1,0 +1,8 @@
+{
+  "android": {
+    "package": "com.hab_asefa.examplehono"
+  },
+  "ios": {
+    "bundleIdentifier": "com.hab-asefa.examplehono"
+  }
+}

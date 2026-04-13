@@ -4,6 +4,9 @@ import {
   HttpAgentConfig,
   Message,
   RunAgentInput,
+  RunAgentResult,
+  AgentSubscriber,
+  RunAgentParameters,
   runHttpRequest,
   transformHttpEventStream,
 } from "@ag-ui/client";
@@ -227,6 +230,7 @@ export class ProxiedAjoraRuntimeAgent extends HttpAgent {
   }
 
   connect(input: RunAgentInput): Observable<BaseEvent> {
+    console.log(`[ProxiedAgent.connect] transport=${this.transport} agentId=${this.agentId} url=${this.singleEndpointUrl || this.runtimeUrl}`);
     if (this.transport === "single") {
       if (!this.singleEndpointUrl) {
         throw new Error("Single endpoint transport requires a runtimeUrl");
@@ -239,6 +243,7 @@ export class ProxiedAjoraRuntimeAgent extends HttpAgent {
           agentId: this.agentId!,
         },
       );
+      console.log(`[ProxiedAgent.connect] calling patchedRunHttpRequest`);
       const httpEvents = patchedRunHttpRequest(
         this.singleEndpointUrl,
         requestInit,
@@ -259,6 +264,21 @@ export class ProxiedAjoraRuntimeAgent extends HttpAgent {
       transformHttpEventStream(httpEvents),
       this.abortController.signal,
     );
+  }
+
+  public async connectAgent(
+    parameters?: RunAgentParameters,
+    subscriber?: AgentSubscriber,
+  ): Promise<RunAgentResult> {
+    console.log(`[ProxiedAgent.connectAgent] START agentId=${this.agentId} threadId=${this.threadId}`);
+    try {
+      const result = await super.connectAgent(parameters, subscriber);
+      console.log(`[ProxiedAgent.connectAgent] DONE`);
+      return result;
+    } catch (error) {
+      console.error(`[ProxiedAgent.connectAgent] ERROR:`, (error as Error)?.message ?? error);
+      throw error;
+    }
   }
 
   public run(input: RunAgentInput): Observable<BaseEvent> {

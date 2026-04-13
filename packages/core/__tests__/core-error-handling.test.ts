@@ -288,6 +288,7 @@ describe("AjoraCore error handling", () => {
         state: {},
         addMessages: (m: any[]) => agent.messages.push(...m),
         addMessage: (m: any) => agent.messages.push(m),
+        setMessages: (m: any[]) => { agent.messages = m; },
         abortRun: () => {},
         clone: () => agent,
         subscribe: () => ({ unsubscribe() {} }),

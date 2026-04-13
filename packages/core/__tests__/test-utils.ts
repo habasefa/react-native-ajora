@@ -27,6 +27,9 @@ export class MockAgent {
       this._parentAgent.addMessage(message);
     }
   });
+  public setMessages = vi.fn((messages: Message[]) => {
+    this.messages = messages;
+  });
   public abortRun = vi.fn();
   public clone = vi.fn(() => this._cloneImpl());
 

@@ -14,6 +14,7 @@ const errJson = (status: number, body: unknown = {}): Response =>
   ({
     ok: false,
     status,
+    headers: new Headers(),
     json: vi.fn().mockResolvedValue(body),
   }) as unknown as Response;
 

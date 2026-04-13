@@ -89,9 +89,14 @@ export function patchedRunHttpRequest(
 ): Observable<HttpEvent> {
   // In React Native, try to use expo/fetch for streaming support
   if (_expoFetch) {
+    console.log(`[patchedRunHttpRequest] using expo/fetch, url=${url.slice(0, 80)}`);
     // Use expo/fetch which supports streaming
-    return defer(() => from(_expoFetch(url, requestInit))).pipe(
+    return defer(() => {
+      console.log(`[patchedRunHttpRequest] fetch START`);
+      return from(_expoFetch(url, requestInit));
+    }).pipe(
       switchMap((response) => {
+        console.log(`[patchedRunHttpRequest] fetch response status=${response.status} ok=${response.ok}`);
         if (!response.ok) {
           const contentType = response.headers.get("content-type") || "";
           return from(response.text()).pipe(
@@ -169,21 +174,32 @@ export function patchedRunHttpRequest(
         }
 
         return new Observable<HttpEvent>((subscriber) => {
+          console.log(`[patchedRunHttpRequest] observable subscribed, emitting headers`);
           subscriber.next(headersEvent);
 
           (async () => {
             try {
+              let chunkCount = 0;
               while (true) {
                 const { done, value } = await reader.read();
-                if (done) break;
+                if (done) {
+                  console.log(`[patchedRunHttpRequest] stream done after ${chunkCount} chunks`);
+                  break;
+                }
+                chunkCount++;
+                if (chunkCount <= 5) {
+                  console.log(`[patchedRunHttpRequest] chunk #${chunkCount} size=${value?.length ?? 0}`);
+                }
                 const dataEvent: HttpEvent = {
                   type: HttpEventType.DATA,
                   data: value,
                 };
                 subscriber.next(dataEvent);
               }
+              console.log(`[patchedRunHttpRequest] calling subscriber.complete()`);
               subscriber.complete();
             } catch (error) {
+              console.error(`[patchedRunHttpRequest] stream error:`, error);
               subscriber.error(error);
             }
           })();
@@ -204,5 +220,6 @@ export function patchedRunHttpRequest(
   }
 
   // Not in React Native or expo/fetch not available, use original implementation
+  console.warn(`[patchedRunHttpRequest] FALLBACK to original (isRN=${_isReactNative}, expoFetch=${!!_expoFetch})`);
   return originalRunHttpRequest(url, requestInit);
 }

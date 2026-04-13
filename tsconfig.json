@@ -39,9 +39,7 @@
   "include": [
     "legacy",
     "packages",
-    "./types.d.ts",
-    "legacy/richText/RichText.tsx",
-    "legacy/richText/markdownStyle.tsx"
+    "./types.d.ts"
   ],
   "exclude": ["node_modules", "legacy/__tests__", "example/node_modules", "lib"]
 }

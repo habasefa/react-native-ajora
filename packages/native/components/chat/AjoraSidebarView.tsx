@@ -9,7 +9,6 @@ import {
 } from "react-native";
 import BottomSheet, {
   BottomSheetBackdrop,
-  BottomSheetView,
   type BottomSheetBackdropProps,
 } from "@gorhom/bottom-sheet";
 import { Ionicons } from "@expo/vector-icons";
@@ -46,24 +45,26 @@ function CollapsedInputBar({
   return (
     <Pressable
       onPress={onPress}
-      style={[
-        styles.collapsedBar,
-        {
-          backgroundColor: theme.colors.inputBackground,
-          borderColor: theme.colors.border,
-        },
-      ]}
+      style={styles.collapsedBar}
       accessibilityRole="button"
       accessibilityHint="Tap to open chat"
     >
-      <Ionicons
-        name="chatbubble-outline"
-        size={18}
-        color={theme.colors.placeholder}
-      />
-      <Text style={[styles.collapsedPlaceholder, { color: theme.colors.placeholder }]}>
-        {placeholder ?? "Ask a question..."}
-      </Text>
+      <View
+        style={[
+          styles.collapsedInput,
+          {
+            backgroundColor: theme.colors.inputBackground,
+            borderColor: theme.colors.border,
+          },
+        ]}
+      >
+        <Text style={[styles.collapsedPlaceholder, { color: theme.colors.placeholder }]}>
+          {placeholder ?? "Ask a question..."}
+        </Text>
+        <View style={[styles.collapsedSendButton, { backgroundColor: theme.colors.primary }]}>
+          <Ionicons name="arrow-up" size={18} color="#fff" />
+        </View>
+      </View>
     </Pressable>
   );
 }
@@ -72,7 +73,7 @@ function CollapsedInputBar({
 // AjoraSidebarView
 // ============================================================================
 
-const SNAP_POINTS = [80, "95%"];
+const SNAP_POINTS = ["95%"];
 
 export function AjoraSidebarView({
   header,
@@ -87,15 +88,19 @@ export function AjoraSidebarView({
 
   const bottomSheetRef = useRef<BottomSheet>(null);
 
-  // Sync configuration state → sheet snap index
+  // Sync configuration state → sheet
   useEffect(() => {
-    bottomSheetRef.current?.snapToIndex(isOpen ? 1 : 0);
+    if (isOpen) {
+      bottomSheetRef.current?.snapToIndex(0);
+    } else {
+      bottomSheetRef.current?.close();
+    }
   }, [isOpen]);
 
-  // Sync sheet snap index → configuration state
+  // Sync sheet state → configuration state
   const handleSheetChange = useCallback(
     (index: number) => {
-      const expanded = index === 1;
+      const expanded = index === 0;
       if (expanded !== isOpen) {
         setModalOpen?.(expanded);
       }
@@ -112,49 +117,51 @@ export function AjoraSidebarView({
     (backdropProps: BottomSheetBackdropProps) => (
       <BottomSheetBackdrop
         {...backdropProps}
-        disappearsOnIndex={0}
-        appearsOnIndex={1}
+        disappearsOnIndex={-1}
+        appearsOnIndex={0}
         opacity={0.5}
-        pressBehavior="collapse"
+        pressBehavior="close"
       />
     ),
     [],
   );
 
   return (
-    <BottomSheet
-      ref={bottomSheetRef}
-      index={isOpen ? 1 : 0}
-      snapPoints={SNAP_POINTS}
-      onChange={handleSheetChange}
-      backdropComponent={renderBackdrop}
-      enablePanDownToClose={false}
-      handleIndicatorStyle={{ backgroundColor: theme.colors.border }}
-      backgroundStyle={[
-        styles.sheetBackground,
-        { backgroundColor: theme.colors.surface },
-      ]}
-      keyboardBehavior="interactive"
-      keyboardBlurBehavior="restore"
-      android_keyboardInputMode="adjustResize"
-      style={style}
-    >
-      <BottomSheetView style={styles.sheetContent}>
-        {!isOpen ? (
+    <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
+      {!isOpen && (
+        <View style={styles.collapsedBarWrapper} pointerEvents="box-none">
           <CollapsedInputBar
             placeholder={collapsedPlaceholder}
             onPress={() => setModalOpen?.(true)}
           />
-        ) : (
-          <View style={styles.expandedContainer}>
-            {headerElement}
-            <View style={styles.chatContainer}>
-              <AjoraChatView {...props} style={styles.chatView} />
-            </View>
+        </View>
+      )}
+      <BottomSheet
+        ref={bottomSheetRef}
+        index={-1}
+        snapPoints={SNAP_POINTS}
+        onChange={handleSheetChange}
+        backdropComponent={renderBackdrop}
+        enablePanDownToClose={true}
+        enableDynamicSizing={false}
+        handleIndicatorStyle={{ backgroundColor: theme.colors.border }}
+        backgroundStyle={[
+          styles.sheetBackground,
+          { backgroundColor: theme.colors.surface },
+        ]}
+        keyboardBehavior="interactive"
+        keyboardBlurBehavior="restore"
+        android_keyboardInputMode="adjustResize"
+        style={style}
+      >
+        <View style={styles.expandedContainer}>
+          {headerElement}
+          <View style={styles.chatContainer}>
+            <AjoraChatView {...props} style={styles.chatView} />
           </View>
-        )}
-      </BottomSheetView>
-    </BottomSheet>
+        </View>
+      </BottomSheet>
+    </View>
   );
 }
 
@@ -167,21 +174,37 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,
   },
-  sheetContent: {
-    flex: 1,
+  collapsedBarWrapper: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    zIndex: 1,
   },
   collapsedBar: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    paddingBottom: 12,
+  },
+  collapsedInput: {
     flexDirection: "row",
     alignItems: "center",
-    marginHorizontal: 16,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 24,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 22,
     borderWidth: 1,
-    gap: 8,
   },
   collapsedPlaceholder: {
+    flex: 1,
     fontSize: 15,
+  },
+  collapsedSendButton: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    alignItems: "center",
+    justifyContent: "center",
+    marginLeft: 8,
   },
   expandedContainer: {
     flex: 1,

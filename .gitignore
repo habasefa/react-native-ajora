@@ -35,5 +35,5 @@ example-server/.env
 *.db
 **/*.db
 
-example-hono/android/
-example-hono/ios/
+example-app/android/
+example-app/ios/

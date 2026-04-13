@@ -43,14 +43,6 @@ export function useAgent({ agentId, updates }: UseAgentProps = {}) {
   const { ajora } = useAjora();
   const [forceUpdateCount, forceUpdate] = useReducer((x) => x + 1, 0);
 
-  // DEBUG: track agent renders and forceUpdates
-  const agentRenderRef = useRef(0);
-  agentRenderRef.current++;
-  const rc = agentRenderRef.current;
-  if (rc <= 3 || rc === 10 || rc === 50 || rc % 100 === 0) {
-    console.log(`[useAgent "${agentId}" render #${rc}] forceUpdates=${forceUpdateCount}`);
-  }
-
   // Stabilize the updates array so callers don't need to memoize it.
   const updatesRef = useRef(updates);
   const updatesJson = JSON.stringify(updates);
@@ -142,17 +134,11 @@ export function useAgent({ agentId, updates }: UseAgentProps = {}) {
     if (updateFlags.length === 0) {
       return;
     }
-    console.log(`[useAgent "${agentId}"] subscription effect fired, agent.agentId=${agent.agentId}`);
-
     let msgCount = 0;
     const handlers: Parameters<AbstractAgent["subscribe"]>[0] = {};
 
     if (updateFlags.includes(UseAgentUpdate.OnMessagesChanged)) {
       handlers.onMessagesChanged = () => {
-        msgCount++;
-        if (msgCount <= 5 || msgCount === 20 || msgCount % 100 === 0) {
-          console.log(`[useAgent "${agentId}"] onMessagesChanged #${msgCount}, isRunning=${agent.isRunning}`);
-        }
         forceUpdate();
         if (
           Haptics.impactAsync &&

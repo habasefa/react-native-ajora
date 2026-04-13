@@ -3,10 +3,10 @@
  */
 import React from "react";
 import { render, cleanup } from "@testing-library/react";
-import { useAgentContext, type AgentContextInput } from "../hooks/use-agent-context";
-import { useAjora } from "../providers/AjoraProvider";
+import { useAgentContext, type AgentContextInput } from "../use-agent-context";
+import { useAjora } from "../../providers/AjoraProvider";
 
-vi.mock("../providers/AjoraProvider", () => ({
+vi.mock("../../providers/AjoraProvider", () => ({
   useAjora: vi.fn(),
 }));
 

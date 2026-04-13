@@ -3,15 +3,15 @@
  */
 import React from "react";
 import { render, cleanup, act } from "@testing-library/react";
-import { useHistory } from "../hooks/use-history";
-import { useAjora } from "../providers/AjoraProvider";
-import { useAgent } from "../hooks/use-agent";
+import { useHistory } from "../use-history";
+import { useAjora } from "../../providers/AjoraProvider";
+import { useAgent } from "../use-agent";
 
-vi.mock("../providers/AjoraProvider", () => ({
+vi.mock("../../providers/AjoraProvider", () => ({
   useAjora: vi.fn(),
 }));
 
-vi.mock("../hooks/use-agent", () => ({
+vi.mock("../use-agent", () => ({
   useAgent: vi.fn(),
 }));
 

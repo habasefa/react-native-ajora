@@ -3,11 +3,11 @@
  */
 import React from "react";
 import { render, cleanup } from "@testing-library/react";
-import { useFrontendTool } from "../hooks/use-frontend-tool";
-import { useAjora } from "../providers/AjoraProvider";
+import { useFrontendTool } from "../use-frontend-tool";
+import { useAjora } from "../../providers/AjoraProvider";
 import { z } from "zod";
 
-vi.mock("../providers/AjoraProvider", () => ({
+vi.mock("../../providers/AjoraProvider", () => ({
   useAjora: vi.fn(),
 }));
 

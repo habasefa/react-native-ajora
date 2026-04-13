@@ -3,16 +3,16 @@
  */
 import React from "react";
 import { render, cleanup, screen } from "@testing-library/react";
-import { useRenderToolCall } from "../hooks/use-render-tool-call";
-import { useAjora } from "../providers/AjoraProvider";
-import { useAjoraChatConfiguration } from "../providers/AjoraChatConfigurationProvider";
-import { ToolCallStatus } from "../../core";
+import { useRenderToolCall } from "../use-render-tool-call";
+import { useAjora } from "../../providers/AjoraProvider";
+import { useAjoraChatConfiguration } from "../../providers/AjoraChatConfigurationProvider";
+import { ToolCallStatus } from "../../../core";
 
-vi.mock("../providers/AjoraProvider", () => ({
+vi.mock("../../providers/AjoraProvider", () => ({
   useAjora: vi.fn(),
 }));
 
-vi.mock("../providers/AjoraChatConfigurationProvider", () => ({
+vi.mock("../../providers/AjoraChatConfigurationProvider", () => ({
   useAjoraChatConfiguration: vi.fn(),
 }));
 

@@ -9,7 +9,7 @@ export default defineConfig({
       "packages/**/__tests__/**/*.{test,spec}.{ts,tsx}",
       "packages/**/*.{test,spec}.{ts,tsx}",
     ],
-    exclude: ["node_modules", "lib", "example-app", "example-hono", "legacy"],
+    exclude: ["node_modules", "lib", "example-app", "legacy"],
     reporters: [["default", { summary: false }]],
     coverage: {
       reporter: ["text", "lcov", "html"],

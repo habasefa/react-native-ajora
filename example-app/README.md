@@ -1,56 +1,54 @@
-# CopilotKit Hono Server Example
+# Example App
 
-A standalone Hono server running CopilotKit runtime with BuiltInAgent.
+A React Native Expo app demonstrating `react-native-ajora` with a [prepx-ai](https://github.com/habasefa/prepx-ai) backend.
+
+## Prerequisites
+
+- Node.js 18+
+- A running prepx-ai server (default: `http://localhost:3000`)
 
 ## Setup
 
-1. Install dependencies:
+1. Start the prepx-ai server:
 
 ```bash
+cd path/to/prepx-ai
+npm run start:dev
+```
+
+2. Install dependencies:
+
+```bash
+cd example-app
 npm install
 ```
 
-2. Set up your API key (choose one):
+3. (Optional) Configure the server URL in `.env`:
 
-```bash
-# OpenAI
-export OPENAI_API_KEY=your_openai_api_key
-
-# Or Anthropic
-export ANTHROPIC_API_KEY=your_anthropic_api_key
-
-# Or Google
-export GOOGLE_API_KEY=your_google_api_key
+```
+EXPO_PUBLIC_RUNTIME_URL=http://localhost:3000/api/copilotkit
 ```
 
-3. Run the server:
+For a physical device, use your machine's LAN IP instead of `localhost`.
+
+4. Run the app:
 
 ```bash
-npm run dev
+# iOS
+npm run ios
+
+# Android
+npm run android
 ```
 
-The server will start on `http://localhost:4000` (or the port specified in `PORT` env var).
+## How it works
 
-## Endpoints
-
-- **Health Check**: `GET http://localhost:4000/`
-- **CopilotKit API**: `POST http://localhost:4000/api/copilotkit`
-
-## Usage with React Native Ajora
-
-Point your `AjoraProvider` to this server:
+The app uses `AjoraProvider` to connect to prepx-ai's Express single-route endpoint (`/api/copilotkit`), then renders `AjoraChat` for a full AI chat experience.
 
 ```tsx
-<AjoraProvider
-  runtimeUrl="http://localhost:4000/api/copilotkit"
-  useSingleEndpoint={true}
->
-  {/* Your app */}
+<AjoraProvider runtimeUrl="http://localhost:3000/api/copilotkit" useSingleEndpoint>
+  <AjoraChat agentId="default" />
 </AjoraProvider>
 ```
 
-## Configuration
-
-- Default port: `4000` (set `PORT` env var to change)
-- Default agent: `default` (using BuiltInAgent)
-- Model selection: Automatically selects based on available API keys (OpenAI > Anthropic > Google)
+Available agents from prepx-ai: `default` (Magnus), `llm`, `study`.

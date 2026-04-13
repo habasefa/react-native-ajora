@@ -3,15 +3,15 @@
  */
 import React from "react";
 import { render, cleanup, act } from "@testing-library/react";
-import { useSuggestions } from "../hooks/use-suggestions";
-import { useAjora } from "../providers/AjoraProvider";
-import { useAjoraChatConfiguration } from "../providers/AjoraChatConfigurationProvider";
+import { useSuggestions } from "../use-suggestions";
+import { useAjora } from "../../providers/AjoraProvider";
+import { useAjoraChatConfiguration } from "../../providers/AjoraChatConfigurationProvider";
 
-vi.mock("../providers/AjoraProvider", () => ({
+vi.mock("../../providers/AjoraProvider", () => ({
   useAjora: vi.fn(),
 }));
 
-vi.mock("../providers/AjoraChatConfigurationProvider", () => ({
+vi.mock("../../providers/AjoraChatConfigurationProvider", () => ({
   useAjoraChatConfiguration: vi.fn(),
 }));
 

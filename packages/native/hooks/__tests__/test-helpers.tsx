@@ -7,12 +7,12 @@
  */
 import React, { ReactNode } from "react";
 import { render, RenderOptions } from "@testing-library/react";
-import { AjoraCoreReact } from "../lib/react-core";
-import { AjoraContextValue } from "../providers/AjoraProvider";
+import { AjoraCoreReact } from "../../lib/react-core";
+import { AjoraContextValue } from "../../providers/AjoraProvider";
 import { AbstractAgent } from "@ag-ui/client";
 
 // Re-export the mock agent from core tests for reuse
-export { MockAgent } from "../../core/__tests__/test-utils";
+export { MockAgent } from "../../../core/__tests__/test-utils";
 
 /**
  * Minimal AjoraContext reproduction for testing hooks outside of

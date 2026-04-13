@@ -1,27 +1,32 @@
 {
-  "name": "example-hono",
-  "type": "module",
+  "name": "example-app",
+  "version": "1.0.0",
+  "main": "expo/AppEntry",
   "scripts": {
-    "dev": "tsx watch src/index.ts",
-    "build": "tsc",
-    "start": "node dist/index.js",
+    "start": "expo start",
     "android": "expo run:android",
     "ios": "expo run:ios"
   },
   "dependencies": {
-    "@copilotkitnext/agent": "^0.0.33",
-    "@copilotkitnext/runtime": "^0.0.33",
-    "@hono/node-server": "^1.19.8",
-    "dotenv": "^17.2.3",
-    "hono": "^4.11.3",
     "expo": "~54.0.31",
     "react": "19.1.0",
-    "react-native": "0.81.5"
+    "react-native": "0.81.5",
+    "react-native-ajora": "file:..",
+    "react-native-safe-area-context": "^5.4.0",
+    "react-native-screens": "^4.11.1",
+    "react-native-reanimated": "^3.17.4",
+    "react-native-keyboard-controller": "^1.16.8",
+    "react-native-svg": "^15.15.1",
+    "@expo/react-native-action-sheet": "^4.1.1",
+    "@expo/vector-icons": "^15.0.0",
+    "@gorhom/bottom-sheet": "^5.2.8",
+    "expo-clipboard": "^8.0.7",
+    "expo-document-picker": "^14.0.7",
+    "expo-image-picker": "^17.0.8",
+    "expo-linking": "^8.0.8"
   },
   "devDependencies": {
-    "@types/node": "^20.11.17",
-    "tsx": "^4.7.1",
+    "@babel/core": "^7.26.10",
     "typescript": "^5.8.3"
-  },
-  "version": "1.0.0"
+  }
 }

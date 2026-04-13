@@ -1,8 +1,14 @@
 {
-  "android": {
-    "package": "com.hab_asefa.examplehono"
-  },
-  "ios": {
-    "bundleIdentifier": "com.hab-asefa.examplehono"
+  "expo": {
+    "name": "example-app",
+    "slug": "example-app",
+    "version": "1.0.0",
+    "scheme": "example-app",
+    "android": {
+      "package": "com.hab_asefa.exampleapp"
+    },
+    "ios": {
+      "bundleIdentifier": "com.hab-asefa.exampleapp"
+    }
   }
 }

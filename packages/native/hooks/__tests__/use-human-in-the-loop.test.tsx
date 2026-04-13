@@ -3,10 +3,10 @@
  */
 import React from "react";
 import { render, cleanup, act } from "@testing-library/react";
-import { useHumanInTheLoop } from "../hooks/use-human-in-the-loop";
-import { useAjora } from "../providers/AjoraProvider";
+import { useHumanInTheLoop } from "../use-human-in-the-loop";
+import { useAjora } from "../../providers/AjoraProvider";
 
-vi.mock("../providers/AjoraProvider", () => ({
+vi.mock("../../providers/AjoraProvider", () => ({
   useAjora: vi.fn(),
 }));
 

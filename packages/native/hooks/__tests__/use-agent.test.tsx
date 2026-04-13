@@ -3,11 +3,11 @@
  */
 import React from "react";
 import { render, cleanup, act } from "@testing-library/react";
-import { useAgent, UseAgentUpdate } from "../hooks/use-agent";
-import { useAjora } from "../providers/AjoraProvider";
-import { AjoraCoreRuntimeConnectionStatus } from "../../core";
+import { useAgent, UseAgentUpdate } from "../use-agent";
+import { useAjora } from "../../providers/AjoraProvider";
+import { AjoraCoreRuntimeConnectionStatus } from "../../../core";
 
-vi.mock("../providers/AjoraProvider", () => ({
+vi.mock("../../providers/AjoraProvider", () => ({
   useAjora: vi.fn(),
 }));
 
@@ -96,9 +96,41 @@ describe("useAgent", () => {
         },
       });
 
-      expect(() => render(<TestComponent agentId="unknown" />)).toThrow(
-        /Agent 'unknown' not found/,
+      let caughtError: Error | null = null;
+
+      class ErrorCatcher extends React.Component<
+        { children: React.ReactNode },
+        { hasError: boolean }
+      > {
+        state = { hasError: false };
+        static getDerivedStateFromError(error: Error) {
+          caughtError = error;
+          return { hasError: true };
+        }
+        render() {
+          return this.state.hasError ? null : this.props.children;
+        }
+      }
+
+      // Suppress ALL error output from this render:
+      // 1. console.error — React's own "The above error occurred…" messages
+      // 2. stderr — jsdom's virtualConsole prints the invokeGuardedCallbackDev
+      //    fake-event error via process.stderr before any JS handler runs
+      const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+      const origStderrWrite = process.stderr.write;
+      process.stderr.write = (() => true) as typeof process.stderr.write;
+
+      render(
+        <ErrorCatcher>
+          <TestComponent agentId="unknown" />
+        </ErrorCatcher>,
       );
+
+      process.stderr.write = origStderrWrite;
+      errorSpy.mockRestore();
+
+      expect(caughtError).not.toBeNull();
+      expect(caughtError!.message).toMatch(/Agent 'unknown' not found/);
     });
 
     it("creates provisional agent when runtime is connecting", () => {

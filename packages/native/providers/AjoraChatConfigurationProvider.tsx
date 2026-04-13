@@ -61,7 +61,6 @@ export interface AjoraChatConfigurationValue {
   threadId: string;
   modelId: string;
 
-  isModalDefaultOpen: boolean;
   isModalOpen: boolean;
   setModalOpen: (open: boolean) => void;
 }
@@ -111,11 +110,8 @@ export const AjoraChatConfigurationProvider: React.FC<
     return randomUUID();
   }, [threadId, parentConfig?.threadId]);
 
-  const resolvedDefaultOpen =
-    isModalDefaultOpen ?? parentConfig?.isModalDefaultOpen ?? true;
-
   const [internalModalOpen, setInternalModalOpen] = useState<boolean>(
-    parentConfig?.isModalOpen ?? resolvedDefaultOpen,
+    parentConfig?.isModalOpen ?? isModalDefaultOpen ?? true,
   );
 
   const resolvedIsModalOpen = parentConfig?.isModalOpen ?? internalModalOpen;
@@ -130,7 +126,6 @@ export const AjoraChatConfigurationProvider: React.FC<
       modelId: resolvedModelId,
       isModalOpen: resolvedIsModalOpen,
       setModalOpen: resolvedSetModalOpen,
-      isModalDefaultOpen: resolvedDefaultOpen,
     }),
     [
       mergedLabels,
@@ -139,7 +134,6 @@ export const AjoraChatConfigurationProvider: React.FC<
       resolvedModelId,
       resolvedIsModalOpen,
       resolvedSetModalOpen,
-      resolvedDefaultOpen,
     ],
   );
 

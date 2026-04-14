@@ -41,7 +41,7 @@ export function useAgent({ agentId, updates }: UseAgentProps = {}) {
   agentId ??= DEFAULT_AGENT_ID;
 
   const { ajora } = useAjora();
-  const [forceUpdateCount, forceUpdate] = useReducer((x) => x + 1, 0);
+  const [, forceUpdate] = useReducer((x) => x + 1, 0);
 
   // Stabilize the updates array so callers don't need to memoize it.
   const updatesRef = useRef(updates);
@@ -134,7 +134,6 @@ export function useAgent({ agentId, updates }: UseAgentProps = {}) {
     if (updateFlags.length === 0) {
       return;
     }
-    let msgCount = 0;
     const handlers: Parameters<AbstractAgent["subscribe"]>[0] = {};
 
     if (updateFlags.includes(UseAgentUpdate.OnMessagesChanged)) {
@@ -151,17 +150,27 @@ export function useAgent({ agentId, updates }: UseAgentProps = {}) {
     }
 
     if (updateFlags.includes(UseAgentUpdate.OnStateChanged)) {
-      handlers.onStateChanged = forceUpdate;
+      handlers.onStateChanged = () => {
+        forceUpdate();
+      };
     }
 
     if (updateFlags.includes(UseAgentUpdate.OnRunStatusChanged)) {
-      handlers.onRunInitialized = forceUpdate;
-      handlers.onRunFinalized = forceUpdate;
-      handlers.onRunFailed = forceUpdate;
+      handlers.onRunInitialized = () => {
+        forceUpdate();
+      };
+      handlers.onRunFinalized = () => {
+        forceUpdate();
+      };
+      handlers.onRunFailed = () => {
+        forceUpdate();
+      };
     }
 
     const subscription = agent.subscribe(handlers);
-    return () => subscription.unsubscribe();
+    return () => {
+      subscription.unsubscribe();
+    };
   }, [agent, forceUpdate, updateFlags]);
 
   return {

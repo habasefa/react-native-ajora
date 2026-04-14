@@ -89,14 +89,6 @@ export function AjoraChat({
   starterSuggestions,
   ...props
 }: AjoraChatProps) {
-  // DEBUG: render counter
-  const chatRenderRef = React.useRef(0);
-  chatRenderRef.current++;
-  const cr = chatRenderRef.current;
-  if (cr <= 5 || cr === 10 || cr === 25 || cr === 50 || cr % 100 === 0) {
-    console.log(`[AjoraChat render #${cr}] agentId=${agentId} modelId=${modelId} threadId=${threadId}`);
-  }
-
   // Check for existing configuration provider
   const existingConfig = useAjoraChatConfiguration();
 
@@ -193,14 +185,7 @@ export function AjoraChat({
     return { type: "runtime", message: errorMessage, code: errorCode, details };
   }, []);
 
-  const modelSelectCountRef = React.useRef(0);
   useEffect(() => {
-    modelSelectCountRef.current++;
-    console.log(
-      `[AjoraChat] model-select effect #${modelSelectCountRef.current} ` +
-      `modelId=${modelId} resolvedModelId=${resolvedModelId} ` +
-      `selectedModelId=${providedInputProps?.selectedModelId}`
-    );
     if (
       (!modelId || modelId === "default") &&
       resolvedModelId &&
@@ -211,7 +196,6 @@ export function AjoraChat({
           (m) => m.id === resolvedModelId,
         );
         if (fallbackModel) {
-          console.log(`[AjoraChat] auto-selecting model: ${fallbackModel.id}`);
           providedInputProps.onModelSelect(fallbackModel);
         }
       }
@@ -235,43 +219,23 @@ export function AjoraChat({
   const resolvedModelIdRef = React.useRef(resolvedModelId);
   resolvedModelIdRef.current = resolvedModelId;
 
-  const connectCountRef = React.useRef(0);
   useEffect(() => {
-    connectCountRef.current++;
     const knownAgents = Object.keys(ajora.agents ?? {});
     const isRegistered = knownAgents.includes(resolvedAgentId);
-    console.log(
-      `[AjoraChat] connect effect #${connectCountRef.current} ` +
-      `agentId=${resolvedAgentId} threadId=${resolvedThreadId} ` +
-      `knownAgents=[${knownAgents}] isRegistered=${isRegistered}`
-    );
     if (!isRegistered && knownAgents.length === 0 && ajora.runtimeUrl) {
-      console.log("[AjoraChat] connect effect: bailing — agents not populated yet");
+      // Agents not populated yet — the effect will re-fire when they arrive
+      // (via the `agent` dep flipping from provisional to real).
       return;
     }
 
     let cancelled = false;
 
-    // EVENT LOOP PROBE: if the JS thread is blocked synchronously after this
-    // point, this timeout will never fire.
-    const probeTimer = setTimeout(() => {
-      console.log("[PROBE] event loop alive after connect effect setup");
-    }, 0);
-    const probeTimer2 = setTimeout(() => {
-      console.log("[PROBE] event loop alive after 500ms");
-    }, 500);
-    const probeTimer3 = setTimeout(() => {
-      console.log("[PROBE] event loop alive after 2000ms");
-    }, 2000);
-
     const connect = async (agent: AbstractAgent) => {
-      console.log(`[AjoraChat] connectAgent START model=${resolvedModelIdRef.current}`);
       try {
         await ajora.connectAgent({
           agent,
           modelId: resolvedModelIdRef.current,
         });
-        console.log("[AjoraChat] connectAgent DONE");
       } catch (error) {
         if (!cancelled) {
           console.warn("Connect error", error);
@@ -283,9 +247,6 @@ export function AjoraChat({
 
     return () => {
       cancelled = true;
-      clearTimeout(probeTimer);
-      clearTimeout(probeTimer2);
-      clearTimeout(probeTimer3);
       // Detach the active run so the in-flight stream stops pushing events
       // into an agent we're about to swap out. `detachActiveRun` is the
       // ag-ui idiomatic way to cancel a running subscription without

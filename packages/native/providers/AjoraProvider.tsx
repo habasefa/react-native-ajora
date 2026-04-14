@@ -9,7 +9,10 @@ import React, {
   useState,
 } from "react";
 import { z } from "zod";
-import { FrontendTool } from "../../core";
+import {
+  AjoraCoreRuntimeConnectionStatus,
+  FrontendTool,
+} from "../../core";
 import { AbstractAgent } from "@ag-ui/client";
 import { AjoraCoreReact } from "../lib/react-core";
 import {
@@ -24,6 +27,13 @@ import {
 export interface AjoraContextValue {
   ajora: AjoraCoreReact;
   executingToolCallIds: ReadonlySet<string>;
+  /**
+   * Runtime connection status mirrored into React state so consumers get a
+   * single, batched re-render when the status changes — instead of each
+   * `useAjora()` caller opening its own subscription (which previously
+   * produced one forceUpdate per consumer per status change).
+   */
+  runtimeConnectionStatus: AjoraCoreRuntimeConnectionStatus;
 }
 
 const AjoraContext = createContext<AjoraContextValue | null>(null);
@@ -229,6 +239,29 @@ export const AjoraProvider: React.FC<AjoraProviderProps> = ({
     };
   }, [ajora]);
 
+  // Mirror the runtime connection status into React state. A single
+  // subscription here replaces one-per-consumer subscriptions inside
+  // `useAjora()`; with ~8-14 hooks pulling the context on a typical screen,
+  // that change collapses tens of forceUpdates per status transition into a
+  // single context-driven render pass.
+  const [runtimeConnectionStatus, setRuntimeConnectionStatus] =
+    useState<AjoraCoreRuntimeConnectionStatus>(
+      () => ajora.runtimeConnectionStatus,
+    );
+
+  useEffect(() => {
+    // Sync once in case the status changed between construction and mount.
+    setRuntimeConnectionStatus(ajora.runtimeConnectionStatus);
+    const subscription = ajora.subscribe({
+      onRuntimeConnectionStatusChanged: ({ status }) => {
+        setRuntimeConnectionStatus(status);
+      },
+    });
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [ajora]);
+
   const [executingToolCallIds, setExecutingToolCallIds] = useState<
     ReadonlySet<string>
   >(() => new Set());
@@ -267,8 +300,8 @@ export const AjoraProvider: React.FC<AjoraProviderProps> = ({
   }, [chatApiEndpoint, headers, properties, agents, useSingleEndpoint]);
 
   const contextValue = useMemo<AjoraContextValue>(
-    () => ({ ajora, executingToolCallIds }),
-    [ajora, executingToolCallIds],
+    () => ({ ajora, executingToolCallIds, runtimeConnectionStatus }),
+    [ajora, executingToolCallIds, runtimeConnectionStatus],
   );
 
   return (
@@ -280,20 +313,11 @@ export const AjoraProvider: React.FC<AjoraProviderProps> = ({
 
 export const useAjora = (): AjoraContextValue => {
   const context = useContext(AjoraContext);
-  const [, forceUpdate] = useReducer((x) => x + 1, 0);
-
   if (!context) {
     throw new Error("useAjora must be used within AjoraProvider");
   }
-
-  useEffect(() => {
-    const subscription = context.ajora.subscribe({
-      onRuntimeConnectionStatusChanged: () => forceUpdate(),
-    });
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, [context.ajora]);
-
+  // Runtime-status-driven re-renders now flow through context (the provider
+  // subscribes once and updates state). Consumers just read context — no
+  // per-hook subscription needed.
   return context;
 };

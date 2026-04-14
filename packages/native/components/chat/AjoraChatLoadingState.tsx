@@ -3,7 +3,7 @@ import * as React from "react";
 import { useEffect, useRef } from "react";
 import {
   View,
-  Text,
+  Text as RnText,
   StyleSheet,
   StyleProp,
   ViewStyle,
@@ -350,7 +350,7 @@ export namespace AjoraChatLoadingState {
   export const Text: React.FC<AjoraChatLoadingStateTextProps> = ({
     children,
     style,
-  }) => <Text style={[styles.text, style]}>{children}</Text>;
+  }) => <RnText style={[styles.text, style]}>{children}</RnText>;
 }
 
 // ============================================================================

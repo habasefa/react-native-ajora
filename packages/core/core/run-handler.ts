@@ -141,10 +141,7 @@ export class RunHandler {
     modelId,
   }: AjoraCoreConnectAgentParams): Promise<RunAgentResult> {
     try {
-      console.log(`[RunHandler.connectAgent] START agentId=${agent.agentId} modelId=${modelId}`);
-      console.log(`[RunHandler.connectAgent] detachActiveRun...`);
       await agent.detachActiveRun();
-      console.log(`[RunHandler.connectAgent] detachActiveRun DONE`);
       agent.setState({});
 
       if (agent instanceof HttpAgent) {
@@ -153,7 +150,6 @@ export class RunHandler {
         };
       }
 
-      console.log(`[RunHandler.connectAgent] calling agent.connectAgent...`);
       const runAgentResult = await agent.connectAgent(
         {
           forwardedProps: {
@@ -164,11 +160,9 @@ export class RunHandler {
         },
         this.createAgentErrorSubscriber(agent),
       );
-      console.log(`[RunHandler.connectAgent] agent.connectAgent resolved`);
 
       return this.processAgentResult({ runAgentResult, agent });
     } catch (error) {
-      console.error(`[RunHandler.connectAgent] ERROR:`, error);
       const connectError =
         error instanceof Error ? error : new Error(String(error));
       const context: Record<string, any> = {};

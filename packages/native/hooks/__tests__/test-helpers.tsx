@@ -9,6 +9,7 @@ import React, { ReactNode } from "react";
 import { render, RenderOptions } from "@testing-library/react";
 import { AjoraCoreReact } from "../../lib/react-core";
 import { AjoraContextValue } from "../../providers/AjoraProvider";
+import { AjoraCoreRuntimeConnectionStatus } from "../../../core";
 import { AbstractAgent } from "@ag-ui/client";
 
 // Re-export the mock agent from core tests for reuse
@@ -21,6 +22,7 @@ export { MockAgent } from "../../../core/__tests__/test-utils";
 const AjoraContext = React.createContext<AjoraContextValue>({
   ajora: null!,
   executingToolCallIds: new Set(),
+  runtimeConnectionStatus: AjoraCoreRuntimeConnectionStatus.Disconnected,
 });
 
 /** Re-export so hooks can resolve via the same reference. */
@@ -49,7 +51,13 @@ export function renderWithAjora(
 
   function Wrapper({ children }: { children: ReactNode }) {
     return (
-      <AjoraContext.Provider value={{ ajora, executingToolCallIds }}>
+      <AjoraContext.Provider
+        value={{
+          ajora,
+          executingToolCallIds,
+          runtimeConnectionStatus: ajora.runtimeConnectionStatus,
+        }}
+      >
         {children}
       </AjoraContext.Provider>
     );

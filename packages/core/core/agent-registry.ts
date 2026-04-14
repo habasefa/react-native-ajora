@@ -36,6 +36,16 @@ export class AgentRegistry {
     AjoraCoreRuntimeConnectionStatus.Disconnected;
   private _runtimeTransport: AjoraRuntimeTransport = "rest";
 
+  // Coalescing guard for updateRuntimeConnection. setRuntimeUrl and
+  // setRuntimeTransport are typically called back-to-back in the provider's
+  // config-sync effect — without coalescing they trigger two concurrent
+  // /info fetches and a cascade of status notifications (Disconnected →
+  // Connecting → Connected, twice), each of which wakes every subscriber.
+  // We schedule at most one runtime-connection refresh per microtask and
+  // track the in-flight promise so callers can still await it.
+  private _pendingConnectionUpdate: Promise<void> | null = null;
+  private _connectionUpdateScheduled = false;
+
   constructor(private core: AjoraCore) {}
 
   /**
@@ -97,7 +107,7 @@ export class AgentRegistry {
     }
 
     this._runtimeUrl = normalizedRuntimeUrl;
-    void this.updateRuntimeConnection();
+    this.scheduleRuntimeConnectionUpdate();
   }
 
   setRuntimeTransport(runtimeTransport: AjoraRuntimeTransport): void {
@@ -106,7 +116,32 @@ export class AgentRegistry {
     }
 
     this._runtimeTransport = runtimeTransport;
-    void this.updateRuntimeConnection();
+    this.scheduleRuntimeConnectionUpdate();
+  }
+
+  /**
+   * Coalesce multiple synchronous calls to setRuntimeUrl/setRuntimeTransport
+   * into a single runtime-info fetch. Any call that arrives while one is
+   * already in flight joins the existing promise rather than starting a
+   * second one.
+   */
+  private scheduleRuntimeConnectionUpdate(): void {
+    if (this._connectionUpdateScheduled) {
+      return;
+    }
+    this._connectionUpdateScheduled = true;
+
+    // Defer to a microtask so that a batch of synchronous setters
+    // (setRuntimeUrl + setRuntimeTransport) in the same tick produce a
+    // single updateRuntimeConnection call.
+    queueMicrotask(() => {
+      this._connectionUpdateScheduled = false;
+      this._pendingConnectionUpdate = this.updateRuntimeConnection().finally(
+        () => {
+          this._pendingConnectionUpdate = null;
+        },
+      );
+    });
   }
 
   /**
@@ -208,6 +243,8 @@ export class AgentRegistry {
       return;
     }
 
+    const prevStatus = this._runtimeConnectionStatus;
+
     if (!this.runtimeUrl) {
       this._runtimeConnectionStatus =
         AjoraCoreRuntimeConnectionStatus.Disconnected;
@@ -217,17 +254,25 @@ export class AgentRegistry {
       this._models = [];
       this._extraData = {};
 
-      await this.notifyRuntimeStatusChanged(
-        AjoraCoreRuntimeConnectionStatus.Disconnected,
-      );
+      if (prevStatus !== AjoraCoreRuntimeConnectionStatus.Disconnected) {
+        await this.notifyRuntimeStatusChanged(
+          AjoraCoreRuntimeConnectionStatus.Disconnected,
+        );
+      }
       await this.notifyAgentsChanged();
       return;
     }
 
-    this._runtimeConnectionStatus = AjoraCoreRuntimeConnectionStatus.Connecting;
-    await this.notifyRuntimeStatusChanged(
-      AjoraCoreRuntimeConnectionStatus.Connecting,
-    );
+    if (prevStatus !== AjoraCoreRuntimeConnectionStatus.Connecting) {
+      this._runtimeConnectionStatus =
+        AjoraCoreRuntimeConnectionStatus.Connecting;
+      await this.notifyRuntimeStatusChanged(
+        AjoraCoreRuntimeConnectionStatus.Connecting,
+      );
+    } else {
+      this._runtimeConnectionStatus =
+        AjoraCoreRuntimeConnectionStatus.Connecting;
+    }
 
     try {
       const runtimeInfoResponse = await this.fetchRuntimeInfo();
@@ -255,15 +300,23 @@ export class AgentRegistry {
       this._agents = { ...this.localAgents, ...this.remoteAgents };
       this._models = models ?? [];
       this._extraData = extraData ?? {};
+      const wasConnected =
+        this._runtimeConnectionStatus ===
+        AjoraCoreRuntimeConnectionStatus.Connected;
       this._runtimeConnectionStatus =
         AjoraCoreRuntimeConnectionStatus.Connected;
       this._runtimeVersion = version;
 
-      await this.notifyRuntimeStatusChanged(
-        AjoraCoreRuntimeConnectionStatus.Connected,
-      );
+      if (!wasConnected) {
+        await this.notifyRuntimeStatusChanged(
+          AjoraCoreRuntimeConnectionStatus.Connected,
+        );
+      }
       await this.notifyAgentsChanged();
     } catch (error) {
+      const wasError =
+        this._runtimeConnectionStatus ===
+        AjoraCoreRuntimeConnectionStatus.Error;
       this._runtimeConnectionStatus = AjoraCoreRuntimeConnectionStatus.Error;
       this._runtimeVersion = undefined;
       this.remoteAgents = {};
@@ -271,9 +324,11 @@ export class AgentRegistry {
       this._models = [];
       this._extraData = {};
 
-      await this.notifyRuntimeStatusChanged(
-        AjoraCoreRuntimeConnectionStatus.Error,
-      );
+      if (!wasError) {
+        await this.notifyRuntimeStatusChanged(
+          AjoraCoreRuntimeConnectionStatus.Error,
+        );
+      }
       await this.notifyAgentsChanged();
 
       const message =

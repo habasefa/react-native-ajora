@@ -153,8 +153,12 @@ export function useHistory({
       setError(null);
       return;
     }
-    if (!runtimeReady) return; // wait until runtime is connected
-    if (loadedThreadRef.current === threadId) return;
+    if (!runtimeReady) {
+      return;
+    }
+    if (loadedThreadRef.current === threadId) {
+      return;
+    }
     loadedThreadRef.current = threadId;
     void runInitialLoad(threadId);
 

@@ -230,7 +230,6 @@ export class ProxiedAjoraRuntimeAgent extends HttpAgent {
   }
 
   connect(input: RunAgentInput): Observable<BaseEvent> {
-    console.log(`[ProxiedAgent.connect] transport=${this.transport} agentId=${this.agentId} url=${this.singleEndpointUrl || this.runtimeUrl}`);
     if (this.transport === "single") {
       if (!this.singleEndpointUrl) {
         throw new Error("Single endpoint transport requires a runtimeUrl");
@@ -243,7 +242,6 @@ export class ProxiedAjoraRuntimeAgent extends HttpAgent {
           agentId: this.agentId!,
         },
       );
-      console.log(`[ProxiedAgent.connect] calling patchedRunHttpRequest`);
       const httpEvents = patchedRunHttpRequest(
         this.singleEndpointUrl,
         requestInit,
@@ -266,18 +264,52 @@ export class ProxiedAjoraRuntimeAgent extends HttpAgent {
     );
   }
 
+  /**
+   * Hard cap on how long we'll wait for `agent/connect` to finish. The
+   * underlying `super.connectAgent` awaits `lastValueFrom` on the SSE
+   * pipeline, which only resolves when the stream completes (server closes
+   * or emits a terminal event). If the server holds the stream open — a
+   * common dev-server bug, especially for empty threads where there's
+   * nothing to send — `isRunning` stays `true` indefinitely, which locks
+   * the chat input into "processing" mode and gives the appearance of a
+   * frozen UI.
+   *
+   * After this timeout we abort the underlying fetch and forcibly clear
+   * `isRunning` so the agent is usable again. The next `runAgent` call
+   * creates a fresh AbortController (per @ag-ui/client semantics), so
+   * aborting here doesn't poison subsequent runs.
+   */
+  private static readonly CONNECT_TIMEOUT_MS = 15_000;
+
   public async connectAgent(
     parameters?: RunAgentParameters,
     subscriber?: AgentSubscriber,
   ): Promise<RunAgentResult> {
-    console.log(`[ProxiedAgent.connectAgent] START agentId=${this.agentId} threadId=${this.threadId}`);
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
     try {
-      const result = await super.connectAgent(parameters, subscriber);
-      console.log(`[ProxiedAgent.connectAgent] DONE`);
-      return result;
-    } catch (error) {
-      console.error(`[ProxiedAgent.connectAgent] ERROR:`, (error as Error)?.message ?? error);
-      throw error;
+      return await Promise.race([
+        super.connectAgent(parameters, subscriber),
+        new Promise<RunAgentResult>((_, reject) => {
+          timeoutId = setTimeout(() => {
+            try {
+              this.abortController.abort();
+            } catch {
+              /* ignore — best-effort */
+            }
+            // The pipeline's `finalize` would normally clear this, but if
+            // the pipe is wedged we surface the agent as ready anyway.
+            (this as unknown as { isRunning: boolean }).isRunning = false;
+            reject(
+              new Error(
+                `connectAgent timed out after ${ProxiedAjoraRuntimeAgent.CONNECT_TIMEOUT_MS}ms ` +
+                  `(server may be holding the SSE stream open without emitting RUN_FINISHED)`,
+              ),
+            );
+          }, ProxiedAjoraRuntimeAgent.CONNECT_TIMEOUT_MS);
+        }),
+      ]);
+    } finally {
+      if (timeoutId) clearTimeout(timeoutId);
     }
   }
 

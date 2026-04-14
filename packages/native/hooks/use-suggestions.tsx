@@ -31,14 +31,12 @@ export function useSuggestions({
     [modelId, config?.modelId],
   );
 
-  const [suggestions, setSuggestions] = useState<Suggestion[]>(() => {
-    const result = ajora.getSuggestions(resolvedAgentId);
-    return result.suggestions;
-  });
-  const [isLoading, setIsLoading] = useState(() => {
-    const result = ajora.getSuggestions(resolvedAgentId);
-    return result.isLoading;
-  });
+  const [suggestions, setSuggestions] = useState<Suggestion[]>(
+    () => ajora.getSuggestions(resolvedAgentId).suggestions,
+  );
+  const [isLoading, setIsLoading] = useState(
+    () => ajora.getSuggestions(resolvedAgentId).isLoading,
+  );
 
   useEffect(() => {
     const result = ajora.getSuggestions(resolvedAgentId);

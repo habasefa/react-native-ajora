@@ -14,6 +14,7 @@ import React, {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import { merge } from "ts-deepmerge";
@@ -27,6 +28,45 @@ import { UserMessage } from "@ag-ui/core";
 import { AjoraChatError } from "../../types";
 import { DEFAULT_MODEL_ID } from "../../../shared/constants";
 import { AjoraChatErrorBoundary } from "../AjoraChatErrorBoundary";
+import type { FileAttachment } from "../../lib/fileSystem";
+
+type UserMessageContent = UserMessage["content"];
+type UserMessageContentPart = Exclude<UserMessageContent, string>[number];
+
+/**
+ * Build the ag-ui multimodal `content` for a user message. Text-only inputs
+ * stay as a plain string (simpler wire format, no backend re-work); any
+ * attachments upgrade the payload to the structured array with `binary` parts.
+ *
+ * Callers must guarantee every attachment has `remoteUrl` set — the chat
+ * input's `canSend` gate blocks send while any upload is in flight or errored,
+ * so every attachment reaching this helper should already be terminal. Any
+ * attachment still missing a URL is dropped defensively rather than sending a
+ * half-formed payload.
+ */
+function buildUserMessageContent(
+  text: string,
+  attachments: FileAttachment[] | undefined,
+): UserMessageContent {
+  if (!attachments || attachments.length === 0) return text;
+
+  const parts: UserMessageContentPart[] = [];
+  if (text.length > 0) {
+    parts.push({ type: "text", text });
+  }
+  for (const a of attachments) {
+    if (!a.remoteUrl) continue;
+    parts.push({
+      type: "binary",
+      url: a.remoteUrl,
+      mimeType: a.mimeType,
+      filename: a.displayName,
+      ...(a.remoteKey ? { id: a.remoteKey } : {}),
+    });
+  }
+  // Fallback if every attachment was somehow URL-less.
+  return parts.length > 0 ? parts : text;
+}
 
 export type AjoraChatProps = Omit<
   AjoraChatViewProps,
@@ -127,6 +167,8 @@ export function AjoraChat({
     isLoadingMore: isLoadingMoreHistory,
     hasMore: hasMoreHistory,
     loadMore: loadEarlierMessages,
+    error: historyError,
+    reload: reloadHistory,
   } = useHistory({
     agentId: resolvedAgentId,
     threadId: resolvedThreadId,
@@ -279,13 +321,58 @@ export function AjoraChat({
     resolvedAgentId,
   ]);
 
+  // Per-thread draft persistence. Without this, the in-progress text in the
+  // input is dropped when the user switches threads — surprising behavior
+  // for anyone mid-thought who taps over to check another conversation.
+  // Only takes effect when the consumer hasn't provided their own
+  // controlled `value`/`onChange` on `inputProps` (we don't want to fight
+  // an external store).
+  const consumerControlsInput = providedInputProps?.value !== undefined;
+  const draftsRef = useRef<Map<string, string>>(new Map());
+  const previousDraftThreadRef = useRef<string | undefined>(resolvedThreadId);
+  const [currentDraft, setCurrentDraft] = useState<string>(
+    () => draftsRef.current.get(resolvedThreadId) ?? "",
+  );
+
+  useEffect(() => {
+    if (consumerControlsInput) return;
+    const previous = previousDraftThreadRef.current;
+    if (previous && previous !== resolvedThreadId) {
+      // Persist the outgoing thread's draft. Empty string means "no draft" —
+      // delete instead of storing so the Map doesn't grow unboundedly with
+      // empty entries.
+      const outgoing = currentDraft;
+      if (outgoing) {
+        draftsRef.current.set(previous, outgoing);
+      } else {
+        draftsRef.current.delete(previous);
+      }
+    }
+    previousDraftThreadRef.current = resolvedThreadId;
+    setCurrentDraft(draftsRef.current.get(resolvedThreadId) ?? "");
+    // currentDraft intentionally not in deps — we only want to swap drafts
+    // on threadId change, not on every keystroke.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resolvedThreadId, consumerControlsInput]);
+
+  const handleDraftChange = useCallback((value: string) => {
+    setCurrentDraft(value);
+  }, []);
+
   const onSubmitInput = useCallback(
-    async (value: string) => {
+    async (value: string, attachments?: FileAttachment[]) => {
       setError(null);
+      // Clear the draft for the active thread on send so the input is
+      // empty next time the user returns. AjoraChatInput already clears
+      // its internal display value via our controlled `value=""`.
+      if (!consumerControlsInput) {
+        draftsRef.current.delete(resolvedThreadId);
+        setCurrentDraft("");
+      }
       agent.addMessage({
         id: randomUUID(),
         role: "user",
-        content: value,
+        content: buildUserMessageContent(value, attachments),
       });
       setIsSending(true);
       try {
@@ -298,7 +385,14 @@ export function AjoraChat({
         setIsSending(false);
       }
     },
-    [agent, ajora, props.onSendError, resolvedModelId],
+    [
+      agent,
+      ajora,
+      props.onSendError,
+      resolvedModelId,
+      consumerControlsInput,
+      resolvedThreadId,
+    ],
   );
 
   const handleSelectSuggestion = useCallback(
@@ -430,6 +524,9 @@ export function AjoraChat({
       isLoadingEarlier: isLoadingMoreHistory,
       hasEarlierMessages: hasMoreHistory,
       onLoadEarlier: hasMoreHistory ? loadEarlierMessages : undefined,
+      historyError,
+      onRetryHistory: reloadHistory,
+      threadId: resolvedThreadId,
       suggestions: autoSuggestions,
       starterSuggestions,
       onSelectSuggestion: handleSelectSuggestion,
@@ -466,8 +563,17 @@ export function AjoraChat({
     onSubmitMessage: onSubmitInput,
     onStop: effectiveStopHandler,
     isRunning: isSending,
+    // Only inject our per-thread draft control when the consumer hasn't
+    // already wired their own controlled value/onChange — otherwise we
+    // race their state.
+    ...(consumerControlsInput
+      ? {}
+      : {
+          value: currentDraft,
+          onChange: handleDraftChange,
+        }),
   } as Partial<AjoraChatInputProps> & {
-    onSubmitMessage: (value: string) => void;
+    onSubmitMessage: (value: string, attachments?: FileAttachment[]) => void;
   };
 
   finalInputProps.mode = isSending

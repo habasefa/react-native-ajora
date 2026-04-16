@@ -301,8 +301,7 @@ export class AgentRegistry {
       this._models = models ?? [];
       this._extraData = extraData ?? {};
       const wasConnected =
-        this._runtimeConnectionStatus ===
-        AjoraCoreRuntimeConnectionStatus.Connected;
+        prevStatus === AjoraCoreRuntimeConnectionStatus.Connected;
       this._runtimeConnectionStatus =
         AjoraCoreRuntimeConnectionStatus.Connected;
       this._runtimeVersion = version;
@@ -314,9 +313,7 @@ export class AgentRegistry {
       }
       await this.notifyAgentsChanged();
     } catch (error) {
-      const wasError =
-        this._runtimeConnectionStatus ===
-        AjoraCoreRuntimeConnectionStatus.Error;
+      const wasError = prevStatus === AjoraCoreRuntimeConnectionStatus.Error;
       this._runtimeConnectionStatus = AjoraCoreRuntimeConnectionStatus.Error;
       this._runtimeVersion = undefined;
       this.remoteAgents = {};

@@ -8,8 +8,10 @@ import {
 } from "@ag-ui/client";
 import { randomUUID, logger } from "../../shared";
 import { zodToJsonSchema } from "zod-to-json-schema";
-import type { AjoraCore } from "./core";
-import { AjoraCoreErrorCode } from "./core-types";
+import {
+  AjoraCoreErrorCode,
+  type AjoraCoreFriendsAccess,
+} from "./core-types";
 import { FrontendTool } from "../types";
 import {
   ProxiedAjoraRuntimeAgent,
@@ -53,7 +55,7 @@ export class RunHandler {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private _tools: FrontendTool<any>[] = [];
 
-  constructor(private core: AjoraCore) {}
+  constructor(private core: AjoraCoreFriendsAccess) {}
 
   /**
    * Get all tools as a readonly array

@@ -1,6 +1,6 @@
 import { Context } from "@ag-ui/client";
 import { randomUUID } from "../../shared";
-import type { AjoraCore } from "./core";
+import type { AjoraCoreFriendsAccess } from "./core-types";
 
 /**
  * Manages context storage and lifecycle for AjoraCore.
@@ -9,7 +9,7 @@ import type { AjoraCore } from "./core";
 export class ContextStore {
   private _context: Record<string, Context> = {};
 
-  constructor(private core: AjoraCore) {}
+  constructor(private core: AjoraCoreFriendsAccess) {}
 
   /**
    * Get all context entries as a readonly record

@@ -1,6 +1,6 @@
 import { AbstractAgent, Message, Tool, Context } from "@ag-ui/client";
 import { randomUUID, partialJSONParse } from "../../shared";
-import type { AjoraCore } from "./core";
+import type { AjoraCoreFriendsAccess } from "./core-types";
 import {
   DynamicSuggestionsConfig,
   StaticSuggestionsConfig,
@@ -22,7 +22,7 @@ export class SuggestionEngine {
   private _suggestions: Record<string, Record<string, Suggestion[]>> = {};
   private _runningSuggestions: Record<string, AbstractAgent[]> = {};
 
-  constructor(private core: AjoraCore) {}
+  constructor(private core: AjoraCoreFriendsAccess) {}
 
   /**
    * Initialize with suggestion configs

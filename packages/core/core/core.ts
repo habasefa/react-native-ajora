@@ -110,11 +110,17 @@ export class AjoraCore {
     this._headers = headers;
     this._properties = properties;
 
+    // Cast `this` to the friends interface once at the construction boundary.
+    // Required because the class's private/protected members aren't structurally
+    // assignable to the interface's public surface — the double-cast through
+    // `unknown` is the only way to bridge them without widening visibility.
+    const friends = this as unknown as AjoraCoreFriendsAccess;
+
     // Initialize delegate classes
     this.agentRegistry = new AgentRegistry(this);
-    this.contextStore = new ContextStore(this);
-    this.suggestionEngine = new SuggestionEngine(this);
-    this.runHandler = new RunHandler(this);
+    this.contextStore = new ContextStore(friends);
+    this.suggestionEngine = new SuggestionEngine(friends);
+    this.runHandler = new RunHandler(friends);
     this.stateManager = new StateManager(this);
 
     // Initialize each subsystem

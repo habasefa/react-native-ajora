@@ -182,8 +182,8 @@ describe("useRenderActivityMessage", () => {
 
       const rendered = result.current.renderActivityMessage(message as any);
       expect(rendered).not.toBeNull();
-      expect(rendered.type).toBe(RenderComponent);
-      expect(rendered.props).toEqual(
+      expect(rendered!.type).toBe(RenderComponent);
+      expect(rendered!.props).toEqual(
         expect.objectContaining({
           activityType: "progress",
           content: { percent: 75 },

@@ -66,7 +66,7 @@ describe("useRenderCustomMessages", () => {
 
     const { result } = renderHook(() => useRenderCustomMessages());
     const rendered = result.current!({
-      message: { id: "msg-1", role: "user" },
+      message: { id: "msg-1", role: "user", content: "" },
       position: "before",
     });
 
@@ -75,12 +75,12 @@ describe("useRenderCustomMessages", () => {
 
   it("returns null when agent is not found", () => {
     const ajora = makeMockAjora([{ render: () => <span>custom</span> }]);
-    ajora.getAgent.mockReturnValue(null);
+    ajora.getAgent.mockReturnValue(undefined as any);
     mockUseAjora.mockReturnValue({ ajora });
 
     const { result } = renderHook(() => useRenderCustomMessages());
     const rendered = result.current!({
-      message: { id: "msg-1", role: "user" },
+      message: { id: "msg-1", role: "user", content: "" },
       position: "before",
     });
 
@@ -98,15 +98,15 @@ describe("useRenderCustomMessages", () => {
 
     const { result } = renderHook(() => useRenderCustomMessages());
     const rendered = result.current!({
-      message: { id: "msg-1", role: "user" },
+      message: { id: "msg-1", role: "user", content: "" },
       position: "before",
     });
 
     expect(rendered).not.toBeNull();
-    expect(rendered.type).toBe(RenderComponent);
-    expect(rendered.props).toEqual(
+    expect(rendered!.type).toBe(RenderComponent);
+    expect(rendered!.props).toEqual(
       expect.objectContaining({
-        message: { id: "msg-1", role: "user" },
+        message: { id: "msg-1", role: "user", content: "" },
         position: "before",
         runId: "run-1",
         agentId: "default",
@@ -122,12 +122,12 @@ describe("useRenderCustomMessages", () => {
 
     const { result } = renderHook(() => useRenderCustomMessages());
     const rendered = result.current!({
-      message: { id: "msg-2", role: "assistant" },
+      message: { id: "msg-2", role: "assistant", content: "" },
       position: "after",
     });
 
     expect(rendered).not.toBeNull();
-    expect(rendered.props).toEqual(
+    expect(rendered!.props).toEqual(
       expect.objectContaining({
         messageIndex: 1,
         numberOfMessagesInRun: 2,
@@ -144,7 +144,7 @@ describe("useRenderCustomMessages", () => {
 
       const { result } = renderHook(() => useRenderCustomMessages());
       const rendered = result.current!({
-        message: { id: "msg-1", role: "user" },
+        message: { id: "msg-1", role: "user", content: "" },
         position: "before",
       });
 
@@ -159,7 +159,7 @@ describe("useRenderCustomMessages", () => {
 
       const { result } = renderHook(() => useRenderCustomMessages());
       const rendered = result.current!({
-        message: { id: "msg-1", role: "user" },
+        message: { id: "msg-1", role: "user", content: "" },
         position: "before",
       });
 
@@ -174,7 +174,7 @@ describe("useRenderCustomMessages", () => {
 
       const { result } = renderHook(() => useRenderCustomMessages());
       const rendered = result.current!({
-        message: { id: "msg-1", role: "user" },
+        message: { id: "msg-1", role: "user", content: "" },
         position: "before",
       });
 
@@ -196,11 +196,11 @@ describe("useRenderCustomMessages", () => {
 
       // Agent-specific sorts first, so it should be the one rendered
       const rendered = result.current!({
-        message: { id: "msg-1", role: "user" },
+        message: { id: "msg-1", role: "user", content: "" },
         position: "before",
       });
       expect(rendered).not.toBeNull();
-      expect(rendered.type).toBe(agentFn);
+      expect(rendered!.type).toBe(agentFn);
     });
   });
 
@@ -216,11 +216,11 @@ describe("useRenderCustomMessages", () => {
 
     const { result } = renderHook(() => useRenderCustomMessages());
     const rendered = result.current!({
-      message: { id: "msg-1", role: "user" },
+      message: { id: "msg-1", role: "user", content: "" },
       position: "before",
     });
 
     expect(rendered).not.toBeNull();
-    expect(rendered.type).toBe(RenderComponent);
+    expect(rendered!.type).toBe(RenderComponent);
   });
 });

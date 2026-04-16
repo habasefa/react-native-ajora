@@ -77,8 +77,10 @@ describe("useRenderToolCall", () => {
 
       render(<TestComponent toolCall={toolCall} />);
 
-      const wrapper = screen.getByTestId("wrapper");
-      expect(wrapper.children.length).toBe(0);
+      const wrapper = screen.getByTestId("wrapper") as unknown as {
+        childNodes: ArrayLike<unknown>;
+      };
+      expect(wrapper.childNodes.length).toBe(0);
     });
   });
 

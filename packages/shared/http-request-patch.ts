@@ -30,12 +30,21 @@ type HttpEvent = HttpDataEvent | HttpHeadersEvent;
  * Cached at module level — the runtime environment never changes.
  */
 const _isReactNative: boolean = (() => {
+  // `Navigator.product` was removed from the standard lib.dom.d.ts (it's
+  // deprecated on the web), but RN's polyfilled navigator still exposes it
+  // and we use it as the canonical RN sniff. Narrow through a local view
+  // type rather than scattering `as any` casts.
+  type RNNavigator = { product?: string; userAgent?: string };
+  const nav: RNNavigator | undefined =
+    typeof navigator !== "undefined"
+      ? (navigator as unknown as RNNavigator)
+      : undefined;
+
   return (
-    (typeof navigator !== "undefined" && navigator.product === "ReactNative") ||
+    nav?.product === "ReactNative" ||
     (typeof global !== "undefined" &&
       (global as any).navigator?.product === "ReactNative") ||
-    (typeof navigator !== "undefined" &&
-      (navigator as any).userAgent === "ReactNative") ||
+    nav?.userAgent === "ReactNative" ||
     (typeof global !== "undefined" &&
       typeof (global as any).require !== "undefined" &&
       typeof (global as any).require.resolve === "function" &&

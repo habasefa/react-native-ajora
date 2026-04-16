@@ -94,9 +94,18 @@ export function useHistory({
   // loads can clobber in-memory messages added by the user between fetches.
   const loadedThreadRef = useRef<string | null | undefined>(null);
 
-  // AbortController for in-flight history fetches. Aborted on thread switch
-  // and component unmount so stale network requests don't waste bandwidth.
-  const abortRef = useRef<AbortController | null>(null);
+  // Two independent AbortControllers so `runInitialLoad` and `loadMore` don't
+  // clobber each other's cancellation. Previously both wrote to a single
+  // `abortRef`, which meant a later call overwrote the controller of an
+  // in-flight earlier call — and a thread switch or unmount only aborted
+  // whichever one was most recently stored.
+  const initialAbortRef = useRef<AbortController | null>(null);
+  const moreAbortRef = useRef<AbortController | null>(null);
+
+  const abortAllInFlight = () => {
+    initialAbortRef.current?.abort();
+    moreAbortRef.current?.abort();
+  };
 
   // Determine if the runtime is ready (connected, or no runtime configured).
   // We must NOT fire the initial load while the runtime is still Connecting
@@ -109,11 +118,19 @@ export function useHistory({
     runtimeStatus === AjoraCoreRuntimeConnectionStatus.Error;
 
   const runInitialLoad = useCallback(async (target: string) => {
-    // Cancel any previous in-flight request.
-    abortRef.current?.abort();
+    // Cancel any previous in-flight initial load, and also any in-flight
+    // load-earlier — on a reload or thread switch we don't want a stale
+    // older-page response prepending into the freshly reloaded list.
+    initialAbortRef.current?.abort();
+    moreAbortRef.current?.abort();
     const controller = new AbortController();
-    abortRef.current = controller;
+    initialAbortRef.current = controller;
 
+    // Reset pagination state up front so the UI doesn't briefly show a
+    // "Load earlier" button with a cursor from the previous load.
+    setHasMore(false);
+    setOldestMessageId(null);
+    setIsLoadingMore(false);
     setIsLoading(true);
     setError(null);
     try {
@@ -144,7 +161,7 @@ export function useHistory({
   // `runtimeReady` flips to true for the current threadId.
   useEffect(() => {
     if (!threadId) {
-      abortRef.current?.abort();
+      abortAllInFlight();
       loadedThreadRef.current = null;
       setIsLoading(false);
       setIsLoadingMore(false);
@@ -159,11 +176,21 @@ export function useHistory({
     if (loadedThreadRef.current === threadId) {
       return;
     }
+    // Switching from a previously-loaded thread: drop the prior thread's
+    // messages so they don't flash in the new thread while the initial load
+    // is in flight — and so a brand-new thread (server returns 0 messages)
+    // actually starts empty instead of inheriting the prior conversation.
+    // The first-mount case (loadedThreadRef === null) is left alone so that
+    // messages populated by a concurrent connectAgent are preserved by
+    // loadHistory's merge logic.
+    if (loadedThreadRef.current && loadedThreadRef.current !== threadId) {
+      agentRef.current?.setMessages?.([]);
+    }
     loadedThreadRef.current = threadId;
     void runInitialLoad(threadId);
 
     return () => {
-      abortRef.current?.abort();
+      abortAllInFlight();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [threadId, runtimeReady]);
@@ -176,7 +203,7 @@ export function useHistory({
 
     const cursor = oldestMessageIdRef.current;
     const controller = new AbortController();
-    abortRef.current = controller;
+    moreAbortRef.current = controller;
 
     setIsLoadingMore(true);
     setError(null);

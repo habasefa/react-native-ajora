@@ -210,6 +210,135 @@ export type AjoraChatMessageViewProps = Omit<
   }) => React.ReactElement;
 };
 
+/**
+ * Stable per-message renderer suitable for both the legacy `<View>`-based
+ * `AjoraChatMessageView` and FlashList's `renderItem`. Returns a single
+ * React element per message (custom-before + main + custom-after wrapped
+ * in a Fragment) so FlashList can virtualize one cell per data row.
+ *
+ * Pulled out of `AjoraChatMessageView` so the FlashList code path inside
+ * `AjoraChatViewInner` doesn't need to construct the entire `messageElements`
+ * array up-front — that defeats virtualization.
+ */
+export function useRenderMessage({
+  messages,
+  isRunning,
+  assistantMessage,
+  userMessage,
+  onRegenerate,
+  onMessageLongPress,
+  textRenderer,
+}: {
+  messages: Message[];
+  isRunning: boolean;
+  assistantMessage?: AjoraChatMessageViewProps["assistantMessage"];
+  userMessage?: AjoraChatMessageViewProps["userMessage"];
+  onRegenerate?: (message: AssistantMessage) => void;
+  onMessageLongPress?: (message: Message) => void;
+  textRenderer?: (props: { content: string }) => React.ReactNode;
+}) {
+  const renderCustomMessage = useRenderCustomMessages();
+  const renderActivityMessage = useRenderActivityMessage();
+
+  return React.useCallback(
+    (message: Message, _index: number): React.ReactElement | null => {
+      const parts: React.ReactElement[] = [];
+
+      if (renderCustomMessage) {
+        parts.push(
+          <MemoizedCustomMessage
+            key={`${message.id}-custom-before`}
+            message={message}
+            position="before"
+            renderCustomMessage={renderCustomMessage}
+          />,
+        );
+      }
+
+      if (message.role === "assistant") {
+        const AssistantComponent = (
+          typeof assistantMessage === "function"
+            ? assistantMessage
+            : AjoraChatAssistantMessage
+        ) as typeof AjoraChatAssistantMessage;
+
+        parts.push(
+          <MemoizedAssistantMessage
+            key={message.id}
+            message={message as AssistantMessage}
+            messages={messages}
+            isRunning={isRunning}
+            onRegenerate={onRegenerate}
+            AssistantMessageComponent={AssistantComponent}
+            textRenderer={textRenderer}
+          />,
+        );
+      } else if (message.role === "user") {
+        const UserComponent = (
+          typeof userMessage === "function" ? userMessage : AjoraChatUserMessage
+        ) as typeof AjoraChatUserMessage;
+
+        parts.push(
+          <MemoizedUserMessage
+            key={message.id}
+            message={message as UserMessage}
+            UserMessageComponent={UserComponent}
+            onLongPress={onMessageLongPress}
+            textRenderer={textRenderer}
+          />,
+        );
+      } else if (message.role === "activity") {
+        parts.push(
+          <MemoizedActivityMessage
+            key={message.id}
+            message={message as ActivityMessage}
+            renderActivityMessage={renderActivityMessage}
+          />,
+        );
+      }
+
+      if (renderCustomMessage) {
+        parts.push(
+          <MemoizedCustomMessage
+            key={`${message.id}-custom-after`}
+            message={message}
+            position="after"
+            renderCustomMessage={renderCustomMessage}
+          />,
+        );
+      }
+
+      if (parts.length === 0) return null;
+      return <React.Fragment key={message.id}>{parts}</React.Fragment>;
+    },
+    [
+      assistantMessage,
+      userMessage,
+      messages,
+      isRunning,
+      onRegenerate,
+      onMessageLongPress,
+      textRenderer,
+      renderCustomMessage,
+      renderActivityMessage,
+    ],
+  );
+}
+
+/**
+ * Deduplicate messages by id, keeping the most recent occurrence. FlashList
+ * requires unique keys, and streaming sometimes emits the same message id
+ * multiple times before settling. Exposed so the FlashList callsite can
+ * dedupe before passing `data` instead of relying on this component.
+ */
+export function dedupeMessagesById(messages: Message[]): Message[] {
+  const seen = new Map<string, Message>();
+  for (const message of messages) {
+    seen.set(message.id, message);
+  }
+  return Array.from(seen.values());
+}
+
 export function AjoraChatMessageView({
   messages = [],
   assistantMessage,
@@ -228,9 +357,6 @@ export function AjoraChatMessageView({
   onRetryError,
   ...props
 }: AjoraChatMessageViewProps) {
-  const renderCustomMessage = useRenderCustomMessages();
-  const renderActivityMessage = useRenderActivityMessage();
-
   // Determine if we should show the thinking indicator
   // Show when running, except when waiting for tool execution (isToolCall).
   // We WANT to show it after tool execution ends (isToolResult), so we don't exclude that.
@@ -251,86 +377,23 @@ export function AjoraChatMessageView({
       })
     : null;
 
-  // Deduplicate messages by ID to prevent duplicate React keys
-  const deduplicatedMessages = React.useMemo(() => {
-    const seen = new Map<string, Message>();
-    for (const message of messages) {
-      // Keep the last occurrence of each message ID (most recent version)
-      seen.set(message.id, message);
-    }
-    return Array.from(seen.values());
-  }, [messages]);
+  const deduplicatedMessages = React.useMemo(
+    () => dedupeMessagesById(messages),
+    [messages],
+  );
+
+  const renderMessage = useRenderMessage({
+    messages,
+    isRunning,
+    assistantMessage,
+    userMessage,
+    onRegenerate,
+    onMessageLongPress,
+    textRenderer,
+  });
 
   const messageElements: React.ReactElement[] = deduplicatedMessages
-    .flatMap((message) => {
-      const elements: (React.ReactElement | null | undefined)[] = [];
-
-      if (renderCustomMessage) {
-        elements.push(
-          <MemoizedCustomMessage
-            key={`${message.id}-custom-before`}
-            message={message}
-            position="before"
-            renderCustomMessage={renderCustomMessage}
-          />,
-        );
-      }
-
-      if (message.role === "assistant") {
-        const AssistantComponent = (
-          typeof assistantMessage === "function"
-            ? assistantMessage
-            : AjoraChatAssistantMessage
-        ) as typeof AjoraChatAssistantMessage;
-
-        elements.push(
-          <MemoizedAssistantMessage
-            key={message.id}
-            message={message as AssistantMessage}
-            messages={messages}
-            isRunning={isRunning}
-            onRegenerate={onRegenerate}
-            AssistantMessageComponent={AssistantComponent}
-            textRenderer={textRenderer}
-          />,
-        );
-      } else if (message.role === "user") {
-        const UserComponent = (
-          typeof userMessage === "function" ? userMessage : AjoraChatUserMessage
-        ) as typeof AjoraChatUserMessage;
-
-        elements.push(
-          <MemoizedUserMessage
-            key={message.id}
-            message={message as UserMessage}
-            UserMessageComponent={UserComponent}
-            onLongPress={onMessageLongPress}
-            textRenderer={textRenderer}
-          />,
-        );
-      } else if (message.role === "activity") {
-        elements.push(
-          <MemoizedActivityMessage
-            key={message.id}
-            message={message as ActivityMessage}
-            renderActivityMessage={renderActivityMessage}
-          />,
-        );
-      }
-
-      if (renderCustomMessage) {
-        elements.push(
-          <MemoizedCustomMessage
-            key={`${message.id}-custom-after`}
-            message={message}
-            position="after"
-            renderCustomMessage={renderCustomMessage}
-          />,
-        );
-      }
-
-      return elements;
-    })
+    .map((message, index) => renderMessage(message, index))
     .filter(Boolean) as React.ReactElement[];
 
   if (error) {

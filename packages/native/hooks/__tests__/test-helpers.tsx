@@ -6,7 +6,7 @@
  * React Native provider setup.
  */
 import React, { ReactNode } from "react";
-import { render, RenderOptions } from "@testing-library/react";
+import { render, RenderOptions, RenderResult } from "@testing-library/react";
 import { AjoraCoreReact } from "../../lib/react-core";
 import { AjoraContextValue } from "../../providers/AjoraProvider";
 import { AjoraCoreRuntimeConnectionStatus } from "../../../core";
@@ -23,6 +23,7 @@ const AjoraContext = React.createContext<AjoraContextValue>({
   ajora: null!,
   executingToolCallIds: new Set(),
   runtimeConnectionStatus: AjoraCoreRuntimeConnectionStatus.Disconnected,
+  attachmentsEnabled: false,
 });
 
 /** Re-export so hooks can resolve via the same reference. */
@@ -41,7 +42,7 @@ interface RenderWithAjoraOptions {
 export function renderWithAjora(
   ui: React.ReactElement,
   options: RenderWithAjoraOptions = {},
-) {
+): RenderResult & { ajora: AjoraCoreReact } {
   const ajora = new AjoraCoreReact({
     runtimeUrl: options.runtimeUrl,
     agents__unsafe_dev_only: options.agents ?? {},
@@ -56,6 +57,7 @@ export function renderWithAjora(
           ajora,
           executingToolCallIds,
           runtimeConnectionStatus: ajora.runtimeConnectionStatus,
+          attachmentsEnabled: false,
         }}
       >
         {children}

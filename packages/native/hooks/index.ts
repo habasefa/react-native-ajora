@@ -12,3 +12,9 @@ export { useAgentContext } from "./use-agent-context";
 export type { AgentContextInput, JsonSerializable } from "./use-agent-context";
 export { useSuggestions } from "./use-suggestions";
 export { useConfigureSuggestions } from "./use-configure-suggestions";
+export { useAttachmentUploader } from "./use-attachment-uploader";
+export type {
+  UseAttachmentUploaderOptions,
+  UseAttachmentUploaderResult,
+  AttachmentAddResult,
+} from "./use-attachment-uploader";

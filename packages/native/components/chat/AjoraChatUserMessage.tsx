@@ -19,6 +19,7 @@ import { renderSlot, WithSlots } from "../../lib/slots";
 import RichText from "../../../markdown/RichText";
 import type { MarkdownTheme } from "../../../markdown/markdownStyle";
 import { useAjoraTheme } from "../../providers/AjoraThemeProvider";
+import { MessageAttachments } from "./MessageAttachments";
 
 function flattenUserMessageContent(content?: UserMessage["content"]): string {
   if (!content) {
@@ -205,7 +206,8 @@ export function AjoraChatUserMessage({
 
   return (
     <View style={[styles.container, style]} {...props}>
-      {BoundMessageRenderer}
+      <MessageAttachments content={message.content} align="flex-end" />
+      {flattenedContent.length > 0 && BoundMessageRenderer}
       {BoundToolbar}
     </View>
   );

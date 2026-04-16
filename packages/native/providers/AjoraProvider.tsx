@@ -22,6 +22,10 @@ import {
   ReactFrontendTool,
   ReactHumanInTheLoop,
 } from "../types";
+import type {
+  AttachmentLimits,
+  UploadAttachmentFn,
+} from "../lib/uploader";
 
 
 export interface AjoraContextValue {
@@ -34,6 +38,24 @@ export interface AjoraContextValue {
    * produced one forceUpdate per consumer per status change).
    */
   runtimeConnectionStatus: AjoraCoreRuntimeConnectionStatus;
+  /**
+   * Consumer-provided uploader for file attachments. When absent, the chat
+   * input surfaces an "Upload handler not configured" error if a user tries
+   * to attach something — the attach button itself is hidden by
+   * {@link AjoraContextValue.attachmentsEnabled}.
+   */
+  uploadAttachment?: UploadAttachmentFn;
+  /**
+   * Optional overrides for attachment validation. Missing fields fall back to
+   * `DEFAULT_ATTACHMENT_LIMITS`.
+   */
+  attachmentLimits?: AttachmentLimits;
+  /**
+   * True iff `uploadAttachment` is wired. The input uses this to decide
+   * whether to render the attach button at all — avoids dead UI in apps that
+   * haven't opted in.
+   */
+  attachmentsEnabled: boolean;
 }
 
 const AjoraContext = createContext<AjoraContextValue | null>(null);
@@ -50,6 +72,19 @@ export interface AjoraProviderProps {
   renderCustomMessages?: ReactCustomMessageRenderer[];
   frontendTools?: ReactFrontendTool[];
   humanInTheLoop?: ReactHumanInTheLoop[];
+  /**
+   * Uploader called for each attachment the user picks. The hook resolves
+   * with a remote URL (and optional storage key); the library owns
+   * cancellation, progress, retry, and sends the URL in the outgoing message
+   * as a multimodal `binary` content part. When omitted, the attach button
+   * is hidden.
+   */
+  uploadAttachment?: UploadAttachmentFn;
+  /**
+   * Overrides for attachment validation (max count, size, allowed MIME types).
+   * Fields not set fall back to `DEFAULT_ATTACHMENT_LIMITS`.
+   */
+  attachmentLimits?: AttachmentLimits;
 }
 
 // Stable defaults — inline `= {}` creates a new object every render, which
@@ -94,6 +129,8 @@ export const AjoraProvider: React.FC<AjoraProviderProps> = ({
   frontendTools,
   humanInTheLoop,
   useSingleEndpoint = false,
+  uploadAttachment,
+  attachmentLimits,
 }) => {
   const renderToolCallsList = useStableArrayProp<ReactToolCallRenderer<any>>(
     renderToolCalls,
@@ -299,9 +336,25 @@ export const AjoraProvider: React.FC<AjoraProviderProps> = ({
     ajora.setAgents__unsafe_dev_only(agents);
   }, [chatApiEndpoint, headers, properties, agents, useSingleEndpoint]);
 
+  const attachmentsEnabled = !!uploadAttachment;
+
   const contextValue = useMemo<AjoraContextValue>(
-    () => ({ ajora, executingToolCallIds, runtimeConnectionStatus }),
-    [ajora, executingToolCallIds, runtimeConnectionStatus],
+    () => ({
+      ajora,
+      executingToolCallIds,
+      runtimeConnectionStatus,
+      uploadAttachment,
+      attachmentLimits,
+      attachmentsEnabled,
+    }),
+    [
+      ajora,
+      executingToolCallIds,
+      runtimeConnectionStatus,
+      uploadAttachment,
+      attachmentLimits,
+      attachmentsEnabled,
+    ],
   );
 
   return (

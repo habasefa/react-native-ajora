@@ -11,12 +11,14 @@ export {
   type AgentSelectorProps,
   type AgentTypeOption,
   type AttachmentPreviewItem,
+} from "./AjoraChatInput";
+
+export {
+  AjoraMentionSuggestions,
   type MentionSuggestion,
   type AjoraMentionSuggestionsProps,
   type AjoraMentionSuggestionsTheme,
-} from "./AjoraChatInput";
-
-export { AjoraMentionSuggestions } from "./AjoraMentionSuggestions";
+} from "./AjoraMentionSuggestions";
 
 // Re-export sheet components and types
 export {
@@ -24,17 +26,12 @@ export {
   AgentPickerSheet,
   ModelsSheet,
   type AttachmentSheetProps,
-  type AttachmentSheetTheme,
   type AttachmentOption,
   type AttachmentType,
   type AgentPickerSheetProps,
-  type AgentPickerSheetTheme,
   type AgentOption,
   type ModelsSheetProps,
-  type ModelsSheetTheme,
   type ModelOption,
-  type ModelProvider,
-  type ModelTier,
 } from "../sheets";
 
 export {
@@ -46,6 +43,11 @@ export {
   default as AjoraChatUserMessage,
   type AjoraChatUserMessageProps,
 } from "./AjoraChatUserMessage";
+
+export {
+  MessageAttachments,
+  type MessageAttachmentsProps,
+} from "./MessageAttachments";
 
 export {
   default as AjoraChatAudioRecorder,

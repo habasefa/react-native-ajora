@@ -50,9 +50,10 @@ import {
 } from "../sheets";
 import {
   type FileAttachment,
-  type AttachmentUploadState,
   handleAttachmentSelection,
 } from "../../lib/fileSystem";
+import { useAjora } from "../../providers/AjoraProvider";
+import { useAttachmentUploader } from "../../hooks/use-attachment-uploader";
 import {
   SuggestionsProvidedProps,
   TriggersConfig,
@@ -221,18 +222,9 @@ export interface AjoraChatInputProps {
   selectedModelId?: string;
   /** Custom model options */
   models?: ModelOption[];
-  /** Attachments to preview in the input */
-  attachments?: AttachmentPreviewItem[];
-  /** Callback when an attachment is removed */
-  onRemoveAttachment?: (attachmentId: string) => void;
-  /** Callback for handling attachment upload/preview state */
-  onAttachmentPreview?: (
-    file: FileAttachment,
-    callbacks: {
-      onProgress: (progress: number) => void;
-      onComplete: (updatedFile?: FileAttachment) => void;
-      onError: (error?: Error) => void;
-    },
+  /** Called when an attachment is rejected by validation (size/MIME/count). */
+  onAttachmentRejected?: (
+    rejections: Array<{ file: FileAttachment; reason: string }>,
   ) => void;
 
   // ========================================================================
@@ -282,7 +274,7 @@ export interface AjoraChatInputChildrenArgs {
   startTranscribeButton: React.ReactElement;
   audioRecorder: React.ReactElement;
   agentSelector: React.ReactElement;
-  addButton: React.ReactElement;
+  addButton: React.ReactElement | null;
   settingsButton: React.ReactElement;
   attachmentPreview: React.ReactElement | null;
   mode: AjoraChatInputMode;
@@ -903,9 +895,7 @@ const AjoraChatInputComponent = forwardRef<
     onModelSelect,
     selectedModelId,
     models,
-    attachments = [],
-    onRemoveAttachment,
-    onAttachmentPreview,
+    onAttachmentRejected,
     icons,
     mentionSuggestions,
     onMentionSelect,
@@ -926,9 +916,6 @@ const AjoraChatInputComponent = forwardRef<
   const isControlled = value !== undefined;
   const isModelControlled = selectedModelId !== undefined;
   const [internalValue, setInternalValue] = useState<string>(() => value ?? "");
-  const [internalAttachments, setInternalAttachments] = useState<
-    AttachmentPreviewItem[]
-  >([]);
   const [internalAgentType, setInternalAgentType] = useState(
     selectedAgentType ?? agentTypes?.[0]?.id,
   );
@@ -979,23 +966,32 @@ const AjoraChatInputComponent = forwardRef<
   }, [globalTheme, theme?.colors]);
 
   // ========================================================================
+  // Attachment Uploader
+  // ========================================================================
+
+  const {
+    uploadAttachment,
+    attachmentLimits,
+    attachmentsEnabled,
+  } = useAjora();
+
+  const uploader = useAttachmentUploader({
+    uploadAttachment,
+    limits: attachmentLimits,
+  });
+
+  // ========================================================================
   // Derived State
   // ========================================================================
 
-  const resolvedAttachments = useMemo(() => {
-    return [...(attachments ?? []), ...internalAttachments];
-  }, [attachments, internalAttachments]);
-
   const resolvedValue = isControlled ? (value ?? "") : internalValue;
   const isProcessing = mode !== "transcribe" && isRunning;
-  const hasAttachments = resolvedAttachments.length > 0;
-  const isUploading = resolvedAttachments.some(
-    (a) => a.uploadState === "uploading",
-  );
+  const hasAttachments = uploader.attachments.length > 0;
   const canSend =
     (resolvedValue.trim().length > 0 || hasAttachments) &&
     !!onSubmitMessage &&
-    !isUploading;
+    !uploader.isUploading &&
+    !uploader.hasErrors;
   const canStop = !!onStop;
   const maxHeight = Math.min(maxLines * LINE_HEIGHT + 20, INPUT_MAX_HEIGHT);
   const currentAgentType = selectedAgentType ?? internalAgentType;
@@ -1087,9 +1083,13 @@ const AjoraChatInputComponent = forwardRef<
     if (!canSend) return;
 
     const trimmedValue = resolvedValue.trim();
-    onSubmitMessage?.(trimmedValue, resolvedAttachments);
+    // Snapshot attachments BEFORE clearing — clear() aborts in-flight uploads
+    // and empties the list. The snapshot is safe to pass along because every
+    // entry is already in "uploaded" state (guaranteed by canSend).
+    const toSend = uploader.attachments;
+    onSubmitMessage?.(trimmedValue, toSend);
     clearInputValue();
-    setInternalAttachments([]);
+    uploader.clear();
 
     requestAnimationFrame(() => {
       inputRef.current?.focus();
@@ -1097,7 +1097,7 @@ const AjoraChatInputComponent = forwardRef<
   }, [
     canSend,
     resolvedValue,
-    resolvedAttachments,
+    uploader,
     onSubmitMessage,
     clearInputValue,
   ]);
@@ -1151,74 +1151,33 @@ const AjoraChatInputComponent = forwardRef<
   const handleAttachmentSelect = useCallback(
     async (type: AttachmentType) => {
       onAttachmentSelect?.(type);
+      attachmentSheetRef.current?.close();
 
-      if (onAttachmentPreview) {
-        attachmentSheetRef.current?.close();
-        try {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const result = await handleAttachmentSelection(type as any);
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const result = await handleAttachmentSelection(type as any);
 
-          if (result.success) {
-            const files =
-              result.attachments ||
-              (result.attachment ? [result.attachment] : []);
-
-            if (files.length > 0) {
-              const newItems: AttachmentPreviewItem[] = files.map((f) => ({
-                ...f,
-                uploadState: "uploading",
-                uploadProgress: 0,
-              }));
-
-              setInternalAttachments((prev) => [...prev, ...newItems]);
-
-              files.forEach((file) => {
-                onAttachmentPreview(file, {
-                  onProgress: (progress) => {
-                    setInternalAttachments((prev) =>
-                      prev.map((p) =>
-                        p.id === file.id
-                          ? {
-                              ...p,
-                              uploadProgress: progress,
-                              uploadState: "uploading",
-                            }
-                          : p,
-                      ),
-                    );
-                  },
-                  onComplete: (updatedFile) => {
-                    setInternalAttachments((prev) =>
-                      prev.map((p) =>
-                        p.id === file.id
-                          ? {
-                              ...(updatedFile ?? p),
-                              uploadState: "uploaded",
-                              uploadProgress: 100,
-                            }
-                          : p,
-                      ),
-                    );
-                  },
-                  onError: (_error) => {
-                    setInternalAttachments((prev) =>
-                      prev.map((p) =>
-                        p.id === file.id ? { ...p, uploadState: "error" } : p,
-                      ),
-                    );
-                  },
-                });
-              });
-            }
-          } else if (result.error) {
-            console.error("Error selecting attachments:", result.error);
+        if (!result.success) {
+          if (result.error) {
+            console.error("Attachment selection failed:", result.error);
           }
-        } catch (error) {
-          console.error("Error selecting attachments:", error);
+          return;
         }
+
+        const files =
+          result.attachments ??
+          (result.attachment ? [result.attachment] : []);
+        if (files.length === 0) return;
+
+        const { rejected } = uploader.add(files);
+        if (rejected.length > 0) {
+          onAttachmentRejected?.(rejected);
+        }
+      } catch (error) {
+        console.error("Attachment selection failed:", error);
       }
     },
-    [onAttachmentSelect, onAttachmentPreview],
+    [onAttachmentSelect, onAttachmentRejected, uploader],
   );
 
   const handleAgentSelect = useCallback(
@@ -1240,12 +1199,9 @@ const AjoraChatInputComponent = forwardRef<
 
   const handleRemoveAttachment = useCallback(
     (attachmentId: string) => {
-      setInternalAttachments((prev) =>
-        prev.filter((a) => a.id !== attachmentId),
-      );
-      onRemoveAttachment?.(attachmentId);
+      uploader.remove(attachmentId);
     },
-    [onRemoveAttachment],
+    [uploader],
   );
 
   // ========================================================================
@@ -1309,7 +1265,7 @@ const AjoraChatInputComponent = forwardRef<
     />
   );
 
-  const addButtonElement = (
+  const addButtonElement = attachmentsEnabled ? (
     <AjoraChatIconButton
       onPress={handleOpenAttachmentSheet}
       icon="add"
@@ -1318,7 +1274,7 @@ const AjoraChatInputComponent = forwardRef<
       testID={`${testID}-add-button`}
       accessibilityLabel="Add attachment"
     />
-  );
+  ) : null;
 
   const settingsButtonElement = (
     <AjoraChatIconButton
@@ -1475,9 +1431,9 @@ const AjoraChatInputComponent = forwardRef<
     ));
 
   const attachmentPreviewElement =
-    resolvedAttachments.length > 0 ? (
+    uploader.attachments.length > 0 ? (
       <AttachmentPreview
-        attachments={resolvedAttachments}
+        attachments={uploader.attachments}
         onRemove={handleRemoveAttachment}
         colors={colors}
         testID={`${testID}-attachment-preview`}
@@ -1505,7 +1461,7 @@ const AjoraChatInputComponent = forwardRef<
       canSend,
       canStop,
       colors,
-      attachments: resolvedAttachments,
+      attachments: uploader.attachments,
     };
 
     return <>{children(childProps)}</>;
@@ -1526,9 +1482,9 @@ const AjoraChatInputComponent = forwardRef<
         {/* Main Input Container */}
         <View style={computedStyles.inputWrapper}>
           {/* Attachment Previews */}
-          {resolvedAttachments.length > 0 && (
+          {uploader.attachments.length > 0 && (
             <AttachmentPreview
-              attachments={resolvedAttachments}
+              attachments={uploader.attachments}
               onRemove={handleRemoveAttachment}
               colors={colors}
               testID={`${testID}-attachment-preview`}

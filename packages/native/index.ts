@@ -21,3 +21,4 @@ export * from "./types";
 export * from "./lib/slots";
 export * from "./lib/react-core";
 export * from "./lib/fileSystem";
+export * from "./lib/uploader";

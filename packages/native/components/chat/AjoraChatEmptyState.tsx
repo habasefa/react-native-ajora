@@ -174,9 +174,9 @@ export interface AjoraChatEmptyStateSuggestionsProps {
 
 type EmptyStateSlots = {
   icon: typeof AjoraChatEmptyState.Icon;
-  title: typeof AjoraChatEmptyState.Title;
-  subtitle: typeof AjoraChatEmptyState.Subtitle;
-  suggestions: typeof AjoraChatEmptyState.Suggestions;
+  titleContent: typeof AjoraChatEmptyState.Title;
+  subtitleContent: typeof AjoraChatEmptyState.Subtitle;
+  suggestionsContent: typeof AjoraChatEmptyState.Suggestions;
 };
 
 type EmptyStateRestProps = {
@@ -217,9 +217,9 @@ export function AjoraChatEmptyState({
   iconSize = 56,
   style,
   icon,
-  title: titleSlot,
-  subtitle: subtitleSlot,
-  suggestions: suggestionsSlot,
+  titleContent,
+  subtitleContent,
+  suggestionsContent,
   children,
   ...rest
 }: AjoraChatEmptyStateProps) {
@@ -271,13 +271,13 @@ export function AjoraChatEmptyState({
     color: colors.icon,
   });
 
-  const BoundTitle = renderSlot(titleSlot, AjoraChatEmptyState.Title, {
+  const BoundTitle = renderSlot(titleContent, AjoraChatEmptyState.Title, {
     children: resolvedTitle,
     style: { color: colors.title },
   });
 
   const BoundSubtitle = resolvedSubtitle
-    ? renderSlot(subtitleSlot, AjoraChatEmptyState.Subtitle, {
+    ? renderSlot(subtitleContent, AjoraChatEmptyState.Subtitle, {
         children: resolvedSubtitle,
         style: { color: colors.subtitle },
       })
@@ -285,7 +285,7 @@ export function AjoraChatEmptyState({
 
   const hasSuggestions = suggestions && suggestions.length > 0;
   const BoundSuggestions = hasSuggestions
-    ? renderSlot(suggestionsSlot, AjoraChatEmptyState.Suggestions, {
+    ? renderSlot(suggestionsContent, AjoraChatEmptyState.Suggestions, {
         suggestions,
         onSelectSuggestion,
         colors,
@@ -298,9 +298,9 @@ export function AjoraChatEmptyState({
       <React.Fragment>
         {children({
           icon: BoundIcon,
-          title: BoundTitle,
-          subtitle: BoundSubtitle ?? <></>,
-          suggestions: BoundSuggestions ?? <></>,
+          titleContent: BoundTitle,
+          subtitleContent: BoundSubtitle ?? <></>,
+          suggestionsContent: BoundSuggestions ?? <></>,
           ...rest,
         })}
       </React.Fragment>

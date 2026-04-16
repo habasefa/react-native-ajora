@@ -195,8 +195,8 @@ describe("AjoraCore - Suggestions Config Management", () => {
     it("should recognize static suggestions config", () => {
       const staticConfig: StaticSuggestionsConfig = {
         suggestions: [
-          { title: "Test 1", message: "test1", isLoading: false },
-          { title: "Test 2", message: "test2", isLoading: false },
+          { title: "Test 1", message: "test1" },
+          { title: "Test 2", message: "test2" },
         ],
       };
 

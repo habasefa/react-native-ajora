@@ -1668,9 +1668,8 @@ describe("AjoraCore - Suggestions E2E", () => {
           {
             title: "Start Here",
             message: "Begin your journey",
-            isLoading: false,
           },
-          { title: "Learn More", message: "Get information", isLoading: false },
+          { title: "Learn More", message: "Get information" },
         ],
         consumerAgentId: "consumer",
         available: "before-first-message",
@@ -1702,7 +1701,7 @@ describe("AjoraCore - Suggestions E2E", () => {
 
       ajoraCore.addSuggestionsConfig({
         suggestions: [
-          { title: "Next Step", message: "Continue", isLoading: false },
+          { title: "Next Step", message: "Continue" },
         ],
         consumerAgentId: "consumer",
         available: "after-first-message",
@@ -1733,7 +1732,7 @@ describe("AjoraCore - Suggestions E2E", () => {
 
       ajoraCore.addSuggestionsConfig({
         suggestions: [
-          { title: "Persistent", message: "Always here", isLoading: false },
+          { title: "Persistent", message: "Always here" },
         ],
         consumerAgentId: "consumer",
         available: "always",
@@ -1763,7 +1762,7 @@ describe("AjoraCore - Suggestions E2E", () => {
 
       ajoraCore.addSuggestionsConfig({
         suggestions: [
-          { title: "Hidden", message: "Should not appear", isLoading: false },
+          { title: "Hidden", message: "Should not appear" },
         ],
         consumerAgentId: "consumer",
         available: "disabled",
@@ -1789,7 +1788,6 @@ describe("AjoraCore - Suggestions E2E", () => {
           {
             title: "Default Static",
             message: "Default behavior",
-            isLoading: false,
           },
         ],
         consumerAgentId: "consumer",

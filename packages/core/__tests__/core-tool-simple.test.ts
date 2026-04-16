@@ -67,7 +67,11 @@ describe("AjoraCore Tool Simple", () => {
     const toolResultMsg = agent.messages.find((m) => m.role === "tool");
     expect(toolResultMsg).toBeDefined();
     expect(toolResultMsg!.content).toBe("inserted result");
-    expect(toolResultMsg!.toolCallId).toBe(message.toolCalls![0].id);
+    // `createToolCallMessage` always builds an assistant message with
+    // `toolCalls`, but TS only sees the broad `Message` union here. Narrow
+    // through `as` rather than restructuring the helper signature.
+    const toolCalls = (message as { toolCalls?: { id: string }[] }).toolCalls;
+    expect(toolResultMsg!.toolCallId).toBe(toolCalls![0].id);
 
     // Tool result should come after the assistant message
     const assistantIdx = agent.messages.findIndex((m) => m.id === message.id);

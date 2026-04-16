@@ -88,7 +88,7 @@ describe("ProxiedAjoraRuntimeAgent transport integration", () => {
         }
 
         expect(init.method).toBe("POST");
-        const headers = new Headers(init.headers as HeadersInit);
+        const headers = new Headers(init.headers);
         expect(headers.get("content-type")).toBe("application/json");
         expect(headers.get("accept")).toBe("text/event-stream");
       });
@@ -125,7 +125,7 @@ describe("ProxiedAjoraRuntimeAgent transport integration", () => {
           });
         }
         expect(init.method).toBe("POST");
-        const headers = new Headers(init.headers as HeadersInit);
+        const headers = new Headers(init.headers);
         expect(headers.get("accept")).toBe("text/event-stream");
       });
 
@@ -166,7 +166,7 @@ describe("ProxiedAjoraRuntimeAgent transport integration", () => {
           });
         }
         expect(init.method).toBe("POST");
-        const headers = new Headers(init.headers as HeadersInit);
+        const headers = new Headers(init.headers);
         expect(headers.get("content-type")).toBe("application/json");
       });
     });
@@ -178,7 +178,6 @@ describe("ProxiedAjoraRuntimeAgent cloning", () => {
   const runtimeUrl = "https://runtime.example/single";
 
   beforeEach(() => {
-    // @ts-expect-error - Node typings allow reassigning fetch in tests
     global.fetch = vi.fn(() => Promise.resolve(createSseResponse()));
   });
 
@@ -219,7 +218,6 @@ describe("Suggestions engine with single-endpoint runtime agents", () => {
   const runtimeUrl = "https://runtime.example/single";
 
   beforeEach(() => {
-    // @ts-expect-error - Node typings allow reassigning fetch in tests
     global.fetch = vi.fn(() => Promise.resolve(createSseResponse()));
   });
 
@@ -297,7 +295,11 @@ function createSseResponse(): Response {
     },
   });
 
-  return new Response(stream, {
+  // RN's `Response` constructor (from @types/react-native globals) types
+  // its body parameter as `BodyInit_` rather than the WHATWG `BodyInit`,
+  // and `BodyInit_` doesn't include `ReadableStream`. The runtime
+  // (jsdom/undici) supports streams just fine, so cast through unknown.
+  return new Response(stream as unknown as BodyInit_, {
     status: 200,
     headers: { "content-type": "text/event-stream" },
   });
@@ -352,7 +354,6 @@ describe("AgentRegistry runtime info requests", () => {
           headers: { "content-type": "application/json" },
         })
       );
-      // @ts-expect-error - override in test environment
       global.fetch = fetchMock;
 
       const core = new AjoraCore({
@@ -376,7 +377,7 @@ describe("AgentRegistry runtime info requests", () => {
         expect(body).toEqual({ method: "info" });
       }
 
-      const headers = new Headers(init.headers as HeadersInit);
+      const headers = new Headers(init.headers);
       expect(headers.get("Authorization")).toBe("Bearer token");
 
       // Ensure remote agent was registered using the chosen transport.

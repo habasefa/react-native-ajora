@@ -119,7 +119,14 @@ export class MockAgent {
   }
 }
 
-export function createMessage(overrides: Partial<Message> = {}): Message {
+// `Partial<Message>` distributes badly over the discriminated `Message`
+// union — TS narrows to a single branch (often the activity one) and
+// rejects valid role/content combos. Tests don't need exhaustive type
+// safety on mock builders; widen the override type and cast at the
+// boundary instead.
+type MessageOverrides = Record<string, unknown>;
+
+export function createMessage(overrides: MessageOverrides = {}): Message {
   return {
     id: `msg-${Math.random().toString(36).substr(2, 9)}`,
     role: "user",
@@ -129,7 +136,7 @@ export function createMessage(overrides: Partial<Message> = {}): Message {
 }
 
 export function createAssistantMessage(
-  overrides: Partial<Message> = {}
+  overrides: MessageOverrides = {}
 ): Message {
   return createMessage({
     role: "assistant",
@@ -141,7 +148,7 @@ export function createAssistantMessage(
 export function createToolCallMessage(
   toolCallName: string,
   args: any = {},
-  overrides: Partial<Message> = {}
+  overrides: MessageOverrides = {}
 ): Message {
   const toolCallId = `tool-call-${Math.random().toString(36).substr(2, 9)}`;
   return createAssistantMessage({
@@ -163,7 +170,7 @@ export function createToolCallMessage(
 export function createToolResultMessage(
   toolCallId: string,
   content: string,
-  overrides: Partial<Message> = {}
+  overrides: MessageOverrides = {}
 ): Message {
   return createMessage({
     role: "tool",
@@ -187,7 +194,7 @@ export function createTool<T extends Record<string, unknown>>(
 
 export function createMultipleToolCallsMessage(
   toolCalls: Array<{ name: string; args?: any }>,
-  overrides: Partial<Message> = {}
+  overrides: MessageOverrides = {}
 ): Message {
   return createAssistantMessage({
     content: "",
@@ -260,7 +267,7 @@ export function createSuggestionsConfig(
  */
 export function createSuggestionToolCall(
   suggestions: Array<{ title: string; message: string }>,
-  overrides: Partial<Message> = {}
+  overrides: MessageOverrides = {}
 ): Message {
   const toolCallId = `suggest-call-${Math.random().toString(36).substr(2, 9)}`;
   return createAssistantMessage({

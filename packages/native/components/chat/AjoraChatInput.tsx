@@ -1444,7 +1444,7 @@ const AjoraChatInputComponent = forwardRef<
         disabled={!canStop}
         style={({ pressed }) => [
           styles.circleButton,
-          { backgroundColor: colors.error },
+          { backgroundColor: colors.secondary },
           pressed && canStop && styles.buttonPressed,
         ]}
         testID={`${testID}-stop-button`}
@@ -1453,7 +1453,7 @@ const AjoraChatInputComponent = forwardRef<
         accessibilityState={{ disabled: !canStop }}
       >
         {typeof icons.stop === "function"
-          ? icons.stop({ size: 16, color: colors.background })
+          ? icons.stop({ size: 16, color: colors.iconDefault })
           : icons.stop}
       </Pressable>
     ) : (
@@ -1462,7 +1462,7 @@ const AjoraChatInputComponent = forwardRef<
         disabled={!canStop}
         style={({ pressed }) => [
           styles.circleButton,
-          { backgroundColor: colors.error },
+          { backgroundColor: colors.secondary },
           pressed && canStop && styles.buttonPressed,
         ]}
         testID={`${testID}-stop-button`}
@@ -1470,7 +1470,7 @@ const AjoraChatInputComponent = forwardRef<
         accessibilityLabel="Stop processing"
         accessibilityState={{ disabled: !canStop }}
       >
-        <Ionicons name="stop" size={16} color={colors.background} />
+        <Ionicons name="stop" size={16} color={colors.iconDefault} />
       </Pressable>
     ));
 

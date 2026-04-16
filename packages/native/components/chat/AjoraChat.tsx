@@ -152,6 +152,12 @@ export function AjoraChat({
   >();
   const [error, setError] = useState<AjoraChatError | null>(null);
 
+  // Tracks whether the user has an in-flight message send. Distinct from
+  // `agent.isRunning`, which also flips true while `connectAgent` holds an
+  // SSE stream open during thread attach — that would incorrectly surface a
+  // stop button when simply opening a thread.
+  const [isSending, setIsSending] = useState(false);
+
   const parseAjoraError = useCallback((err: any): AjoraChatError => {
     let errorMessage = "Something went wrong please try again later";
     let errorCode: string | undefined;
@@ -281,12 +287,15 @@ export function AjoraChat({
         role: "user",
         content: value,
       });
+      setIsSending(true);
       try {
         await ajora.runAgent({ agent, modelId: resolvedModelId });
       } catch (err: any) {
         console.error("AjoraChat: runAgent failed", err);
         setError(parseAjoraError(err));
         props.onSendError?.(err);
+      } finally {
+        setIsSending(false);
       }
     },
     [agent, ajora, props.onSendError, resolvedModelId],
@@ -301,6 +310,7 @@ export function AjoraChat({
         content: suggestion.message,
       });
 
+      setIsSending(true);
       try {
         await ajora.runAgent({ agent, modelId: resolvedModelId });
       } catch (err: any) {
@@ -310,6 +320,8 @@ export function AjoraChat({
         );
         setError(parseAjoraError(err));
         props.onSendError?.(err);
+      } finally {
+        setIsSending(false);
       }
     },
     [agent, ajora, props.onSendError, resolvedModelId],
@@ -359,12 +371,15 @@ export function AjoraChat({
       agent.setMessages(messagesToKeep);
 
       // Re-run the agent to generate a new response
+      setIsSending(true);
       try {
         await ajora.runAgent({ agent, modelId: resolvedModelId });
       } catch (err: any) {
         console.error("AjoraChat: regenerate failed", err);
         setError(parseAjoraError(err));
         props.onSendError?.(err);
+      } finally {
+        setIsSending(false);
       }
     },
     [agent, ajora, props.onSendError, resolvedModelId, parseAjoraError],
@@ -372,12 +387,15 @@ export function AjoraChat({
 
   const handleRetryError = useCallback(async () => {
     setError(null);
+    setIsSending(true);
     try {
       await ajora.runAgent({ agent, modelId: resolvedModelId });
     } catch (err: any) {
       console.error("AjoraChat: runAgent failed on retry", err);
       setError(parseAjoraError(err));
       props.onSendError?.(err);
+    } finally {
+      setIsSending(false);
     }
   }, [agent, ajora, props.onSendError, resolvedModelId, parseAjoraError]);
 
@@ -435,7 +453,10 @@ export function AjoraChat({
 
   const providedStopHandler = providedInputProps?.onStop;
   const hasMessages = agent.messages.length > 0;
-  const shouldAllowStop = agent.isRunning && hasMessages;
+  // Gate the stop button on user-initiated sends only. `agent.isRunning`
+  // also flips true during `connectAgent`'s thread-attach stream, which is
+  // not something the user should be able to "stop" from the input.
+  const shouldAllowStop = isSending && hasMessages;
   const effectiveStopHandler = shouldAllowStop
     ? (providedStopHandler ?? stopCurrentRun)
     : providedStopHandler;
@@ -444,12 +465,12 @@ export function AjoraChat({
     ...providedInputProps,
     onSubmitMessage: onSubmitInput,
     onStop: effectiveStopHandler,
-    isRunning: agent.isRunning,
+    isRunning: isSending,
   } as Partial<AjoraChatInputProps> & {
     onSubmitMessage: (value: string) => void;
   };
 
-  finalInputProps.mode = agent.isRunning
+  finalInputProps.mode = isSending
     ? "processing"
     : (finalInputProps.mode ?? "input");
 

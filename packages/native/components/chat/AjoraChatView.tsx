@@ -587,13 +587,13 @@ function AjoraChatViewInner({
     contentContainerStyle: styles.scrollViewContent,
     children: (
       <View>
-        {/* Show empty or loading state when appropriate */}
-        {BoundLoadingState}
+        {/* Loading state is rendered outside the scroll view so it can be
+            centered in the viewport — see the main return below. */}
         {BoundEmptyState}
         {/* Pagination affordance lives above the message list */}
         {LoadEarlierBanner}
-        {/* Only show messages when not in loading/empty state */}
-        {!shouldShowLoading && !shouldShowEmpty && BoundMessageView}
+        {/* Only show messages when not in empty state */}
+        {!shouldShowEmpty && BoundMessageView}
         {BoundSuggestionView}
       </View>
     ),
@@ -620,7 +620,11 @@ function AjoraChatViewInner({
       {...props}
     >
       <Animated.View style={[styles.animatedContainer, keyboardAnimatedStyle]}>
-        {BoundScrollView}
+        {shouldShowLoading ? (
+          <View style={styles.loadingContainer}>{BoundLoadingState}</View>
+        ) : (
+          BoundScrollView
+        )}
         <View style={[styles.bottomContainer]}>{BoundInput}</View>
       </Animated.View>
     </View>
@@ -650,6 +654,11 @@ const styles = StyleSheet.create({
   },
   animatedContainer: {
     flex: 1,
+  },
+  loadingContainer: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
   },
   scrollViewWrapper: {
     flex: 1,

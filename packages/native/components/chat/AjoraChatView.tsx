@@ -940,11 +940,9 @@ function AjoraChatViewInner({
         ) : hasHistoryError && isEmpty ? (
           <View style={styles.loadingContainer}>{historyErrorNode}</View>
         ) : shouldShowEmpty ? (
-          // Empty state lives outside the virtualized list — FlashList with
-          // `data: []` would still render header/footer, but the empty
-          // state's "How can I help" hero deserves the full viewport center
-          // rather than being squashed under a footer.
-          <View style={styles.loadingContainer}>{BoundEmptyState}</View>
+          // Wrapper must not use alignItems: "center" — would collapse
+          // children that rely on width: "100%" to their intrinsic width.
+          <View style={styles.emptyStateContainer}>{BoundEmptyState}</View>
         ) : (
           <View style={styles.scrollViewHost}>
             {BoundScrollView}
@@ -985,6 +983,9 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
+  },
+  emptyStateContainer: {
+    flex: 1,
   },
   scrollViewWrapper: {
     flex: 1,

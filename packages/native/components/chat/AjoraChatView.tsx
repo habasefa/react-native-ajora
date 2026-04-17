@@ -975,6 +975,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     overflow: "hidden",
+    paddingBottom: 12,
   },
   animatedContainer: {
     flex: 1,

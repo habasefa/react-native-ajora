@@ -4,6 +4,8 @@ export { useRenderActivityMessage } from "./use-render-activity-message";
 export { useFrontendTool } from "./use-frontend-tool";
 export { useHumanInTheLoop } from "./use-human-in-the-loop";
 export { useAgent, UseAgentUpdate } from "./use-agent";
+export { useLiveThinking } from "./use-live-thinking";
+export type { UseLiveThinkingProps } from "./use-live-thinking";
 export { useHistory } from "./use-history";
 export type { UseHistoryProps, UseHistoryResult } from "./use-history";
 export { useThreads } from "./use-threads";

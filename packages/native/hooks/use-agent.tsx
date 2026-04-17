@@ -6,6 +6,7 @@ import {
   ProxiedAjoraRuntimeAgent,
   AjoraCoreRuntimeConnectionStatus,
 } from "../../core";
+import { installThinkingSubscriber } from "../lib/thinking-subscriber";
 
 // Optional haptics import - gracefully handle if not available
 let Haptics: {
@@ -129,6 +130,10 @@ export function useAgent({ agentId, updates }: UseAgentProps = {}) {
     stableHeaders,
     ajora,
   ]);
+
+  useEffect(() => {
+    installThinkingSubscriber(agent);
+  }, [agent]);
 
   useEffect(() => {
     if (updateFlags.length === 0) {

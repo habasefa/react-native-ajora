@@ -190,7 +190,13 @@ export type AjoraChatMessageViewProps = Omit<
       messages?: Message[];
       onRegenerate?: (message: AssistantMessage) => void;
       onMessageLongPress?: (message: Message) => void;
+      /** Renderer applied to both user and assistant messages unless a
+          side-specific renderer is provided. */
       textRenderer?: (props: { content: string }) => React.ReactNode;
+      /** Overrides `textRenderer` for user messages only. */
+      userTextRenderer?: (props: { content: string }) => React.ReactNode;
+      /** Overrides `textRenderer` for assistant messages only. */
+      assistantTextRenderer?: (props: { content: string }) => React.ReactNode;
       /** Whether to show the thinking indicator when isRunning is true */
       showThinkingIndicator?: boolean;
       /** Error message to display at the bottom of the chat */
@@ -228,6 +234,8 @@ export function useRenderMessage({
   onRegenerate,
   onMessageLongPress,
   textRenderer,
+  assistantTextRenderer,
+  userTextRenderer,
 }: {
   messages: Message[];
   isRunning: boolean;
@@ -236,6 +244,8 @@ export function useRenderMessage({
   onRegenerate?: (message: AssistantMessage) => void;
   onMessageLongPress?: (message: Message) => void;
   textRenderer?: (props: { content: string }) => React.ReactNode;
+  assistantTextRenderer?: (props: { content: string }) => React.ReactNode;
+  userTextRenderer?: (props: { content: string }) => React.ReactNode;
 }) {
   const renderCustomMessage = useRenderCustomMessages();
   const renderActivityMessage = useRenderActivityMessage();
@@ -270,7 +280,7 @@ export function useRenderMessage({
             isRunning={isRunning}
             onRegenerate={onRegenerate}
             AssistantMessageComponent={AssistantComponent}
-            textRenderer={textRenderer}
+            textRenderer={assistantTextRenderer ?? textRenderer}
           />,
         );
       } else if (message.role === "user") {
@@ -284,7 +294,7 @@ export function useRenderMessage({
             message={message as UserMessage}
             UserMessageComponent={UserComponent}
             onLongPress={onMessageLongPress}
-            textRenderer={textRenderer}
+            textRenderer={userTextRenderer ?? textRenderer}
           />,
         );
       } else if (message.role === "activity") {
@@ -319,6 +329,8 @@ export function useRenderMessage({
       onRegenerate,
       onMessageLongPress,
       textRenderer,
+      userTextRenderer,
+      assistantTextRenderer,
       renderCustomMessage,
       renderActivityMessage,
     ],
@@ -351,6 +363,8 @@ export function AjoraChatMessageView({
   onRegenerate,
   onMessageLongPress,
   textRenderer,
+  userTextRenderer,
+  assistantTextRenderer,
   children,
   style,
   error,
@@ -390,6 +404,8 @@ export function AjoraChatMessageView({
     onRegenerate,
     onMessageLongPress,
     textRenderer,
+    userTextRenderer,
+    assistantTextRenderer,
   });
 
   const messageElements: React.ReactElement[] = deduplicatedMessages

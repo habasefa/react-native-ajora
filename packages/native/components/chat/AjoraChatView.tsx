@@ -83,7 +83,13 @@ export type AjoraChatViewProps = WithSlots<
     onRegenerate?: (message: AssistantMessage) => void;
 
     onMessageLongPress?: (message: Message) => void;
+    /** Renderer applied to both user and assistant messages unless a
+        side-specific renderer is provided. */
     textRenderer?: (props: { content: string }) => React.ReactNode;
+    /** Overrides `textRenderer` for user messages only. */
+    userTextRenderer?: (props: { content: string }) => React.ReactNode;
+    /** Overrides `textRenderer` for assistant messages only. */
+    assistantTextRenderer?: (props: { content: string }) => React.ReactNode;
     style?: StyleProp<ViewStyle>;
 
     // ========================================================================
@@ -644,6 +650,8 @@ function AjoraChatViewInner({
   onRegenerate,
   onMessageLongPress,
   textRenderer,
+  userTextRenderer,
+  assistantTextRenderer,
   children,
   style,
   ...props
@@ -740,6 +748,8 @@ function AjoraChatViewInner({
     onRegenerate,
     onMessageLongPress,
     textRenderer,
+    userTextRenderer,
+    assistantTextRenderer,
   });
 
   // Last message drives both the streaming flag and the thinking-indicator
@@ -790,6 +800,8 @@ function AjoraChatViewInner({
     onRegenerate,
     onMessageLongPress,
     textRenderer,
+    userTextRenderer,
+    assistantTextRenderer,
   });
 
   const BoundInput = renderSlot(input, AjoraChatInput, {

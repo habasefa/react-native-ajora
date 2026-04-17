@@ -116,7 +116,13 @@ export type AjoraChatProps = Omit<
   onSendError?: (error: Error) => void;
   /** Called when a message is successfully sent */
   onSendSuccess?: (message: any) => void;
+  /** Renderer applied to both user and assistant messages unless a
+      side-specific renderer is provided. */
   textRenderer?: (props: { content: string }) => React.ReactNode;
+  /** Overrides `textRenderer` for user messages only. */
+  userTextRenderer?: (props: { content: string }) => React.ReactNode;
+  /** Overrides `textRenderer` for assistant messages only. */
+  assistantTextRenderer?: (props: { content: string }) => React.ReactNode;
 };
 export function AjoraChat({
   agentId,
@@ -184,6 +190,8 @@ export function AjoraChat({
     messageView: providedMessageView,
     suggestionView: providedSuggestionView,
     textRenderer,
+    userTextRenderer,
+    assistantTextRenderer,
     ...restProps
   } = props;
 
@@ -535,6 +543,8 @@ export function AjoraChat({
       onRegenerate: handleRegenerate,
       onMessageLongPress: handleMessageLongPress,
       textRenderer,
+      userTextRenderer,
+      assistantTextRenderer,
       error,
       onRetryError: handleRetryError,
     },

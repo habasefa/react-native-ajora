@@ -113,6 +113,7 @@ export class SuggestionEngine {
    */
   public clearSuggestions(agentId: string): void {
     const runningAgents = this._runningSuggestions[agentId];
+    const wasLoading = Boolean(runningAgents && runningAgents.length > 0);
     if (runningAgents) {
       for (const agent of runningAgents) {
         agent.abortRun();
@@ -122,6 +123,9 @@ export class SuggestionEngine {
     this._suggestions[agentId] = {};
 
     void this.notifySuggestionsChanged(agentId, []);
+    if (wasLoading) {
+      void this.notifySuggestionsFinishedLoading(agentId);
+    }
   }
 
   /**

@@ -606,6 +606,162 @@ export class ProxiedAjoraRuntimeAgent extends HttpAgent {
   }
 }
 
+// ============================================================================
+// StatelessAjoraRuntimeAgent
+// ============================================================================
+
+export interface StatelessAjoraRuntimeAgentConfig
+  extends Omit<HttpAgentConfig, "url"> {
+  /**
+   * Full URL the agent POSTs AG-UI run requests to. No path wrapping is
+   * applied. Point this at a dedicated stateless endpoint, OR reuse the same
+   * runtime URL as your main agent — in the latter case the backend should
+   * branch on the `stateless: true` flag added to `forwardedProps` and skip
+   * writing to the thread store.
+   */
+  url: string;
+  transport?: AjoraRuntimeTransport;
+}
+
+/**
+ * A one-shot, non-persistent variant of `ProxiedAjoraRuntimeAgent`. Intended
+ * for provider agents in contexts like suggestions — where the client spins
+ * up a fresh `threadId` per run and we don't want those runs materializing
+ * as ghost threads in the magnus thread store.
+ *
+ * Every outbound run injects `stateless: true` + `isEphemeral: true` into
+ * `forwardedProps` so the backend can recognize the run and opt out of
+ * persistence. Thread-management methods (`createThread`, `listThreads`,
+ * `fetchHistory`) throw — this agent has no thread model by design.
+ *
+ * @example
+ * // 1. Construct both agents at app boot.
+ * const mainAgent = new ProxiedAjoraRuntimeAgent({
+ *   runtimeUrl: "https://api.example.com",
+ *   agentId: "default",
+ * });
+ * const suggestionsProvider = new StatelessAjoraRuntimeAgent({
+ *   // Point at a dedicated stateless endpoint, or reuse the main URL and
+ *   // branch on `forwardedProps.stateless === true` on the server.
+ *   url: "https://api.example.com/agent/suggestions/run",
+ *   agentId: "suggestions",
+ * });
+ *
+ * // 2. Register both on the provider.
+ * <AjoraProvider
+ *   agents__unsafe_dev_only={{
+ *     default: mainAgent,
+ *     "suggestions-provider": suggestionsProvider,
+ *   }}
+ * >
+ *   {children}
+ * </AjoraProvider>
+ *
+ * // 3. Point suggestions at the stateless provider.
+ * useConfigureSuggestions({
+ *   available: "enabled",
+ *   providerAgentId: "suggestions-provider",
+ *   instructions: "Suggest three short follow-ups.",
+ * });
+ *
+ * // 4. On the backend, honor the flag:
+ * // if (body.forwardedProps?.stateless) { skipWriteToThreadStore(); }
+ */
+export class StatelessAjoraRuntimeAgent extends HttpAgent {
+  private transport: AjoraRuntimeTransport;
+  private statelessUrl: string;
+
+  constructor(config: StatelessAjoraRuntimeAgentConfig) {
+    if (!config.url) {
+      throw new Error("StatelessAjoraRuntimeAgent requires a url.");
+    }
+    super({ ...config, url: config.url });
+    this.statelessUrl = config.url;
+    this.transport = config.transport ?? "rest";
+  }
+
+  public run(input: RunAgentInput): Observable<BaseEvent> {
+    const annotated: RunAgentInput = {
+      ...input,
+      forwardedProps: {
+        ...((input.forwardedProps as Record<string, unknown> | undefined) ?? {}),
+        stateless: true,
+        isEphemeral: true,
+      },
+    };
+
+    if (this.transport === "single") {
+      if (!this.agentId) {
+        throw new Error(
+          "StatelessAjoraRuntimeAgent requires agentId for the single-route transport.",
+        );
+      }
+      const baseInit = super.requestInit(annotated);
+      const headers = new Headers(baseInit.headers ?? {});
+      headers.set("Content-Type", "application/json");
+      headers.set("Accept", headers.get("Accept") ?? "text/event-stream");
+
+      let body: unknown = undefined;
+      if (typeof baseInit.body === "string") {
+        try {
+          body = JSON.parse(baseInit.body);
+        } catch {
+          body = undefined;
+        }
+      }
+
+      const requestInit: RequestInit = {
+        ...baseInit,
+        headers,
+        body: JSON.stringify({
+          method: "agent/run",
+          params: { agentId: this.agentId },
+          body,
+        }),
+      };
+      const httpEvents = patchedRunHttpRequest(
+        this.statelessUrl,
+        requestInit,
+        runHttpRequest,
+      );
+      return withAbortErrorHandling(
+        transformHttpEventStream(httpEvents),
+        this.abortController.signal,
+      );
+    }
+
+    return withAbortErrorHandling(
+      super.run(annotated),
+      this.abortController.signal,
+    );
+  }
+
+  async createThread(): Promise<never> {
+    throw new Error(
+      "StatelessAjoraRuntimeAgent does not support thread creation — it is stateless by design.",
+    );
+  }
+
+  async listThreads(): Promise<never> {
+    throw new Error(
+      "StatelessAjoraRuntimeAgent does not support thread listing — it is stateless by design.",
+    );
+  }
+
+  async fetchHistory(): Promise<never> {
+    throw new Error(
+      "StatelessAjoraRuntimeAgent does not support history fetch — it is stateless by design.",
+    );
+  }
+
+  public override clone(): StatelessAjoraRuntimeAgent {
+    const cloned = super.clone() as StatelessAjoraRuntimeAgent;
+    cloned.transport = this.transport;
+    cloned.statelessUrl = this.statelessUrl;
+    return cloned;
+  }
+}
+
 function isZodError(error: unknown): boolean {
   return (
     typeof error === "object" &&

@@ -306,6 +306,12 @@ const LINE_HEIGHT = 20;
 const ICON_SIZE = 22;
 const BUTTON_SIZE = 40;
 const INPUT_PADDING_HORIZONTAL = 16;
+const MODEL_NAME_MAX_CHARS = 18;
+
+const truncateModelName = (name: string): string =>
+  name.length > MODEL_NAME_MAX_CHARS
+    ? `${name.slice(0, MODEL_NAME_MAX_CHARS).trimEnd()}…`
+    : name;
 
 // ============================================================================
 // Sub-Component Props Types
@@ -1307,7 +1313,7 @@ const AjoraChatInputComponent = forwardRef<
         style={[styles.agentSelectorText, { color: colors.text }]}
         numberOfLines={1}
       >
-        {selectedModel?.name ?? "Select Model"}
+        {truncateModelName(selectedModel?.name ?? "Select Model")}
       </Text>
       <Ionicons name="chevron-down" size={14} color={colors.iconDefault} />
     </Pressable>
@@ -1328,7 +1334,7 @@ const AjoraChatInputComponent = forwardRef<
         style={[styles.agentSelectorText, { color: colors.text }]}
         numberOfLines={1}
       >
-        {selectedModel?.name ?? "Select Model"}
+        {truncateModelName(selectedModel?.name ?? "Select Model")}
       </Text>
       <Ionicons name="chevron-down" size={14} color={colors.iconDefault} />
     </Pressable>
@@ -1609,7 +1615,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "flex-start",
     gap: 4,
-    minWidth: 88,
+    flexShrink: 1,
+    flexGrow: 1,
+    minWidth: 0,
+    marginRight: 8,
   },
   centerContainer: {
     flex: 1,
@@ -1621,7 +1630,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "flex-end",
     gap: 8,
-    minWidth: 88,
+    flexShrink: 0,
+    flexGrow: 0,
   },
   iconButton: {
     width: BUTTON_SIZE,

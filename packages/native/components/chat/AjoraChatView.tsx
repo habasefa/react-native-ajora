@@ -44,6 +44,8 @@ import AjoraChatErrorMessage, {
   AjoraChatErrorMessageProps,
 } from "./AjoraChatErrorMessage";
 import { useAjoraTheme } from "../../providers/AjoraThemeProvider";
+import { useAjoraChatConfiguration } from "../../providers/AjoraChatConfigurationProvider";
+import { useLiveThinking } from "../../hooks/use-live-thinking";
 
 // ============================================================================
 // Types
@@ -79,6 +81,9 @@ export type AjoraChatViewProps = WithSlots<
     starterSuggestions?: Suggestion[];
     suggestions?: Suggestion[];
     suggestionLoadingIndexes?: ReadonlyArray<number>;
+    /** When true and `suggestions` is empty, the suggestion view renders
+     *  shimmer placeholders to signal that generation is in-flight. */
+    isSuggestionsLoading?: boolean;
     onSelectSuggestion?: (suggestion: Suggestion, index: number) => void;
     onRegenerate?: (message: AssistantMessage) => void;
 
@@ -510,6 +515,11 @@ interface AjoraChatScrollViewProps {
   onScrolledToTop?: () => void;
   /** Active thread id. Enables per-thread scroll-position memory. */
   threadId?: string;
+  /** Optional custom scroll component for the underlying FlashList. Used by
+   *  BottomSheet-hosted chat views to wire FlashList's scroll events into
+   *  @gorhom/bottom-sheet via `useBottomSheetScrollableCreator`, so vertical
+   *  pans inside the list scroll the list instead of dragging the sheet. */
+  renderScrollComponent?: any;
 }
 
 export function AjoraChatScrollView({
@@ -525,6 +535,7 @@ export function AjoraChatScrollView({
   contentContainerStyle,
   onScrolledToTop,
   threadId,
+  renderScrollComponent,
 }: AjoraChatScrollViewProps) {
   const {
     scrollViewRef,
@@ -578,6 +589,7 @@ export function AjoraChatScrollView({
         onContentSizeChange={handleContentSizeChange}
         onLayout={handleLayout}
         scrollEventThrottle={16}
+        renderScrollComponent={renderScrollComponent}
         // FlashList's chat-mode anchoring. `startRenderingFromBottom`
         // pins fresh threads to the latest message; `autoscrollToBottomThreshold`
         // keeps the view glued to the bottom while streaming if the user
@@ -638,6 +650,7 @@ function AjoraChatViewInner({
   starterSuggestions,
   suggestions,
   suggestionLoadingIndexes,
+  isSuggestionsLoading = false,
   onSelectSuggestion,
   onRetryError,
   isLoadingEarlier = false,
@@ -769,9 +782,17 @@ function AjoraChatViewInner({
     (lastMessage as any).toolCalls.length > 0;
   const shouldShowThinking =
     showThinkingIndicator && isRunning && !isToolCall;
+  // Pull live chain-of-thought for the active agent so the indicator can
+  // surface streaming title + last reasoning line. agentId comes from the
+  // configuration provider so this view doesn't need a new prop; if no
+  // provider wraps the view, useLiveThinking falls back to DEFAULT_AGENT_ID.
+  const chatConfig = useAjoraChatConfiguration();
+  const liveThinking = useLiveThinking({ agentId: chatConfig?.agentId });
   const BoundThinkingIndicator = shouldShowThinking
     ? renderSlot(thinkingIndicator, AjoraChatThinkingIndicator, {
         isThinking: true,
+        title: liveThinking.title,
+        text: liveThinking.text,
       })
     : null;
 
@@ -809,13 +830,15 @@ function AjoraChatViewInner({
   } as AjoraChatInputProps);
 
   const hasSuggestions = Array.isArray(suggestions) && suggestions.length > 0;
+  const shouldRenderSuggestions = hasSuggestions || isSuggestionsLoading;
 
   // Note: AjoraChatSuggestionView expects an array of suggestions
-  const BoundSuggestionView = hasSuggestions
+  const BoundSuggestionView = shouldRenderSuggestions
     ? renderSlot(suggestionView, AjoraChatSuggestionView, {
-        suggestions,
+        suggestions: suggestions ?? [],
         onSelectSuggestion,
         loadingIndexes: suggestionLoadingIndexes,
+        isLoading: isSuggestionsLoading,
       })
     : null;
 

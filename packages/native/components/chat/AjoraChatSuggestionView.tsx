@@ -12,6 +12,13 @@ import { renderSlot, WithSlots } from "../../lib/slots";
 import AjoraChatSuggestionPill, {
   AjoraChatSuggestionPillProps,
 } from "./AjoraChatSuggestionPill";
+import AjoraChatSuggestionShimmer, {
+  AjoraChatSuggestionShimmerProps,
+} from "./AjoraChatSuggestionShimmer";
+
+// Widths are deliberately varied so a shimmer row looks more like candidate
+// suggestions (which have varying lengths) than a uniform stripe.
+const SHIMMER_PLACEHOLDER_WIDTHS = [88, 132, 104] as const;
 
 const DefaultContainer = React.forwardRef<
   any,
@@ -35,11 +42,19 @@ export type AjoraChatSuggestionViewProps = WithSlots<
   {
     container: typeof DefaultContainer;
     suggestion: typeof AjoraChatSuggestionPill;
+    shimmer: typeof AjoraChatSuggestionShimmer;
   },
   {
     suggestions: Suggestion[];
     onSelectSuggestion?: (suggestion: Suggestion, index: number) => void;
     loadingIndexes?: ReadonlyArray<number>;
+    /**
+     * When true and no suggestions have arrived yet, the view renders
+     * shimmer placeholders instead of an empty row. The existing per-pill
+     * `loadingIndexes` / `suggestion.isLoading` spinner still handles the
+     * "user clicked this pill" case independently.
+     */
+    isLoading?: boolean;
     style?: StyleProp<ViewStyle>;
   }
 >;
@@ -52,8 +67,10 @@ export const AjoraChatSuggestionView = React.forwardRef<
     suggestions,
     onSelectSuggestion,
     loadingIndexes,
+    isLoading,
     container,
     suggestion: suggestionSlot,
+    shimmer: shimmerSlot,
     children,
     style,
     ...restProps
@@ -72,21 +89,34 @@ export const AjoraChatSuggestionView = React.forwardRef<
     ...restProps,
   });
 
-  const suggestionElements = suggestions.map((suggestion, index) => {
-    const isLoading = loadingSet.has(index) || suggestion.isLoading === true;
-    const pill = renderSlot<
-      typeof AjoraChatSuggestionPill,
-      AjoraChatSuggestionPillProps
-    >(suggestionSlot, AjoraChatSuggestionPill, {
-      children: suggestion.title,
-      isLoading,
-      onPress: () => onSelectSuggestion?.(suggestion, index),
-    });
+  const showShimmers = isLoading === true && suggestions.length === 0;
 
-    return React.cloneElement(pill as React.ReactElement, {
-      key: `${suggestion.title}-${index}`,
-    });
-  });
+  const suggestionElements = showShimmers
+    ? SHIMMER_PLACEHOLDER_WIDTHS.map((width, index) => {
+        const placeholder = renderSlot<
+          typeof AjoraChatSuggestionShimmer,
+          AjoraChatSuggestionShimmerProps
+        >(shimmerSlot, AjoraChatSuggestionShimmer, { width });
+        return React.cloneElement(placeholder as React.ReactElement, {
+          key: `shimmer-${index}`,
+        });
+      })
+    : suggestions.map((suggestion, index) => {
+        const pillIsLoading =
+          loadingSet.has(index) || suggestion.isLoading === true;
+        const pill = renderSlot<
+          typeof AjoraChatSuggestionPill,
+          AjoraChatSuggestionPillProps
+        >(suggestionSlot, AjoraChatSuggestionPill, {
+          children: suggestion.title,
+          isLoading: pillIsLoading,
+          onPress: () => onSelectSuggestion?.(suggestion, index),
+        });
+
+        return React.cloneElement(pill as React.ReactElement, {
+          key: `${suggestion.title}-${index}`,
+        });
+      });
 
   const boundContainer = React.cloneElement(
     ContainerElement as React.ReactElement,

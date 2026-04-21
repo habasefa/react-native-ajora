@@ -65,6 +65,11 @@ export {
 } from "./AjoraChatSuggestionView";
 
 export {
+  default as AjoraChatSuggestionShimmer,
+  type AjoraChatSuggestionShimmerProps,
+} from "./AjoraChatSuggestionShimmer";
+
+export {
   default as AjoraChatMessageView,
   type AjoraChatMessageViewProps,
 } from "./AjoraChatMessageView";
@@ -78,6 +83,13 @@ export {
   default as AjoraChatToolCallsView,
   type AjoraChatToolCallsViewProps,
 } from "./AjoraChatToolCallsView";
+
+export {
+  default as AjoraChatThoughtsBubble,
+  formatThoughtsDuration,
+  type AjoraChatThoughtsBubbleProps,
+  type AjoraChatThoughtsBubbleColors,
+} from "./AjoraChatThoughtsBubble";
 
 export {
   default as AjoraChatView,

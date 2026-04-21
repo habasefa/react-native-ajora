@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { View, StyleSheet, StyleProp, ViewStyle } from "react-native";
+import { View, Text, StyleSheet, StyleProp, ViewStyle } from "react-native";
 import Animated, {
   runOnJS,
   useAnimatedStyle,
@@ -17,6 +17,12 @@ import { useAjoraTheme } from "../../providers/AjoraThemeProvider";
 export interface AjoraChatThinkingIndicatorProps {
   /** Whether the assistant is currently thinking/running */
   isThinking?: boolean;
+  /** Optional title from THINKING_START (e.g., "Planning"). Renders bold
+   *  above the streamed text. */
+  title?: string;
+  /** Optional live thinking text. Only the last non-empty line is shown,
+   *  truncated to a single line so the indicator stays compact. */
+  text?: string;
   /** Custom dot color */
   dotColor?: string;
   /** Size of each dot */
@@ -29,17 +35,10 @@ export interface AjoraChatThinkingIndicatorProps {
   colors?: {
     background?: string;
     dotDefault?: string;
+    title?: string;
+    text?: string;
   };
 }
-
-// ============================================================================
-// Theme Colors (matching AjoraChatAssistantMessage)
-// ============================================================================
-
-const COLORS = {
-  dotDefault: "#6B7280", // mutedForeground
-  background: "#F3F4F6", // secondary background
-};
 
 // ============================================================================
 // Loading Dots Animation Component
@@ -124,11 +123,32 @@ const LoadingDots: React.FC<LoadingDotsProps> = ({
 };
 
 // ============================================================================
+// Helpers
+// ============================================================================
+
+// Surface only the most recent non-empty line. Streaming reasoning often
+// arrives as multiple short lines, and showing the whole buffer would make
+// the indicator jump. The last line is what's actively being written.
+function lastLine(text: string | undefined): string {
+  if (!text) return "";
+  const trimmed = text.replace(/\s+$/g, "");
+  if (!trimmed) return "";
+  const idx = trimmed.lastIndexOf("\n");
+  return idx === -1 ? trimmed : trimmed.slice(idx + 1);
+}
+
+// ============================================================================
 // Main Component
 // ============================================================================
 
+const COMPACT_HEIGHT = 35;
+const EXPANDED_HEIGHT = 56;
+const COMPACT_WIDTH = 52;
+
 export function AjoraChatThinkingIndicator({
   isThinking = false,
+  title,
+  text,
   dotColor,
   dotSize = 6,
   gap = 6,
@@ -140,9 +160,15 @@ export function AjoraChatThinkingIndicator({
   const colors = {
     background: colorOverrides?.background ?? theme.colors.assistantBubble,
     dotDefault: colorOverrides?.dotDefault ?? theme.colors.textSecondary,
+    title: colorOverrides?.title ?? theme.colors.text,
+    text: colorOverrides?.text ?? theme.colors.textSecondary,
   };
 
   const resolvedDotColor = dotColor ?? colors.dotDefault;
+  const liveText = lastLine(text);
+  const hasContent = !!(title || liveText);
+  const targetHeight = hasContent ? EXPANDED_HEIGHT : COMPACT_HEIGHT;
+
   const yCoords = useSharedValue(200);
   const heightScale = useSharedValue(0);
   const marginScale = useSharedValue(0);
@@ -166,9 +192,9 @@ export function AjoraChatThinkingIndicator({
     const duration = 250;
 
     yCoords.value = withTiming(0, { duration });
-    heightScale.value = withTiming(35, { duration });
+    heightScale.value = withTiming(targetHeight, { duration });
     marginScale.value = withTiming(8, { duration });
-  }, [yCoords, heightScale, marginScale]);
+  }, [yCoords, heightScale, marginScale, targetHeight]);
 
   const slideOut = useCallback(() => {
     const duration = 250;
@@ -190,6 +216,14 @@ export function AjoraChatThinkingIndicator({
     }
   }, [isVisible, isThinking, slideIn, slideOut]);
 
+  // Re-run slideIn when the target height shifts mid-stream (e.g. content
+  // arrives after the indicator was already in compact dot mode).
+  useEffect(() => {
+    if (isVisible && isThinking) {
+      heightScale.value = withTiming(targetHeight, { duration: 200 });
+    }
+  }, [isVisible, isThinking, targetHeight, heightScale]);
+
   useEffect(() => {
     if (isThinking) {
       setIsVisible(true);
@@ -202,17 +236,49 @@ export function AjoraChatThinkingIndicator({
     <Animated.View
       style={[
         styles.container,
+        hasContent ? styles.containerExpanded : styles.containerCompact,
         { backgroundColor: colors.background },
         containerStyle,
         style,
       ]}
     >
-      <LoadingDots
-        dotColor={resolvedDotColor}
-        dotSize={dotSize}
-        gap={gap}
-        style={styles.dots}
-      />
+      {hasContent ? (
+        <View style={styles.row}>
+          <LoadingDots
+            dotColor={resolvedDotColor}
+            dotSize={dotSize}
+            gap={gap}
+            style={styles.dotsLeading}
+          />
+          <View style={styles.textColumn}>
+            {title ? (
+              <Text
+                style={[styles.title, { color: colors.title }]}
+                numberOfLines={1}
+                ellipsizeMode="tail"
+              >
+                {title}
+              </Text>
+            ) : null}
+            {liveText ? (
+              <Text
+                style={[styles.text, { color: colors.text }]}
+                numberOfLines={1}
+                ellipsizeMode="tail"
+              >
+                {liveText}
+              </Text>
+            ) : null}
+          </View>
+        </View>
+      ) : (
+        <LoadingDots
+          dotColor={resolvedDotColor}
+          dotSize={dotSize}
+          gap={gap}
+          style={styles.dots}
+        />
+      )}
     </Animated.View>
   );
 }
@@ -224,12 +290,37 @@ export function AjoraChatThinkingIndicator({
 const styles = StyleSheet.create({
   container: {
     marginLeft: 12,
-    width: 52,
     borderRadius: 18,
-    // backgroundColor: COLORS.background, // Set via inline style
     paddingHorizontal: 12,
     paddingVertical: 8,
     overflow: "hidden",
+  },
+  containerCompact: {
+    width: COMPACT_WIDTH,
+  },
+  containerExpanded: {
+    alignSelf: "stretch",
+    marginRight: 12,
+  },
+  row: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
+  },
+  dotsLeading: {
+    marginRight: 10,
+  },
+  textColumn: {
+    flex: 1,
+    justifyContent: "center",
+  },
+  title: {
+    fontSize: 13,
+    fontWeight: "600",
+  },
+  text: {
+    fontSize: 12,
+    marginTop: 2,
   },
   dots: {
     flex: 1,

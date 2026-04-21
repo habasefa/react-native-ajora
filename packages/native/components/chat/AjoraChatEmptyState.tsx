@@ -503,7 +503,7 @@ const styles = StyleSheet.create({
   suggestionsContainer: {
     width: "100%",
     maxWidth: 400,
-    gap: 10,
+    gap: 14,
   },
   suggestionsLabel: {
     fontSize: 12,
@@ -516,18 +516,18 @@ const styles = StyleSheet.create({
   suggestionCard: {
     flexDirection: "row",
     alignItems: "center",
-    padding: 18,
+    padding: 20,
     borderRadius: 16,
     borderWidth: 1,
-    minHeight: 72,
+    minHeight: 80,
   },
   suggestionCardPressed: {
     opacity: 0.85,
     transform: [{ scale: 0.99 }],
   },
   suggestionIconWrapper: {
-    width: 44,
-    height: 44,
+    width: 48,
+    height: 48,
     borderRadius: 14,
     alignItems: "center",
     justifyContent: "center",
@@ -538,7 +538,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   suggestionTitle: {
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: "600",
     letterSpacing: -0.2,
   },

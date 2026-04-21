@@ -180,7 +180,10 @@ export function AjoraChat({
     threadId: resolvedThreadId,
   });
 
-  const { suggestions: autoSuggestions } = useSuggestions({
+  const {
+    suggestions: autoSuggestions,
+    isLoading: isSuggestionsLoading,
+  } = useSuggestions({
     agentId: resolvedAgentId,
     modelId: resolvedModelId,
   });
@@ -536,6 +539,7 @@ export function AjoraChat({
       onRetryHistory: reloadHistory,
       threadId: resolvedThreadId,
       suggestions: autoSuggestions,
+      isSuggestionsLoading,
       starterSuggestions,
       onSelectSuggestion: handleSelectSuggestion,
       suggestionView: providedSuggestionView,

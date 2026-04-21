@@ -13,6 +13,8 @@ import {
 } from "@ag-ui/core";
 import { useRenderActivityMessage, useRenderCustomMessages } from "../../hooks";
 import AjoraChatErrorMessage from "./AjoraChatErrorMessage";
+import { useAjoraChatConfiguration } from "../../providers/AjoraChatConfigurationProvider";
+import { useLiveThinking } from "../../hooks/use-live-thinking";
 
 const MemoizedAssistantMessage = React.memo(
   function MemoizedAssistantMessage({
@@ -384,10 +386,18 @@ export function AjoraChatMessageView({
 
   const shouldShowThinking = showThinkingIndicator && isRunning && !isToolCall;
 
+  // Match the FlashList path in AjoraChatView: surface live chain-of-thought
+  // (title + last reasoning line) into the indicator slot. agentId comes from
+  // configuration so legacy children-render-fn callers don't need new props.
+  const chatConfig = useAjoraChatConfiguration();
+  const liveThinking = useLiveThinking({ agentId: chatConfig?.agentId });
+
   // Render the thinking indicator using the slot system
   const boundThinkingIndicator = shouldShowThinking
     ? renderSlot(thinkingIndicator, AjoraChatThinkingIndicator, {
         isThinking: true,
+        title: liveThinking.title,
+        text: liveThinking.text,
       })
     : null;
 

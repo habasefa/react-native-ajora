@@ -35,7 +35,9 @@ import {
 } from "../../providers/AjoraChatConfigurationProvider";
 import { renderSlot, WithSlots } from "../../lib/slots";
 import AjoraChatToolCallsView from "./AjoraChatToolCallsView";
+import AjoraChatThoughtsBubble from "./AjoraChatThoughtsBubble";
 import { useAjoraTheme } from "../../providers/AjoraThemeProvider";
+import type { AjoraAssistantMessage } from "../../types/thinking";
 
 // ============================================================================
 // Types & Interfaces
@@ -53,6 +55,7 @@ export type AjoraChatAssistantMessageProps = WithSlots<
     readAloudButton: typeof AjoraChatAssistantMessage.ReadAloudButton;
     regenerateButton: typeof AjoraChatAssistantMessage.RegenerateButton;
     toolCallsView: typeof AjoraChatToolCallsView;
+    thoughtsBubble: typeof AjoraChatThoughtsBubble;
   },
   {
     onThumbsUp?: (message: AssistantMessage) => void;
@@ -206,6 +209,7 @@ export function AjoraChatAssistantMessage({
   readAloudButton,
   regenerateButton,
   toolCallsView,
+  thoughtsBubble,
   textRenderer,
   onLinkPress,
   children,
@@ -433,6 +437,18 @@ export function AjoraChatAssistantMessage({
     messages,
   });
 
+  // Persisted chain-of-thought attached to the assistant message — rendered
+  // above the answer. While streaming we pass `undefined` so the live
+  // indicator (in the FlashList footer) is the single source of truth during
+  // a run; the bubble component itself renders nothing when `thinking` is
+  // missing or has empty text.
+  const persistedThinking = (message as AjoraAssistantMessage).thinking;
+  const boundThoughtsBubble = renderSlot(
+    thoughtsBubble,
+    AjoraChatThoughtsBubble,
+    { thinking: isStreaming ? undefined : persistedThinking },
+  );
+
   // ========================================================================
   // Render with Children
   // ========================================================================
@@ -444,6 +460,7 @@ export function AjoraChatAssistantMessage({
           markdownRenderer: boundMarkdownRenderer,
           toolbar: boundToolbar,
           toolCallsView: boundToolCallsView,
+          thoughtsBubble: boundThoughtsBubble,
           copyButton: boundCopyButton,
           thumbsUpButton: boundThumbsUpButton,
           thumbsDownButton: boundThumbsDownButton,
@@ -469,6 +486,7 @@ export function AjoraChatAssistantMessage({
 
   return (
     <View style={[styles.container, style]} {...props}>
+      {boundThoughtsBubble}
       {hasContent && boundMarkdownRenderer}
       {boundToolCallsView}
       {shouldShowToolbar && boundToolbar}

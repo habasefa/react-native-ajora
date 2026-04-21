@@ -23,6 +23,8 @@ export const AjoraChatDefaultLabels = {
   assistantMessageToolbarThumbsDownLabel: "Bad response",
   assistantMessageToolbarReadAloudLabel: "Read aloud",
   assistantMessageToolbarRegenerateLabel: "Regenerate",
+  assistantMessageThoughtsLabel: "Thoughts",
+  assistantMessageThoughtsDurationLabel: "Thought for",
   userMessageToolbarCopyMessageLabel: "Copy",
   userMessageToolbarEditMessageLabel: "Edit",
   chatDisclaimerText: "AI can make mistakes. Check important info.",

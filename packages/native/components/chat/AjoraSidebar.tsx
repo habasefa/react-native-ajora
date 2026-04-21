@@ -8,12 +8,19 @@ export type AjoraSidebarProps = Omit<AjoraChatProps, "chatView"> & {
   defaultOpen?: boolean;
   /** Placeholder text for the collapsed input bar */
   collapsedPlaceholder?: string;
+  /**
+   * Override the collapsed affordance shown while the sheet is closed.
+   * Forwarded to {@link AjoraSidebarView}. Receives `onPress` to open
+   * the sheet.
+   */
+  collapsed?: AjoraSidebarViewProps["collapsed"];
 };
 
 export function AjoraSidebar({
   header,
   defaultOpen,
   collapsedPlaceholder,
+  collapsed,
   ...chatProps
 }: AjoraSidebarProps) {
   const SidebarViewOverride = useMemo(() => {
@@ -25,12 +32,13 @@ export function AjoraSidebar({
           {...(restProps as AjoraSidebarViewProps)}
           header={header ?? viewHeader}
           collapsedPlaceholder={collapsedPlaceholder}
+          collapsed={collapsed}
         />
       );
     };
 
     return Object.assign(Component, AjoraChatView);
-  }, [header, collapsedPlaceholder]);
+  }, [header, collapsedPlaceholder, collapsed]);
 
   return (
     <AjoraChat

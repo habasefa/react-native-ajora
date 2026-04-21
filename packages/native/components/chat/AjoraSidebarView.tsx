@@ -10,6 +10,7 @@ import {
 import BottomSheet, {
   BottomSheetBackdrop,
   type BottomSheetBackdropProps,
+  useBottomSheetScrollableCreator,
 } from "@gorhom/bottom-sheet";
 import { Ionicons } from "@expo/vector-icons";
 import AjoraChatView, { AjoraChatViewProps } from "./AjoraChatView";
@@ -27,13 +28,20 @@ export type AjoraSidebarViewProps = AjoraChatViewProps & {
   style?: StyleProp<ViewStyle>;
   /** Placeholder text for the collapsed input bar */
   collapsedPlaceholder?: string;
+  /**
+   * Renderer for the collapsed affordance (shown when the sheet is closed).
+   * Receives `onPress` to open the sheet. Defaults to the bundled pill-shaped
+   * input bar. Provide a custom component — e.g. a floating action button —
+   * when the host screen's layout demands a smaller footprint.
+   */
+  collapsed?: SlotValue<typeof CollapsedInputBar>;
 };
 
 // ============================================================================
 // Collapsed Input Bar
 // ============================================================================
 
-function CollapsedInputBar({
+export function CollapsedInputBar({
   placeholder,
   onPress,
 }: {
@@ -79,6 +87,7 @@ export function AjoraSidebarView({
   header,
   style,
   collapsedPlaceholder,
+  collapsed,
   ...props
 }: AjoraSidebarViewProps) {
   const configuration = useAjoraChatConfiguration();
@@ -87,6 +96,30 @@ export function AjoraSidebarView({
   const theme = useAjoraTheme();
 
   const bottomSheetRef = useRef<BottomSheet>(null);
+
+  // Wire FlashList's scroll events into the BottomSheet so vertical pans
+  // inside the message list scroll the list instead of dragging the sheet.
+  // The returned component must render inside <BottomSheet> (it calls
+  // `useBottomSheetInternal` internally), which is satisfied because we
+  // forward it down to AjoraChatView's scroll slot — AjoraChatView is
+  // mounted under <BottomSheet> below.
+  const bottomSheetScrollable = useBottomSheetScrollableCreator();
+
+  const scrollViewSlot = useMemo(() => {
+    const userSlot = (props as AjoraChatViewProps).scrollView;
+    // No consumer override — inject our BottomSheet-aware scroller.
+    if (userSlot === undefined || userSlot === null) {
+      return { renderScrollComponent: bottomSheetScrollable };
+    }
+    // Partial-props object: merge so we don't stomp consumer tweaks, but
+    // let consumer-provided `renderScrollComponent` win if they set one.
+    if (typeof userSlot === "object" && !React.isValidElement(userSlot)) {
+      return { renderScrollComponent: bottomSheetScrollable, ...userSlot };
+    }
+    // Full component/string override — respect it. The consumer is on the
+    // hook for BottomSheet compatibility.
+    return userSlot;
+  }, [bottomSheetScrollable, (props as AjoraChatViewProps).scrollView]);
 
   // Sync configuration state → sheet
   useEffect(() => {
@@ -113,6 +146,17 @@ export function AjoraSidebarView({
     [header],
   );
 
+  const openSheet = useCallback(() => setModalOpen?.(true), [setModalOpen]);
+
+  const collapsedElement = useMemo(
+    () =>
+      renderSlot(collapsed, CollapsedInputBar, {
+        placeholder: collapsedPlaceholder,
+        onPress: openSheet,
+      }),
+    [collapsed, collapsedPlaceholder, openSheet],
+  );
+
   const renderBackdrop = useCallback(
     (backdropProps: BottomSheetBackdropProps) => (
       <BottomSheetBackdrop
@@ -127,13 +171,13 @@ export function AjoraSidebarView({
   );
 
   return (
-    <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
+    <View
+      style={[StyleSheet.absoluteFill, styles.rootWrapper]}
+      pointerEvents="box-none"
+    >
       {!isOpen && (
         <View style={styles.collapsedBarWrapper} pointerEvents="box-none">
-          <CollapsedInputBar
-            placeholder={collapsedPlaceholder}
-            onPress={() => setModalOpen?.(true)}
-          />
+          {collapsedElement}
         </View>
       )}
       <BottomSheet
@@ -157,7 +201,11 @@ export function AjoraSidebarView({
         <View style={styles.expandedContainer}>
           {headerElement}
           <View style={styles.chatContainer}>
-            <AjoraChatView {...props} style={styles.chatView} />
+            <AjoraChatView
+              {...props}
+              scrollView={scrollViewSlot as AjoraChatViewProps["scrollView"]}
+              style={styles.chatView}
+            />
           </View>
         </View>
       </BottomSheet>
@@ -170,6 +218,13 @@ export function AjoraSidebarView({
 // ============================================================================
 
 const styles = StyleSheet.create({
+  // Elevate the whole sidebar above host-screen content that sets its own
+  // zIndex (e.g. absolutely-positioned header icons). Without this, the
+  // backdrop and sheet can render beneath zIndex:1 siblings.
+  rootWrapper: {
+    zIndex: 100,
+    elevation: 100,
+  },
   sheetBackground: {
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,

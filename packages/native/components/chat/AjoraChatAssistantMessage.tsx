@@ -6,28 +6,12 @@ import {
   StyleProp,
   ViewStyle,
   TextStyle,
-  Platform,
 } from "react-native";
 import * as Clipboard from "expo-clipboard";
 import { Ionicons } from "@expo/vector-icons";
 import RichText from "../../../markdown/RichText";
 import type { MarkdownTheme } from "../../../markdown/markdownStyle";
-
-// Optional haptics import - gracefully handle if not available
-let Haptics: {
-  impactAsync?: (style: string) => Promise<void>;
-  notificationAsync?: (type: string) => Promise<void>;
-  ImpactFeedbackStyle?: { Light: string; Medium: string };
-  NotificationFeedbackType?: { Success: string; Error: string };
-} = {};
-
-try {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  Haptics = require("expo-haptics");
-} catch {
-  // expo-haptics not available
-  console.warn("expo-haptics not available");
-}
+import { useAjoraHaptics } from "../../hooks/use-haptics";
 import { AssistantMessage, Message } from "@ag-ui/core";
 import {
   useAjoraChatConfiguration,
@@ -144,16 +128,11 @@ const ToolbarButton: React.FC<ToolbarButtonProps> = ({
   style,
   colors,
 }) => {
+  const { impactLight } = useAjoraHaptics();
   const handlePress = useCallback(() => {
-    if (
-      Platform.OS !== "web" &&
-      Haptics.impactAsync &&
-      Haptics.ImpactFeedbackStyle
-    ) {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    }
+    impactLight();
     onPress?.();
-  }, [onPress]);
+  }, [onPress, impactLight]);
 
   const iconColor = isActive
     ? (activeColor ?? colors.accent)
@@ -230,6 +209,10 @@ export function AjoraChatAssistantMessage({
   const config = useAjoraChatConfiguration();
   const labels = config?.labels ?? AjoraChatDefaultLabels;
 
+  // Haptics — no-ops unless the consumer opted in via AjoraProvider.
+  const { impactLight, impactMedium, notifySuccess, notifyError } =
+    useAjoraHaptics();
+
   // ========================================================================
   // Theme
   // ========================================================================
@@ -283,26 +266,14 @@ export function AjoraChatAssistantMessage({
     try {
       await Clipboard.setStringAsync(message.content);
       setCopied(true);
-      if (
-        Platform.OS !== "web" &&
-        Haptics.notificationAsync &&
-        Haptics.NotificationFeedbackType
-      ) {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      }
+      notifySuccess();
       onCopy?.(message.content);
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
       console.error("Failed to copy message:", err);
-      if (
-        Platform.OS !== "web" &&
-        Haptics.notificationAsync &&
-        Haptics.NotificationFeedbackType
-      ) {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      }
+      notifyError();
     }
-  }, [message.content, onCopy]);
+  }, [message.content, onCopy, notifySuccess, notifyError]);
 
   const handleThumbsUp = useCallback(() => {
     const newFeedback = feedback === "thumbsUp" ? null : "thumbsUp";
@@ -310,14 +281,8 @@ export function AjoraChatAssistantMessage({
     if (newFeedback === "thumbsUp") {
       onThumbsUp?.(message);
     }
-    if (
-      Platform.OS !== "web" &&
-      Haptics.impactAsync &&
-      Haptics.ImpactFeedbackStyle
-    ) {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    }
-  }, [feedback, message, onThumbsUp]);
+    impactMedium();
+  }, [feedback, message, onThumbsUp, impactMedium]);
 
   const handleThumbsDown = useCallback(() => {
     const newFeedback = feedback === "thumbsDown" ? null : "thumbsDown";
@@ -325,14 +290,8 @@ export function AjoraChatAssistantMessage({
     if (newFeedback === "thumbsDown") {
       onThumbsDown?.(message);
     }
-    if (
-      Platform.OS !== "web" &&
-      Haptics.impactAsync &&
-      Haptics.ImpactFeedbackStyle
-    ) {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    }
-  }, [feedback, message, onThumbsDown]);
+    impactMedium();
+  }, [feedback, message, onThumbsDown, impactMedium]);
 
   const handleReadAloud = useCallback(() => {
     onReadAloud?.(message);
@@ -340,14 +299,8 @@ export function AjoraChatAssistantMessage({
 
   const handleRegenerate = useCallback(() => {
     onRegenerate?.(message);
-    if (
-      Platform.OS !== "web" &&
-      Haptics.impactAsync &&
-      Haptics.ImpactFeedbackStyle
-    ) {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    }
-  }, [message, onRegenerate]);
+    impactLight();
+  }, [message, onRegenerate, impactLight]);
 
   // ========================================================================
   // Render Slots

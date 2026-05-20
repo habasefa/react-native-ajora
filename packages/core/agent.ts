@@ -163,6 +163,24 @@ export class ProxiedAjoraRuntimeAgent extends HttpAgent {
   }
 
   async abortRun(): Promise<boolean> {
+    // Cancel the local in-flight stream first, so the UI unblocks
+    // immediately regardless of whether — or when — the server honours the
+    // stop. Without this, "stop" depended entirely on the backend killing
+    // the run and the RUN_FINISHED event arriving; a slow/lost stop left
+    // the chat wedged in "processing". Mirrors the connectAgent-timeout
+    // pattern: the next run() creates a fresh AbortController (per
+    // @ag-ui/client semantics), so aborting here can't poison later runs.
+    try {
+      this.abortController.abort();
+    } catch {
+      /* best-effort */
+    }
+    try {
+      (this as unknown as { isRunning: boolean }).isRunning = false;
+    } catch {
+      /* best-effort */
+    }
+
     if (!this.agentId || !this.threadId) {
       return false;
     }

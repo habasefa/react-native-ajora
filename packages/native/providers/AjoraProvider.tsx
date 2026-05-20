@@ -26,7 +26,19 @@ import type {
   AttachmentLimits,
   UploadAttachmentFn,
 } from "../lib/uploader";
+import {
+  AjoraPreferencesProvider,
+  DEFAULT_AJORA_PREFERENCES,
+  type AjoraRuntimePreferences,
+} from "./ajora-preferences";
 
+// Re-exported so the public API surface (`react-native-ajora`) is unchanged
+// even though preferences live in their own lightweight module.
+export {
+  DEFAULT_AJORA_PREFERENCES,
+  useAjoraPreferences,
+  type AjoraRuntimePreferences,
+} from "./ajora-preferences";
 
 export interface AjoraContextValue {
   ajora: AjoraCoreReact;
@@ -85,6 +97,12 @@ export interface AjoraProviderProps {
    * Fields not set fall back to `DEFAULT_ATTACHMENT_LIMITS`.
    */
   attachmentLimits?: AttachmentLimits;
+  /**
+   * Client-side runtime preferences (e.g. haptics). Omitted/partial fields
+   * fall back to {@link DEFAULT_AJORA_PREFERENCES} — i.e. haptics stay off
+   * unless the consumer opts in. Never forwarded to the runtime.
+   */
+  preferences?: Partial<AjoraRuntimePreferences>;
 }
 
 // Stable defaults — inline `= {}` creates a new object every render, which
@@ -131,6 +149,7 @@ export const AjoraProvider: React.FC<AjoraProviderProps> = ({
   useSingleEndpoint = false,
   uploadAttachment,
   attachmentLimits,
+  preferences,
 }) => {
   const renderToolCallsList = useStableArrayProp<ReactToolCallRenderer<any>>(
     renderToolCalls,
@@ -338,6 +357,17 @@ export const AjoraProvider: React.FC<AjoraProviderProps> = ({
 
   const attachmentsEnabled = !!uploadAttachment;
 
+  // Resolve once per change of the individual fields rather than per
+  // `preferences` object identity — callers commonly pass an inline
+  // `{{ hapticsEnabled }}` literal, which is a new reference every render.
+  const resolvedPreferences = useMemo<AjoraRuntimePreferences>(
+    () => ({
+      ...DEFAULT_AJORA_PREFERENCES,
+      ...(preferences ?? {}),
+    }),
+    [preferences?.hapticsEnabled],
+  );
+
   const contextValue = useMemo<AjoraContextValue>(
     () => ({
       ajora,
@@ -359,7 +389,9 @@ export const AjoraProvider: React.FC<AjoraProviderProps> = ({
 
   return (
     <AjoraContext.Provider value={contextValue}>
-      {children}
+      <AjoraPreferencesProvider value={resolvedPreferences}>
+        {children}
+      </AjoraPreferencesProvider>
     </AjoraContext.Provider>
   );
 };

@@ -21,6 +21,7 @@ import { merge } from "ts-deepmerge";
 import { useAjora } from "../../providers/AjoraProvider";
 import { AbstractAgent } from "@ag-ui/client";
 import { renderSlot, SlotValue } from "../../lib/slots";
+import { computeRegenerateSlice } from "../../lib/regenerate-slice";
 import UserMessageActionSheet from "../sheets/UserMessageActionSheet";
 import { BottomSheetModal } from "@gorhom/bottom-sheet";
 import * as Clipboard from "expo-clipboard";
@@ -448,34 +449,21 @@ export function AjoraChat({
   const handleRegenerate = useCallback(
     async (messageToRegenerate: { id: string }) => {
       setError(null);
-      // Find the index of the specific message to regenerate
-      const messageIndex = agent.messages.findIndex(
-        (m) => m.id === messageToRegenerate.id,
+      const slice = computeRegenerateSlice(
+        agent.messages,
+        messageToRegenerate.id,
       );
-
-      if (messageIndex === -1) {
-        console.warn("AjoraChat: Message not found to regenerate");
+      if (!slice) {
+        console.warn(
+          "AjoraChat: cannot regenerate — message id not found or no user anchor",
+        );
         return;
       }
 
-      // Find the last user message before the message to regenerate
-      // This is the message that triggered the run we want to regenerate
-      let lastUserMessageIndex = -1;
-      for (let i = messageIndex - 1; i >= 0; i--) {
-        if (agent.messages[i].role === "user") {
-          lastUserMessageIndex = i;
-          break;
-        }
-      }
+      // setMessages (not in-place mutation) so onMessagesChanged fires and
+      // the UI clears the stale assistant bubble before the new run streams.
+      agent.setMessages(slice.messagesToKeep);
 
-      // Keep messages up to and including the user message that triggered the run
-      // This removes all assistant, tool, and other messages that were part of this run
-      const messagesToKeep = agent.messages.slice(0, lastUserMessageIndex + 1);
-
-      // Use setMessages to trigger onMessagesChanged and update UI immediately
-      agent.setMessages(messagesToKeep);
-
-      // Re-run the agent to generate a new response
       setIsSending(true);
       try {
         await ajora.runAgent({ agent, modelId: resolvedModelId });

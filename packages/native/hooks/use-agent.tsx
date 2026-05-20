@@ -7,19 +7,7 @@ import {
   AjoraCoreRuntimeConnectionStatus,
 } from "../../core";
 import { installThinkingSubscriber } from "../lib/thinking-subscriber";
-
-// Optional haptics import - gracefully handle if not available
-let Haptics: {
-  impactAsync?: (style: string) => Promise<void>;
-  ImpactFeedbackStyle?: { Light: string };
-} = {};
-
-try {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  Haptics = require("expo-haptics");
-} catch {
-  // expo-haptics not available — no warning needed, haptics are optional
-}
+import { useAjoraHaptics } from "./use-haptics";
 
 export enum UseAgentUpdate {
   OnMessagesChanged = "OnMessagesChanged",
@@ -43,6 +31,13 @@ export function useAgent({ agentId, updates }: UseAgentProps = {}) {
 
   const { ajora } = useAjora();
   const [, forceUpdate] = useReducer((x) => x + 1, 0);
+  const { impactLight } = useAjoraHaptics();
+
+  // Streaming fires `onMessagesChanged` very frequently. Buzzing on every
+  // tick is a continuous vibration; counting and firing on every *other*
+  // tick halves it into a discernible pulse. Ref, not state — must not
+  // re-render or re-subscribe.
+  const hapticTickRef = useRef(0);
 
   // Stabilize the updates array so callers don't need to memoize it.
   const updatesRef = useRef(updates);
@@ -144,12 +139,15 @@ export function useAgent({ agentId, updates }: UseAgentProps = {}) {
     if (updateFlags.includes(UseAgentUpdate.OnMessagesChanged)) {
       handlers.onMessagesChanged = () => {
         forceUpdate();
-        if (
-          Haptics.impactAsync &&
-          Haptics.ImpactFeedbackStyle &&
-          agent.isRunning
-        ) {
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        if (agent.isRunning) {
+          hapticTickRef.current += 1;
+          if (hapticTickRef.current % 2 === 0) {
+            // No-ops unless the consumer opted into haptics.
+            impactLight();
+          }
+        } else {
+          // Reset between runs so each response starts on the same phase.
+          hapticTickRef.current = 0;
         }
       };
     }
@@ -176,7 +174,7 @@ export function useAgent({ agentId, updates }: UseAgentProps = {}) {
     return () => {
       subscription.unsubscribe();
     };
-  }, [agent, forceUpdate, updateFlags]);
+  }, [agent, forceUpdate, updateFlags, impactLight]);
 
   return {
     agent,

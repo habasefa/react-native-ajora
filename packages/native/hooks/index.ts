@@ -4,6 +4,8 @@ export { useRenderActivityMessage } from "./use-render-activity-message";
 export { useFrontendTool } from "./use-frontend-tool";
 export { useHumanInTheLoop } from "./use-human-in-the-loop";
 export { useAgent, UseAgentUpdate } from "./use-agent";
+export { useAjoraHaptics } from "./use-haptics";
+export type { AjoraHaptics } from "./use-haptics";
 export { useLiveThinking } from "./use-live-thinking";
 export type { UseLiveThinkingProps } from "./use-live-thinking";
 export { useHistory } from "./use-history";

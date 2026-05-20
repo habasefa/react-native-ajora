@@ -341,7 +341,11 @@ export class SuggestionEngine {
     }
 
     const agentSuggestions = this._suggestions[consumerAgentId];
-    if (agentSuggestions) {
+    // Only write if this suggestionId was initialized and hasn't been wiped by
+    // a subsequent clearSuggestions(). clearSuggestions replaces the map with
+    // `{}`, so any post-abort events from a cancelled clone would otherwise
+    // silently re-populate state under a key that no longer belongs.
+    if (agentSuggestions && agentSuggestions[suggestionId] !== undefined) {
       agentSuggestions[suggestionId] = suggestions;
 
       // Get all aggregated suggestions for this agent

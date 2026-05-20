@@ -830,7 +830,12 @@ function AjoraChatViewInner({
   } as AjoraChatInputProps);
 
   const hasSuggestions = Array.isArray(suggestions) && suggestions.length > 0;
-  const shouldRenderSuggestions = hasSuggestions || isSuggestionsLoading;
+  // Suppress the footer suggestion view while the consumer agent is streaming.
+  // Otherwise stale `before-first-message` suggestions (which only clear at the
+  // end of a run via reloadSuggestions) leak into the post-send render as a
+  // horizontal pill row at the bottom of the sidebar.
+  const shouldRenderSuggestions =
+    !isRunning && (hasSuggestions || isSuggestionsLoading);
 
   // Note: AjoraChatSuggestionView expects an array of suggestions
   const BoundSuggestionView = shouldRenderSuggestions

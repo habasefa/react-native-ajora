@@ -157,14 +157,21 @@ export function AjoraChat({
   // `modelId ?? DEFAULT_MODEL_ID` chain returns `"default"` verbatim — which
   // gets forwarded to the runtime as `model: "default"` and silently fails
   // the request, manifesting as "click does nothing" in the chat UI.
+  //
+  // Prefer a FREE model in the fallback: a paid default invites the backend
+  // to rate-limit free-plan users on their very first message (the model id
+  // is propagated back to the parent via onModelSelect, then forwarded as
+  // forwardedProps.model, then hard-denied as "Premium models require…").
+  // Paid users will always pick their preferred model explicitly, so a free
+  // default costs them nothing.
   const resolvedModelId = useMemo(() => {
     const candidate = modelId ?? existingConfig?.modelId;
     if (candidate && candidate !== DEFAULT_MODEL_ID) return candidate;
 
-    const proModel = ajora.models?.find(
-      (m) => m.tier !== "free" && m.tier?.toLowerCase() !== "free",
+    const freeModel = ajora.models?.find(
+      (m) => m.tier === "free" || m.tier?.toLowerCase() === "free",
     );
-    return proModel?.id ?? ajora.models?.[0]?.id ?? candidate ?? DEFAULT_MODEL_ID;
+    return freeModel?.id ?? ajora.models?.[0]?.id ?? candidate ?? DEFAULT_MODEL_ID;
   }, [modelId, existingConfig?.modelId, ajora.models]);
 
   // Load persisted messages for the active thread. The hook handles initial

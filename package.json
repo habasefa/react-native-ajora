@@ -1,6 +1,6 @@
 {
   "name": "react-native-ajora",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "description": "The most complete AI agent UI for React Native",
   "keywords": [
     "android",
@@ -76,7 +76,6 @@
     "dayjs": "^1.11.13",
     "lodash.isequal": "^4.5.0",
     "partial-json": "^0.1.7",
-    "react-native-ajora": "file:../../../../home/habtamu-asefa/NewDev/development/react-native-ajora/react-native-ajora-0.1.6.tgz",
     "react-native-communications": "^2.2.1",
     "react-native-controlled-mentions": "^3.1.0",
     "react-native-iphone-x-helper": "^1.3.1",

@@ -23,17 +23,17 @@
   "license": "MIT",
   "author": "Habtamu Asefa",
   "type": "module",
-  "main": "lib/index.js",
-  "module": "lib/index.js",
+  "main": "lib/native/index.js",
+  "module": "lib/native/index.js",
   "react-native": "packages/native/index.ts",
   "exports": {
     ".": {
-      "types": "./packages/native/index.ts",
+      "types": "./lib/native/index.d.ts",
       "react-native": "./packages/native/index.ts",
-      "default": "./lib/index.js"
+      "default": "./lib/native/index.js"
     }
   },
-  "types": "packages/native/index.ts",
+  "types": "lib/native/index.d.ts",
   "files": [
     "legacy",
     "packages",
@@ -76,6 +76,7 @@
     "dayjs": "^1.11.13",
     "lodash.isequal": "^4.5.0",
     "partial-json": "^0.1.7",
+    "react-native-ajora": "file:../../../../home/habtamu-asefa/NewDev/development/react-native-ajora/react-native-ajora-0.1.6.tgz",
     "react-native-communications": "^2.2.1",
     "react-native-controlled-mentions": "^3.1.0",
     "react-native-iphone-x-helper": "^1.3.1",

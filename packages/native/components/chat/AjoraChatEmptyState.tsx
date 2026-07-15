@@ -8,22 +8,22 @@ import {
   TextStyle,
   Pressable,
 } from "react-native";
-import {
-  Ionicons,
-  MaterialIcons,
-  MaterialCommunityIcons,
-  FontAwesome,
-  FontAwesome5,
-  FontAwesome6,
-  Feather,
-  AntDesign,
-  Entypo,
-  EvilIcons,
-  Foundation,
-  Octicons,
-  SimpleLineIcons,
-  Zocial,
-} from "@expo/vector-icons";
+import Ionicons, {
+  type IoniconsIconName,
+} from "@react-native-vector-icons/ionicons/static";
+import MaterialIcons from "@react-native-vector-icons/material-icons/static";
+import MaterialCommunityIcons from "@react-native-vector-icons/material-design-icons/static";
+import FontAwesome from "@react-native-vector-icons/fontawesome/static";
+import FontAwesome5 from "@react-native-vector-icons/fontawesome5/static";
+import FontAwesome6 from "@react-native-vector-icons/fontawesome6/static";
+import Feather from "@react-native-vector-icons/feather/static";
+import AntDesign from "@react-native-vector-icons/ant-design/static";
+import Entypo from "@react-native-vector-icons/entypo/static";
+import EvilIcons from "@react-native-vector-icons/evil-icons/static";
+import Foundation from "@react-native-vector-icons/foundation/static";
+import Octicons from "@react-native-vector-icons/octicons/static";
+import SimpleLineIcons from "@react-native-vector-icons/simple-line-icons/static";
+import Zocial from "@react-native-vector-icons/zocial/static";
 import { renderSlot, WithSlots } from "../../lib/slots";
 import {
   useAjoraChatConfiguration,
@@ -69,7 +69,7 @@ export interface AjoraChatEmptyStateColors {
 // ============================================================================
 
 /**
- * Supported icon families from @expo/vector-icons (for internal use)
+ * Supported icon families from the scoped React Native Vector Icons packages.
  */
 type IconFamily =
   | "Ionicons"
@@ -131,7 +131,7 @@ function renderIcon(
 // ============================================================================
 
 export interface AjoraChatEmptyStateIconProps {
-  name?: keyof typeof Ionicons.glyphMap;
+  name?: IoniconsIconName;
   size?: number;
   color?: string;
   style?: StyleProp<ViewStyle>;
@@ -181,7 +181,7 @@ type EmptyStateSlots = {
 
 type EmptyStateRestProps = {
   /** Custom icon name */
-  iconName?: keyof typeof Ionicons.glyphMap;
+  iconName?: IoniconsIconName;
   /** Custom title text */
   title?: string;
   /** Custom subtitle text */

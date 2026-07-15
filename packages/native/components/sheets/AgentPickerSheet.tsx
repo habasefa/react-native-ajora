@@ -15,7 +15,9 @@ import {
   BottomSheetScrollView,
   type BottomSheetBackdropProps,
 } from "@gorhom/bottom-sheet";
-import { Ionicons } from "@expo/vector-icons";
+import Ionicons, {
+  type IoniconsIconName,
+} from "@react-native-vector-icons/ionicons/static";
 import { useAjoraTheme } from "../../providers/AjoraThemeProvider";
 
 // ============================================================================
@@ -26,7 +28,7 @@ export interface AgentOption {
   id: string;
   name: string;
   description?: string;
-  icon?: keyof typeof Ionicons.glyphMap;
+  icon?: IoniconsIconName;
   /** Whether this agent is disabled (not selectable) */
   isDisabled?: boolean;
   /** Badge (e.g. "New" badge) */

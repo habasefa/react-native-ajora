@@ -15,7 +15,7 @@ import {
   BottomSheetScrollView,
   type BottomSheetBackdropProps,
 } from "@gorhom/bottom-sheet";
-import { Ionicons } from "@expo/vector-icons";
+import Ionicons from "@react-native-vector-icons/ionicons/static";
 import { useAjoraTheme } from "../../providers/AjoraThemeProvider";
 
 // ============================================================================

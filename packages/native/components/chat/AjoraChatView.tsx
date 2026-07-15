@@ -25,7 +25,7 @@ import {
   KeyboardProvider,
   useReanimatedKeyboardAnimation,
 } from "react-native-keyboard-controller";
-import { Ionicons } from "@expo/vector-icons";
+import Ionicons from "@react-native-vector-icons/ionicons/static";
 import { WithSlots, renderSlot } from "../../lib/slots";
 import AjoraChatInput, { AjoraChatInputProps } from "./AjoraChatInput";
 import { Suggestion } from "../../../core";

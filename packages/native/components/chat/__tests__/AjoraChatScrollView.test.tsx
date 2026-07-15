@@ -56,8 +56,8 @@ vi.mock("@shopify/flash-list", () => ({
   }),
 }));
 
-vi.mock("@expo/vector-icons", () => ({
-  Ionicons: ({ name }: { name: string }) =>
+vi.mock("@react-native-vector-icons/ionicons/static", () => ({
+  default: ({ name }: { name: string }) =>
     React.createElement("i", { "data-icon": name }, null),
 }));
 

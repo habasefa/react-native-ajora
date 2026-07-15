@@ -7,7 +7,7 @@ import React, { forwardRef, useCallback, useMemo } from "react";
 import { StyleSheet, Text, View, Pressable } from "react-native";
 import { useAjoraTheme } from "../../providers/AjoraThemeProvider";
 import { UserMessage } from "@ag-ui/core";
-import { Ionicons } from "@expo/vector-icons";
+import Ionicons from "@react-native-vector-icons/ionicons/static";
 
 interface UserMessageActionSheetProps {
   message?: UserMessage;

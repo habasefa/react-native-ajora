@@ -8,7 +8,9 @@ import {
   TextStyle,
 } from "react-native";
 import * as Clipboard from "expo-clipboard";
-import { Ionicons } from "@expo/vector-icons";
+import Ionicons, {
+  type IoniconsIconName,
+} from "@react-native-vector-icons/ionicons/static";
 import RichText from "../../../markdown/RichText";
 import type { MarkdownTheme } from "../../../markdown/markdownStyle";
 import { useAjoraHaptics } from "../../hooks/use-haptics";
@@ -112,7 +114,7 @@ interface ToolbarButtonProps {
   disabled?: boolean;
   isActive?: boolean;
   activeColor?: string;
-  icon: keyof typeof Ionicons.glyphMap;
+  icon: IoniconsIconName;
   label: string;
   style?: StyleProp<ViewStyle>;
   colors: AjoraChatAssistantMessageColors;

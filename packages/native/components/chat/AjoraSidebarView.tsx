@@ -12,7 +12,7 @@ import BottomSheet, {
   type BottomSheetBackdropProps,
   useBottomSheetScrollableCreator,
 } from "@gorhom/bottom-sheet";
-import { Ionicons } from "@expo/vector-icons";
+import Ionicons from "@react-native-vector-icons/ionicons/static";
 import AjoraChatView, { AjoraChatViewProps } from "./AjoraChatView";
 import { AjoraModalHeader } from "./AjoraModalHeader";
 import { renderSlot, SlotValue } from "../../lib/slots";
@@ -66,10 +66,20 @@ export function CollapsedInputBar({
           },
         ]}
       >
-        <Text style={[styles.collapsedPlaceholder, { color: theme.colors.placeholder }]}>
+        <Text
+          style={[
+            styles.collapsedPlaceholder,
+            { color: theme.colors.placeholder },
+          ]}
+        >
           {placeholder ?? "Ask a question..."}
         </Text>
-        <View style={[styles.collapsedSendButton, { backgroundColor: theme.colors.primary }]}>
+        <View
+          style={[
+            styles.collapsedSendButton,
+            { backgroundColor: theme.colors.primary },
+          ]}
+        >
           <Ionicons name="arrow-up" size={18} color="#fff" />
         </View>
       </View>
@@ -180,35 +190,41 @@ export function AjoraSidebarView({
           {collapsedElement}
         </View>
       )}
-      <BottomSheet
-        ref={bottomSheetRef}
-        index={-1}
-        snapPoints={SNAP_POINTS}
-        onChange={handleSheetChange}
-        backdropComponent={renderBackdrop}
-        enablePanDownToClose={true}
-        enableDynamicSizing={false}
-        handleIndicatorStyle={{ backgroundColor: theme.colors.border }}
-        backgroundStyle={[
-          styles.sheetBackground,
-          { backgroundColor: theme.colors.surface },
-        ]}
-        keyboardBehavior="interactive"
-        keyboardBlurBehavior="restore"
-        android_keyboardInputMode="adjustResize"
-        style={style}
+      <View
+        testID="ajora-sidebar-sheet-hit-area"
+        style={StyleSheet.absoluteFill}
+        pointerEvents={isOpen ? "auto" : "none"}
       >
-        <View style={styles.expandedContainer}>
-          {headerElement}
-          <View style={styles.chatContainer}>
-            <AjoraChatView
-              {...props}
-              scrollView={scrollViewSlot as AjoraChatViewProps["scrollView"]}
-              style={styles.chatView}
-            />
+        <BottomSheet
+          ref={bottomSheetRef}
+          index={-1}
+          snapPoints={SNAP_POINTS}
+          onChange={handleSheetChange}
+          backdropComponent={renderBackdrop}
+          enablePanDownToClose={true}
+          enableDynamicSizing={false}
+          handleIndicatorStyle={{ backgroundColor: theme.colors.border }}
+          backgroundStyle={[
+            styles.sheetBackground,
+            { backgroundColor: theme.colors.surface },
+          ]}
+          keyboardBehavior="interactive"
+          keyboardBlurBehavior="restore"
+          android_keyboardInputMode="adjustResize"
+          style={style}
+        >
+          <View style={styles.expandedContainer}>
+            {headerElement}
+            <View style={styles.chatContainer}>
+              <AjoraChatView
+                {...props}
+                scrollView={scrollViewSlot as AjoraChatViewProps["scrollView"]}
+                style={styles.chatView}
+              />
+            </View>
           </View>
-        </View>
-      </BottomSheet>
+        </BottomSheet>
+      </View>
     </View>
   );
 }

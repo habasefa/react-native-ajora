@@ -12,14 +12,16 @@ import {
 } from "react-native";
 import { SuggestionsProvidedProps } from "react-native-controlled-mentions";
 import { useAjoraTheme } from "../../providers/AjoraThemeProvider";
-import { Ionicons } from "@expo/vector-icons";
+import Ionicons, {
+  type IoniconsIconName,
+} from "@react-native-vector-icons/ionicons/static";
 
 export interface MentionSuggestion {
   id: string;
   name: string;
   image?: string;
   subtitle?: string; // e.g. "Agent" or "User"
-  icon?: keyof typeof Ionicons.glyphMap;
+  icon?: IoniconsIconName;
 }
 
 export interface AjoraMentionSuggestionsTheme {

@@ -25,7 +25,7 @@ import {
   KeyboardProvider,
   useReanimatedKeyboardAnimation,
 } from "react-native-keyboard-controller";
-import { Ionicons } from "@expo/vector-icons";
+import Ionicons from "@react-native-vector-icons/ionicons/static";
 import { WithSlots, renderSlot } from "../../lib/slots";
 import AjoraChatInput, { AjoraChatInputProps } from "./AjoraChatInput";
 import { Suggestion } from "../../../core";
@@ -176,6 +176,8 @@ export type AjoraChatViewProps = WithSlots<
 // Auto-Scroll Hook
 // ============================================================================
 
+const FOLLOW_RESUME_THRESHOLD = 4;
+
 interface UseAutoScrollOptions {
   /** Enable/disable auto-scroll behavior */
   enabled: boolean;
@@ -224,6 +226,7 @@ function useAutoScroll({
   const contentHeight = useRef(0);
   const scrollViewHeight = useRef(0);
   const currentScrollY = useRef(0);
+  const shouldFollowOutputRef = useRef(true);
   const isUserScrolling = useRef(false);
   const scrollTimeout = useRef<NodeJS.Timeout | null>(null);
 
@@ -257,20 +260,36 @@ function useAutoScroll({
     return lastMsg?.role === "assistant" ? lastMsg.content : null;
   }, [messages]);
 
-  // Scroll to bottom helper. Both FlashList and ScrollView accept the same
-  // `{ animated }` shape, so this works for either underlying implementation.
-  const scrollToBottom = useCallback((animated = true) => {
-    if (scrollViewRef.current) {
-      scrollViewRef.current.scrollToEnd?.({ animated });
-    }
+  const updateAtBottom = useCallback((atBottom: boolean) => {
+    setIsAtBottom(atBottom);
   }, []);
 
+  // Scroll to bottom helper. Both FlashList and ScrollView accept the same
+  // `{ animated }` shape, so this works for either underlying implementation.
+  const scrollToBottom = useCallback(
+    (animated = true) => {
+      shouldFollowOutputRef.current = true;
+      updateAtBottom(true);
+      if (scrollViewRef.current) {
+        scrollViewRef.current.scrollToEnd?.({ animated });
+      }
+    },
+    [updateAtBottom],
+  );
+
   // Check if we're at the bottom
-  const checkIfAtBottom = useCallback(() => {
+  const getDistanceFromBottom = useCallback(() => {
     const maxScroll = contentHeight.current - scrollViewHeight.current;
-    const distanceFromBottom = maxScroll - currentScrollY.current;
-    return distanceFromBottom <= bottomThreshold;
-  }, [bottomThreshold]);
+    return maxScroll - currentScrollY.current;
+  }, []);
+
+  const checkIfAtBottom = useCallback(() => {
+    return getDistanceFromBottom() <= bottomThreshold;
+  }, [bottomThreshold, getDistanceFromBottom]);
+
+  const checkIfShouldResumeFollowing = useCallback(() => {
+    return getDistanceFromBottom() <= FOLLOW_RESUME_THRESHOLD;
+  }, [getDistanceFromBottom]);
 
   // On threadId change: snapshot the outgoing thread's scroll position and
   // mark a pending restore for the incoming one. The actual scroll happens
@@ -282,30 +301,35 @@ function useAutoScroll({
     if (previous && previous !== threadId) {
       scrollPositionsRef.current.set(previous, {
         offset: currentScrollY.current,
-        atBottom: isAtBottom,
+        atBottom: shouldFollowOutputRef.current,
       });
     }
     if (threadId && previous !== threadId) {
       const saved = scrollPositionsRef.current.get(threadId);
       if (saved && !saved.atBottom) {
         pendingRestoreRef.current = { threadId, offset: saved.offset };
+        shouldFollowOutputRef.current = false;
+        updateAtBottom(false);
       } else {
         // Brand-new thread, or the user was at the bottom — just default to
         // bottom (the existing auto-scroll logic will keep it pinned).
         pendingRestoreRef.current = null;
+        shouldFollowOutputRef.current = true;
+        updateAtBottom(true);
       }
       // Reset top-edge tracking so a fresh top reveal in the new thread
       // can trigger pagination again.
       wasNearTopRef.current = false;
     }
     previousThreadIdRef.current = threadId;
-  }, [threadId, isAtBottom]);
+  }, [threadId, updateAtBottom]);
 
   // Handle scroll events
   const handleScroll = useCallback(
     (event: NativeSyntheticEvent<NativeScrollEvent>) => {
       const { contentOffset, contentSize, layoutMeasurement } =
         event.nativeEvent;
+      const previousScrollY = currentScrollY.current;
       currentScrollY.current = contentOffset.y;
       contentHeight.current = contentSize.height;
       scrollViewHeight.current = layoutMeasurement.height;
@@ -325,7 +349,17 @@ function useAutoScroll({
 
       // Update isAtBottom state
       const atBottom = checkIfAtBottom();
-      setIsAtBottom(atBottom);
+      updateAtBottom(atBottom);
+
+      // User intent wins over streaming follow. Even a small upward drag near
+      // the bottom means "hold this reading position" until they return to
+      // bottom or tap the scroll-to-bottom affordance.
+      const scrolledUp = contentOffset.y < previousScrollY - 1;
+      if (scrolledUp) {
+        shouldFollowOutputRef.current = false;
+      } else if (checkIfShouldResumeFollowing()) {
+        shouldFollowOutputRef.current = true;
+      }
 
       // Edge-triggered top detection. We only fire when we *enter* the
       // top zone — staying there shouldn't repeat the call. The
@@ -348,16 +382,24 @@ function useAutoScroll({
       if (threadId) {
         scrollPositionsRef.current.set(threadId, {
           offset: contentOffset.y,
-          atBottom,
+          atBottom: shouldFollowOutputRef.current,
         });
       }
     },
-    [checkIfAtBottom, threadId, topThreshold],
+    [
+      checkIfAtBottom,
+      checkIfShouldResumeFollowing,
+      threadId,
+      topThreshold,
+      updateAtBottom,
+    ],
   );
 
   // Handle content size changes (triggered when content updates)
   const handleContentSizeChange = useCallback(
     (width: number, height: number) => {
+      const shouldFollowOutput =
+        enabled && shouldFollowOutputRef.current && !isUserScrolling.current;
       contentHeight.current = height;
 
       // Restore saved scroll position when the incoming thread has laid
@@ -384,15 +426,18 @@ function useAutoScroll({
         return;
       }
 
-      // If auto-scroll is enabled and we were at bottom, scroll to new bottom
-      if (enabled && isAtBottom && !isUserScrolling.current) {
+      // If auto-scroll is enabled and the user hasn't opted out by scrolling
+      // up, follow streaming growth to the new bottom.
+      if (shouldFollowOutput) {
         // Use requestAnimationFrame for smoother scrolling
         requestAnimationFrame(() => {
-          scrollToBottom(true);
+          if (shouldFollowOutputRef.current && !isUserScrolling.current) {
+            scrollToBottom(true);
+          }
         });
       }
     },
-    [enabled, isAtBottom, scrollToBottom, threadId],
+    [enabled, scrollToBottom, threadId],
   );
 
   // Handle layout changes
@@ -402,25 +447,29 @@ function useAutoScroll({
 
   // Auto-scroll when streaming content
   useEffect(() => {
-    if (enabled && isStreaming && isAtBottom && !isUserScrolling.current) {
+    if (enabled && isStreaming) {
       // Scroll on a short delay to ensure content has rendered
       const timer = setTimeout(() => {
-        scrollToBottom(true);
+        if (shouldFollowOutputRef.current && !isUserScrolling.current) {
+          scrollToBottom(true);
+        }
       }, 50);
       return () => clearTimeout(timer);
     }
-  }, [enabled, isStreaming, isAtBottom, lastMessageContent, scrollToBottom]);
+  }, [enabled, isStreaming, lastMessageContent, scrollToBottom]);
 
   // Auto-scroll when new message arrives
   useEffect(() => {
-    if (enabled && isAtBottom && !isUserScrolling.current) {
+    if (enabled) {
       // Small delay to ensure the new message has rendered
       const timer = setTimeout(() => {
-        scrollToBottom(true);
+        if (shouldFollowOutputRef.current && !isUserScrolling.current) {
+          scrollToBottom(true);
+        }
       }, 100);
       return () => clearTimeout(timer);
     }
-  }, [enabled, isAtBottom, lastMessageId, scrollToBottom]);
+  }, [enabled, lastMessageId, scrollToBottom]);
 
   // Cleanup timeout on unmount
   useEffect(() => {
@@ -591,16 +640,12 @@ export function AjoraChatScrollView({
         scrollEventThrottle={16}
         renderScrollComponent={renderScrollComponent}
         // FlashList's chat-mode anchoring. `startRenderingFromBottom`
-        // pins fresh threads to the latest message; `autoscrollToBottomThreshold`
-        // keeps the view glued to the bottom while streaming if the user
-        // is already there. The top threshold preserves the visible message
-        // when older pages prepend (replaces the RN ScrollView prop we used
-        // before).
+        // pins fresh threads to the latest message. We intentionally leave
+        // bottom autoscroll to `useAutoScroll`, which can honor a user's
+        // upward read gesture during streaming.
         maintainVisibleContentPosition={{
           startRenderingFromBottom: true,
-          autoscrollToBottomThreshold: 0.2,
           autoscrollToTopThreshold: 100,
-          animateAutoScrollToBottom: true,
         }}
       />
 

@@ -9,7 +9,7 @@ import {
   StyleProp,
   ViewStyle,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import Ionicons from "@react-native-vector-icons/ionicons/static";
 import Lightbox from "react-native-lightbox-v2";
 import { useAjoraTheme } from "../../providers/AjoraThemeProvider";
 

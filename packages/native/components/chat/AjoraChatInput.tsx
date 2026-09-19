@@ -31,7 +31,15 @@ import {
   Keyboard,
 } from "react-native";
 import Lightbox from "react-native-lightbox-v2";
-import { Ionicons, MaterialIcons, Feather } from "@expo/vector-icons";
+import Ionicons, {
+  type IoniconsIconName,
+} from "@react-native-vector-icons/ionicons/static";
+import MaterialIcons, {
+  type MaterialIconsIconName,
+} from "@react-native-vector-icons/material-icons/static";
+import Feather, {
+  type FeatherIconName,
+} from "@react-native-vector-icons/feather/static";
 import { BottomSheetModal } from "@gorhom/bottom-sheet";
 import {
   useAjoraChatConfiguration,
@@ -82,7 +90,7 @@ export interface AgentTypeOption {
   id: string;
   label: string;
   description?: string;
-  icon?: keyof typeof Ionicons.glyphMap;
+  icon?: IoniconsIconName;
 }
 
 /**
@@ -335,7 +343,7 @@ export interface AjoraChatTextInputProps extends Omit<TextInputProps, "style"> {
 export interface AjoraChatIconButtonProps {
   onPress?: () => void;
   disabled?: boolean;
-  icon: keyof typeof Ionicons.glyphMap;
+  icon: IoniconsIconName;
   iconFamily?: "ionicons" | "material" | "feather";
   size?: number;
   color?: string;
@@ -476,7 +484,7 @@ const AjoraChatIconButton: React.FC<AjoraChatIconButtonProps> = ({
       case "material":
         return (
           <MaterialIcons
-            name={icon as keyof typeof MaterialIcons.glyphMap}
+            name={icon as MaterialIconsIconName}
             size={size}
             color={iconColor}
           />
@@ -484,7 +492,7 @@ const AjoraChatIconButton: React.FC<AjoraChatIconButtonProps> = ({
       case "feather":
         return (
           <Feather
-            name={icon as keyof typeof Feather.glyphMap}
+            name={icon as FeatherIconName}
             size={size}
             color={iconColor}
           />

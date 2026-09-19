@@ -95,14 +95,13 @@ describe("useRenderToolCall", () => {
 
       render(<TestComponent toolCall={toolCall} />);
 
-      expect(renderFn).toHaveBeenCalledWith(
+      expect(renderFn.mock.calls[0]?.[0]).toEqual(
         expect.objectContaining({
           name: "myTool",
           status: ToolCallStatus.InProgress,
           args: { q: "hello" },
           result: undefined,
         }),
-        expect.anything(),
       );
     });
 
@@ -124,12 +123,11 @@ describe("useRenderToolCall", () => {
 
       render(<TestComponent toolCall={toolCall} />);
 
-      expect(renderFn).toHaveBeenCalledWith(
+      expect(renderFn.mock.calls[0]?.[0]).toEqual(
         expect.objectContaining({
           status: ToolCallStatus.Executing,
           result: undefined,
         }),
-        expect.anything(),
       );
     });
 
@@ -146,12 +144,11 @@ describe("useRenderToolCall", () => {
 
       render(<TestComponent toolCall={toolCall} toolMessage={toolMessage} />);
 
-      expect(renderFn).toHaveBeenCalledWith(
+      expect(renderFn.mock.calls[0]?.[0]).toEqual(
         expect.objectContaining({
           status: ToolCallStatus.Complete,
           result: "done!",
         }),
-        expect.anything(),
       );
     });
   });
@@ -167,9 +164,8 @@ describe("useRenderToolCall", () => {
 
       render(<TestComponent toolCall={toolCall} />);
 
-      expect(wildcardFn).toHaveBeenCalledWith(
+      expect(wildcardFn.mock.calls[0]?.[0]).toEqual(
         expect.objectContaining({ name: "anyTool" }),
-        expect.anything(),
       );
     });
 

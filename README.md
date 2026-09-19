@@ -48,8 +48,12 @@ yarn add react-native-ajora
 Make sure you have these peer dependencies installed:
 
 ```bash
-npm install expo @expo/vector-icons react-native-reanimated react-native-keyboard-controller react-native-svg react-native-gesture-handler @gorhom/bottom-sheet  expo-document-picker
+npm install expo react-native-reanimated react-native-keyboard-controller react-native-svg react-native-gesture-handler @gorhom/bottom-sheet expo-document-picker @react-native-vector-icons/ant-design @react-native-vector-icons/entypo @react-native-vector-icons/evil-icons @react-native-vector-icons/feather @react-native-vector-icons/fontawesome @react-native-vector-icons/fontawesome5 @react-native-vector-icons/fontawesome6 @react-native-vector-icons/foundation @react-native-vector-icons/ionicons @react-native-vector-icons/material-design-icons @react-native-vector-icons/material-icons @react-native-vector-icons/octicons @react-native-vector-icons/simple-line-icons @react-native-vector-icons/zocial
 ```
+
+For Expo projects, add each `@react-native-vector-icons/*` package above to
+the `plugins` array in your app configuration, then regenerate native projects
+with `npx expo prebuild`.
 
 ### Basic Usage
 

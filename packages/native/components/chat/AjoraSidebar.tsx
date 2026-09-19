@@ -44,7 +44,14 @@ export function AjoraSidebar({
     <AjoraChat
       {...chatProps}
       chatView={SidebarViewOverride}
-      isModalDefaultOpen={defaultOpen}
+      // A sidebar is the *collapsed* affordance plus a sheet: its resting
+      // state is the bar, and the sheet is the thing a tap opens. Letting the
+      // configuration default to open (which it does when this prop is
+      // `undefined`) hid the bar on mount while the sheet stayed closed at
+      // index -1, so the host screen showed nothing at all. Collapsed is the
+      // only safe default; consumers that want the sheet up on mount pass
+      // `defaultOpen`.
+      isModalDefaultOpen={defaultOpen ?? false}
     />
   );
 }

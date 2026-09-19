@@ -192,12 +192,23 @@ export function AjoraSidebarView({
       )}
       <View
         testID="ajora-sidebar-sheet-hit-area"
-        style={StyleSheet.absoluteFill}
+        style={[StyleSheet.absoluteFill, !isOpen && styles.closedSheet]}
         pointerEvents={isOpen ? "auto" : "none"}
+        accessibilityElementsHidden={!isOpen}
+        importantForAccessibility={isOpen ? "auto" : "no-hide-descendants"}
       >
         <BottomSheet
           ref={bottomSheetRef}
-          index={-1}
+          // `index` is reactive in @gorhom/bottom-sheet: changing it snaps the
+          // sheet, and — unlike the imperative `snapToIndex` below — the
+          // library defers the mount case until the container has measured
+          // itself. `snapToIndex` early-exits while `isLayoutCalculated` is
+          // false, so a sidebar that mounts already open used to call it on
+          // the first effect (layout not ready), get a no-op, hide the
+          // collapsed bar because `isOpen` was true, and leave the screen
+          // empty with no way to reopen. Driving the index from `isOpen`
+          // routes that case through the supported mount animation instead.
+          index={isOpen ? 0 : -1}
           snapPoints={SNAP_POINTS}
           onChange={handleSheetChange}
           backdropComponent={renderBackdrop}
@@ -240,6 +251,9 @@ const styles = StyleSheet.create({
   rootWrapper: {
     zIndex: 100,
     elevation: 100,
+  },
+  closedSheet: {
+    opacity: 0,
   },
   sheetBackground: {
     borderTopLeftRadius: 16,

@@ -40,8 +40,14 @@ export type WithSlots<
   /** Per‑slot overrides */
   [K in keyof S]?: SlotValue<S[K]>;
 } & {
-  children?: (props: SlotElements<S> & Rest) => React.ReactNode;
-} & Omit<Rest, "children">;
+  // Slot keys win over Rest keys: if a component author names a rest prop
+  // the same as a slot, the slot element is what children receives at that key.
+  // Without Omit<Rest, keyof S> the intersection would produce impossible types
+  // like `ReactElement & string` for any colliding key.
+  children?: (
+    props: SlotElements<S> & Omit<Rest, keyof S>,
+  ) => React.ReactNode;
+} & Omit<Rest, "children" | keyof S>;
 
 /**
  * Internal function to render a slot value as a React element (non-memoized).

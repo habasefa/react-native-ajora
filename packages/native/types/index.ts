@@ -4,3 +4,5 @@ export * from "./react-custom-message-renderer";
 export * from "./frontend-tool";
 export * from "./human-in-the-loop";
 export * from "./defineToolCallRenderer";
+export * from "./error";
+export * from "./thinking";

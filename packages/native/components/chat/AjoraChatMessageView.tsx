@@ -12,6 +12,9 @@ import {
   UserMessage,
 } from "@ag-ui/core";
 import { useRenderActivityMessage, useRenderCustomMessages } from "../../hooks";
+import AjoraChatErrorMessage from "./AjoraChatErrorMessage";
+import { useAjoraChatConfiguration } from "../../providers/AjoraChatConfigurationProvider";
+import { useLiveThinking } from "../../hooks/use-live-thinking";
 
 const MemoizedAssistantMessage = React.memo(
   function MemoizedAssistantMessage({
@@ -27,11 +30,7 @@ const MemoizedAssistantMessage = React.memo(
     isRunning: boolean;
     onRegenerate?: (message: AssistantMessage) => void;
     AssistantMessageComponent: typeof AjoraChatAssistantMessage;
-    textRenderer?: (props: {
-      content: string;
-      style?: any;
-      isUser?: boolean;
-    }) => React.ReactNode;
+    textRenderer?: (props: { content: string }) => React.ReactNode;
   }) {
     return (
       <AssistantMessageComponent
@@ -95,6 +94,8 @@ const MemoizedAssistantMessage = React.memo(
     )
       return false;
 
+    if (prevProps.textRenderer !== nextProps.textRenderer) return false;
+
     return true;
   },
 );
@@ -109,11 +110,7 @@ const MemoizedUserMessage = React.memo(
     message: UserMessage;
     UserMessageComponent: typeof AjoraChatUserMessage;
     onLongPress?: (message: UserMessage) => void;
-    textRenderer?: (props: {
-      content: string;
-      style?: any;
-      isUser?: boolean;
-    }) => React.ReactNode;
+    textRenderer?: (props: { content: string }) => React.ReactNode;
   }) {
     return (
       <UserMessageComponent
@@ -128,6 +125,7 @@ const MemoizedUserMessage = React.memo(
     if (prevProps.message.content !== nextProps.message.content) return false;
     if (prevProps.UserMessageComponent !== nextProps.UserMessageComponent)
       return false;
+    if (prevProps.textRenderer !== nextProps.textRenderer) return false;
     return true;
   },
 );
@@ -187,19 +185,26 @@ export type AjoraChatMessageViewProps = Omit<
       assistantMessage: typeof AjoraChatAssistantMessage;
       userMessage: typeof AjoraChatUserMessage;
       thinkingIndicator: typeof AjoraChatThinkingIndicator;
+      errorMessage: typeof AjoraChatErrorMessage;
     },
     {
       isRunning?: boolean;
       messages?: Message[];
       onRegenerate?: (message: AssistantMessage) => void;
       onMessageLongPress?: (message: Message) => void;
+      /** Renderer applied to both user and assistant messages unless a
+          side-specific renderer is provided. */
+      textRenderer?: (props: { content: string }) => React.ReactNode;
+      /** Overrides `textRenderer` for user messages only. */
+      userTextRenderer?: (props: { content: string }) => React.ReactNode;
+      /** Overrides `textRenderer` for assistant messages only. */
+      assistantTextRenderer?: (props: { content: string }) => React.ReactNode;
       /** Whether to show the thinking indicator when isRunning is true */
       showThinkingIndicator?: boolean;
-      textRenderer?: (props: {
-        content: string;
-        style?: any;
-        isUser?: boolean;
-      }) => React.ReactNode;
+      /** Error message to display at the bottom of the chat */
+      error?: string | null;
+      /** Callback to retry the agent run upon an error */
+      onRetryError?: () => void;
       style?: StyleProp<ViewStyle>;
     }
   >,
@@ -213,45 +218,46 @@ export type AjoraChatMessageViewProps = Omit<
   }) => React.ReactElement;
 };
 
-export function AjoraChatMessageView({
-  messages = [],
+/**
+ * Stable per-message renderer suitable for both the legacy `<View>`-based
+ * `AjoraChatMessageView` and FlashList's `renderItem`. Returns a single
+ * React element per message (custom-before + main + custom-after wrapped
+ * in a Fragment) so FlashList can virtualize one cell per data row.
+ *
+ * Pulled out of `AjoraChatMessageView` so the FlashList code path inside
+ * `AjoraChatViewInner` doesn't need to construct the entire `messageElements`
+ * array up-front — that defeats virtualization.
+ */
+export function useRenderMessage({
+  messages,
+  isRunning,
   assistantMessage,
   userMessage,
-  thinkingIndicator,
-  isRunning = false,
-  showThinkingIndicator = true,
-
   onRegenerate,
   onMessageLongPress,
-  children,
-  style,
-  ...props
-}: AjoraChatMessageViewProps) {
+  textRenderer,
+  assistantTextRenderer,
+  userTextRenderer,
+}: {
+  messages: Message[];
+  isRunning: boolean;
+  assistantMessage?: AjoraChatMessageViewProps["assistantMessage"];
+  userMessage?: AjoraChatMessageViewProps["userMessage"];
+  onRegenerate?: (message: AssistantMessage) => void;
+  onMessageLongPress?: (message: Message) => void;
+  textRenderer?: (props: { content: string }) => React.ReactNode;
+  assistantTextRenderer?: (props: { content: string }) => React.ReactNode;
+  userTextRenderer?: (props: { content: string }) => React.ReactNode;
+}) {
   const renderCustomMessage = useRenderCustomMessages();
   const renderActivityMessage = useRenderActivityMessage();
 
-  // Determine if we should show the thinking indicator
-  // Show when running AND the latest message is from the user (waiting for assistant response)
-  // OR when running and there are no messages yet
-  const lastMessage = messages[messages.length - 1];
-  const shouldShowThinking =
-    showThinkingIndicator &&
-    isRunning &&
-    (messages.length === 0 || lastMessage?.role === "user");
-
-  // Render the thinking indicator using the slot system
-  const boundThinkingIndicator = shouldShowThinking
-    ? renderSlot(thinkingIndicator, AjoraChatThinkingIndicator, {
-        isThinking: true,
-      })
-    : null;
-
-  const messageElements: React.ReactElement[] = messages
-    .flatMap((message) => {
-      const elements: (React.ReactElement | null | undefined)[] = [];
+  return React.useCallback(
+    (message: Message, _index: number): React.ReactElement | null => {
+      const parts: React.ReactElement[] = [];
 
       if (renderCustomMessage) {
-        elements.push(
+        parts.push(
           <MemoizedCustomMessage
             key={`${message.id}-custom-before`}
             message={message}
@@ -268,7 +274,7 @@ export function AjoraChatMessageView({
             : AjoraChatAssistantMessage
         ) as typeof AjoraChatAssistantMessage;
 
-        elements.push(
+        parts.push(
           <MemoizedAssistantMessage
             key={message.id}
             message={message as AssistantMessage}
@@ -276,7 +282,7 @@ export function AjoraChatMessageView({
             isRunning={isRunning}
             onRegenerate={onRegenerate}
             AssistantMessageComponent={AssistantComponent}
-            textRenderer={props.textRenderer}
+            textRenderer={assistantTextRenderer ?? textRenderer}
           />,
         );
       } else if (message.role === "user") {
@@ -284,17 +290,17 @@ export function AjoraChatMessageView({
           typeof userMessage === "function" ? userMessage : AjoraChatUserMessage
         ) as typeof AjoraChatUserMessage;
 
-        elements.push(
+        parts.push(
           <MemoizedUserMessage
             key={message.id}
             message={message as UserMessage}
             UserMessageComponent={UserComponent}
             onLongPress={onMessageLongPress}
-            textRenderer={props.textRenderer}
+            textRenderer={userTextRenderer ?? textRenderer}
           />,
         );
       } else if (message.role === "activity") {
-        elements.push(
+        parts.push(
           <MemoizedActivityMessage
             key={message.id}
             message={message as ActivityMessage}
@@ -304,7 +310,7 @@ export function AjoraChatMessageView({
       }
 
       if (renderCustomMessage) {
-        elements.push(
+        parts.push(
           <MemoizedCustomMessage
             key={`${message.id}-custom-after`}
             message={message}
@@ -314,9 +320,122 @@ export function AjoraChatMessageView({
         );
       }
 
-      return elements;
-    })
+      if (parts.length === 0) return null;
+      return <React.Fragment key={message.id}>{parts}</React.Fragment>;
+    },
+    [
+      assistantMessage,
+      userMessage,
+      messages,
+      isRunning,
+      onRegenerate,
+      onMessageLongPress,
+      textRenderer,
+      userTextRenderer,
+      assistantTextRenderer,
+      renderCustomMessage,
+      renderActivityMessage,
+    ],
+  );
+}
+
+/**
+ * Deduplicate messages by id, keeping the most recent occurrence. FlashList
+ * requires unique keys, and streaming sometimes emits the same message id
+ * multiple times before settling. Exposed so the FlashList callsite can
+ * dedupe before passing `data` instead of relying on this component.
+ */
+export function dedupeMessagesById(messages: Message[]): Message[] {
+  const seen = new Map<string, Message>();
+  for (const message of messages) {
+    seen.set(message.id, message);
+  }
+  return Array.from(seen.values());
+}
+
+export function AjoraChatMessageView({
+  messages = [],
+  assistantMessage,
+  userMessage,
+  thinkingIndicator,
+  errorMessage,
+  isRunning = false,
+  showThinkingIndicator = true,
+
+  onRegenerate,
+  onMessageLongPress,
+  textRenderer,
+  userTextRenderer,
+  assistantTextRenderer,
+  children,
+  style,
+  error,
+  onRetryError,
+  ...props
+}: AjoraChatMessageViewProps) {
+  // Determine if we should show the thinking indicator
+  // Show when running, except when waiting for tool execution (isToolCall).
+  // We WANT to show it after tool execution ends (isToolResult), so we don't exclude that.
+  const lastMessage = messages[messages.length - 1];
+
+  // Check for tool call states
+  const isToolCall =
+    lastMessage?.role === "assistant" &&
+    Array.isArray((lastMessage as any).toolCalls) &&
+    (lastMessage as any).toolCalls.length > 0;
+
+  const shouldShowThinking = showThinkingIndicator && isRunning && !isToolCall;
+
+  // Match the FlashList path in AjoraChatView: surface live chain-of-thought
+  // (title + last reasoning line) into the indicator slot. agentId comes from
+  // configuration so legacy children-render-fn callers don't need new props.
+  const chatConfig = useAjoraChatConfiguration();
+  const liveThinking = useLiveThinking({ agentId: chatConfig?.agentId });
+
+  // Render the thinking indicator using the slot system
+  const boundThinkingIndicator = shouldShowThinking
+    ? renderSlot(thinkingIndicator, AjoraChatThinkingIndicator, {
+        isThinking: true,
+        title: liveThinking.title,
+        text: liveThinking.text,
+      })
+    : null;
+
+  const deduplicatedMessages = React.useMemo(
+    () => dedupeMessagesById(messages),
+    [messages],
+  );
+
+  const renderMessage = useRenderMessage({
+    messages,
+    isRunning,
+    assistantMessage,
+    userMessage,
+    onRegenerate,
+    onMessageLongPress,
+    textRenderer,
+    userTextRenderer,
+    assistantTextRenderer,
+  });
+
+  const messageElements: React.ReactElement[] = deduplicatedMessages
+    .map((message, index) => renderMessage(message, index))
     .filter(Boolean) as React.ReactElement[];
+
+  if (error) {
+    const BoundErrorMessage = renderSlot(errorMessage, AjoraChatErrorMessage, {
+      message: error,
+      onRetry: onRetryError,
+    });
+
+    if (BoundErrorMessage) {
+      messageElements.push(
+        <React.Fragment key="error-message">
+          {BoundErrorMessage}
+        </React.Fragment>,
+      );
+    }
+  }
 
   if (children) {
     return children({

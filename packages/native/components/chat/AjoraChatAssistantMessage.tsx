@@ -6,27 +6,14 @@ import {
   StyleProp,
   ViewStyle,
   TextStyle,
-  Platform,
 } from "react-native";
 import * as Clipboard from "expo-clipboard";
-import { Ionicons } from "@expo/vector-icons";
+import Ionicons, {
+  type IoniconsIconName,
+} from "@react-native-vector-icons/ionicons/static";
 import RichText from "../../../markdown/RichText";
-
-// Optional haptics import - gracefully handle if not available
-let Haptics: {
-  impactAsync?: (style: string) => Promise<void>;
-  notificationAsync?: (type: string) => Promise<void>;
-  ImpactFeedbackStyle?: { Light: string; Medium: string };
-  NotificationFeedbackType?: { Success: string; Error: string };
-} = {};
-
-try {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  Haptics = require("expo-haptics");
-} catch {
-  // expo-haptics not available
-  console.warn("expo-haptics not available");
-}
+import type { MarkdownTheme } from "../../../markdown/markdownStyle";
+import { useAjoraHaptics } from "../../hooks/use-haptics";
 import { AssistantMessage, Message } from "@ag-ui/core";
 import {
   useAjoraChatConfiguration,
@@ -34,7 +21,9 @@ import {
 } from "../../providers/AjoraChatConfigurationProvider";
 import { renderSlot, WithSlots } from "../../lib/slots";
 import AjoraChatToolCallsView from "./AjoraChatToolCallsView";
+import AjoraChatThoughtsBubble from "./AjoraChatThoughtsBubble";
 import { useAjoraTheme } from "../../providers/AjoraThemeProvider";
+import type { AjoraAssistantMessage } from "../../types/thinking";
 
 // ============================================================================
 // Types & Interfaces
@@ -52,6 +41,7 @@ export type AjoraChatAssistantMessageProps = WithSlots<
     readAloudButton: typeof AjoraChatAssistantMessage.ReadAloudButton;
     regenerateButton: typeof AjoraChatAssistantMessage.RegenerateButton;
     toolCallsView: typeof AjoraChatToolCallsView;
+    thoughtsBubble: typeof AjoraChatThoughtsBubble;
   },
   {
     onThumbsUp?: (message: AssistantMessage) => void;
@@ -71,6 +61,8 @@ export type AjoraChatAssistantMessageProps = WithSlots<
     showThumbsButtons?: boolean;
     showReadAloudButton?: boolean;
     showRegenerateButton?: boolean;
+    textRenderer?: (props: { content: string }) => React.ReactNode;
+    onLinkPress?: (url: string) => void;
     style?: StyleProp<ViewStyle>;
   }
 >;
@@ -122,7 +114,7 @@ interface ToolbarButtonProps {
   disabled?: boolean;
   isActive?: boolean;
   activeColor?: string;
-  icon: keyof typeof Ionicons.glyphMap;
+  icon: IoniconsIconName;
   label: string;
   style?: StyleProp<ViewStyle>;
   colors: AjoraChatAssistantMessageColors;
@@ -138,16 +130,11 @@ const ToolbarButton: React.FC<ToolbarButtonProps> = ({
   style,
   colors,
 }) => {
+  const { impactLight } = useAjoraHaptics();
   const handlePress = useCallback(() => {
-    if (
-      Platform.OS !== "web" &&
-      Haptics.impactAsync &&
-      Haptics.ImpactFeedbackStyle
-    ) {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    }
+    impactLight();
     onPress?.();
-  }, [onPress]);
+  }, [onPress, impactLight]);
 
   const iconColor = isActive
     ? (activeColor ?? colors.accent)
@@ -203,6 +190,9 @@ export function AjoraChatAssistantMessage({
   readAloudButton,
   regenerateButton,
   toolCallsView,
+  thoughtsBubble,
+  textRenderer,
+  onLinkPress,
   children,
   style,
   ...props
@@ -220,6 +210,10 @@ export function AjoraChatAssistantMessage({
 
   const config = useAjoraChatConfiguration();
   const labels = config?.labels ?? AjoraChatDefaultLabels;
+
+  // Haptics — no-ops unless the consumer opted in via AjoraProvider.
+  const { impactLight, impactMedium, notifySuccess, notifyError } =
+    useAjoraHaptics();
 
   // ========================================================================
   // Theme
@@ -274,26 +268,14 @@ export function AjoraChatAssistantMessage({
     try {
       await Clipboard.setStringAsync(message.content);
       setCopied(true);
-      if (
-        Platform.OS !== "web" &&
-        Haptics.notificationAsync &&
-        Haptics.NotificationFeedbackType
-      ) {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      }
+      notifySuccess();
       onCopy?.(message.content);
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
       console.error("Failed to copy message:", err);
-      if (
-        Platform.OS !== "web" &&
-        Haptics.notificationAsync &&
-        Haptics.NotificationFeedbackType
-      ) {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      }
+      notifyError();
     }
-  }, [message.content, onCopy]);
+  }, [message.content, onCopy, notifySuccess, notifyError]);
 
   const handleThumbsUp = useCallback(() => {
     const newFeedback = feedback === "thumbsUp" ? null : "thumbsUp";
@@ -301,14 +283,8 @@ export function AjoraChatAssistantMessage({
     if (newFeedback === "thumbsUp") {
       onThumbsUp?.(message);
     }
-    if (
-      Platform.OS !== "web" &&
-      Haptics.impactAsync &&
-      Haptics.ImpactFeedbackStyle
-    ) {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    }
-  }, [feedback, message, onThumbsUp]);
+    impactMedium();
+  }, [feedback, message, onThumbsUp, impactMedium]);
 
   const handleThumbsDown = useCallback(() => {
     const newFeedback = feedback === "thumbsDown" ? null : "thumbsDown";
@@ -316,14 +292,8 @@ export function AjoraChatAssistantMessage({
     if (newFeedback === "thumbsDown") {
       onThumbsDown?.(message);
     }
-    if (
-      Platform.OS !== "web" &&
-      Haptics.impactAsync &&
-      Haptics.ImpactFeedbackStyle
-    ) {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    }
-  }, [feedback, message, onThumbsDown]);
+    impactMedium();
+  }, [feedback, message, onThumbsDown, impactMedium]);
 
   const handleReadAloud = useCallback(() => {
     onReadAloud?.(message);
@@ -331,18 +301,14 @@ export function AjoraChatAssistantMessage({
 
   const handleRegenerate = useCallback(() => {
     onRegenerate?.(message);
-    if (
-      Platform.OS !== "web" &&
-      Haptics.impactAsync &&
-      Haptics.ImpactFeedbackStyle
-    ) {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    }
-  }, [message, onRegenerate]);
+    impactLight();
+  }, [message, onRegenerate, impactLight]);
 
   // ========================================================================
   // Render Slots
   // ========================================================================
+
+  const isStreaming = !!(isRunning && isLastInSequence && hasContent);
 
   const boundMarkdownRenderer = renderSlot(
     markdownRenderer,
@@ -350,7 +316,9 @@ export function AjoraChatAssistantMessage({
     {
       content: message.content || "",
       colors,
-      textRenderer: props.textRenderer,
+      textRenderer,
+      streaming: isStreaming,
+      onLinkPress,
     },
   );
 
@@ -424,6 +392,18 @@ export function AjoraChatAssistantMessage({
     messages,
   });
 
+  // Persisted chain-of-thought attached to the assistant message — rendered
+  // above the answer. While streaming we pass `undefined` so the live
+  // indicator (in the FlashList footer) is the single source of truth during
+  // a run; the bubble component itself renders nothing when `thinking` is
+  // missing or has empty text.
+  const persistedThinking = (message as AjoraAssistantMessage).thinking;
+  const boundThoughtsBubble = renderSlot(
+    thoughtsBubble,
+    AjoraChatThoughtsBubble,
+    { thinking: isStreaming ? undefined : persistedThinking },
+  );
+
   // ========================================================================
   // Render with Children
   // ========================================================================
@@ -435,6 +415,7 @@ export function AjoraChatAssistantMessage({
           markdownRenderer: boundMarkdownRenderer,
           toolbar: boundToolbar,
           toolCallsView: boundToolCallsView,
+          thoughtsBubble: boundThoughtsBubble,
           copyButton: boundCopyButton,
           thumbsUpButton: boundThumbsUpButton,
           thumbsDownButton: boundThumbsDownButton,
@@ -460,7 +441,8 @@ export function AjoraChatAssistantMessage({
 
   return (
     <View style={[styles.container, style]} {...props}>
-      {boundMarkdownRenderer}
+      {boundThoughtsBubble}
+      {hasContent && boundMarkdownRenderer}
       {boundToolCallsView}
       {shouldShowToolbar && boundToolbar}
     </View>
@@ -476,41 +458,43 @@ export namespace AjoraChatAssistantMessage {
   export const MarkdownRenderer: React.FC<{
     content: string;
     style?: StyleProp<ViewStyle>;
-    textStyle?: StyleProp<TextStyle>;
-    textColor?: string;
-    fontSize?: number;
-    lineHeight?: number;
+    streaming?: boolean;
     colors?: AjoraChatAssistantMessageColors;
-    textRenderer?: (props: {
-      content: string;
-      style?: any;
-      isUser?: boolean;
-    }) => React.ReactNode;
+    textRenderer?: (props: { content: string }) => React.ReactNode;
+    onLinkPress?: (url: string) => void;
   }> = ({
     content,
     style,
     colors,
-    textColor,
-    fontSize = 16,
-    lineHeight = 24,
+    streaming,
     textRenderer,
+    onLinkPress,
   }) => {
-    const defaultTextStyle = {
-      color: textColor ?? colors?.text,
-      fontSize,
-      lineHeight,
-    };
+    const ajoraTheme = useAjoraTheme();
+
+    const markdownTheme = React.useMemo<MarkdownTheme>(
+      () => ({
+        textColor: colors?.text ?? ajoraTheme.colors.text,
+        mutedColor: ajoraTheme.colors.textSecondary,
+        codeBg: ajoraTheme.colors.surface,
+        borderColor: ajoraTheme.colors.border,
+        linkColor: ajoraTheme.colors.primary,
+        fontSize: ajoraTheme.typography.sizes.lg,
+        lineHeight: ajoraTheme.typography.sizes.lg * ajoraTheme.typography.lineHeights.normal,
+      }),
+      [ajoraTheme, colors?.text],
+    );
 
     return (
       <View style={[styles.markdownContainer, style]}>
         {textRenderer ? (
-          textRenderer({ content, style: defaultTextStyle, isUser: false })
+          textRenderer({ content })
         ) : (
           <RichText
             text={content}
-            textColor={textColor ?? colors?.text}
-            fontSize={fontSize}
-            lineHeight={lineHeight}
+            theme={markdownTheme}
+            streaming={streaming}
+            onLinkPress={onLinkPress}
           />
         )}
       </View>
@@ -641,11 +625,11 @@ export namespace AjoraChatAssistantMessage {
 
 const styles = StyleSheet.create({
   container: {
-    paddingVertical: 12,
+    paddingVertical: 6,
     paddingHorizontal: 16,
   },
   markdownContainer: {
-    paddingVertical: 4,
+    paddingVertical: 0,
   },
   toolbar: {
     width: "100%",

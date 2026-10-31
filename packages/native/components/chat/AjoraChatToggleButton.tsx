@@ -8,7 +8,7 @@ import {
   ViewStyle,
   Animated,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import Ionicons from "@react-native-vector-icons/ionicons/static";
 import { renderSlot, SlotValue } from "../../lib/slots";
 import {
   AjoraChatDefaultLabels,

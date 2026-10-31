@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 import { RunHandler } from "../run-handler";
-import type { AjoraCore } from "../core";
+import type { AjoraCoreFriendsAccess } from "../core-types";
 
 function createRunHandler(): RunHandler {
-  return new RunHandler({} as AjoraCore);
+  return new RunHandler({} as AjoraCoreFriendsAccess);
 }
 
 describe("RunHandler tool schema generation", () => {

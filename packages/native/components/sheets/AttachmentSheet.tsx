@@ -15,7 +15,9 @@ import {
   BottomSheetView,
   type BottomSheetBackdropProps,
 } from "@gorhom/bottom-sheet";
-import { Ionicons } from "@expo/vector-icons";
+import Ionicons, {
+  type IoniconsIconName,
+} from "@react-native-vector-icons/ionicons/static";
 import { useAjoraTheme } from "../../providers/AjoraThemeProvider";
 import { type AttachmentSource } from "../../lib/fileSystem";
 
@@ -29,7 +31,7 @@ export interface AttachmentOption {
   id: AttachmentType;
   label: string;
   description?: string;
-  icon: keyof typeof Ionicons.glyphMap;
+  icon: IoniconsIconName;
 }
 
 export interface AttachmentSheetIcons {

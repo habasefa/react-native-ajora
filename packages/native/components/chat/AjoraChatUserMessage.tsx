@@ -17,7 +17,9 @@ import {
 import { UserMessage } from "@ag-ui/core";
 import { renderSlot, WithSlots } from "../../lib/slots";
 import RichText from "../../../markdown/RichText";
+import type { MarkdownTheme } from "../../../markdown/markdownStyle";
 import { useAjoraTheme } from "../../providers/AjoraThemeProvider";
+import { MessageAttachments } from "./MessageAttachments";
 
 function flattenUserMessageContent(content?: UserMessage["content"]): string {
   if (!content) {
@@ -84,15 +86,10 @@ export type AjoraChatUserMessageProps = WithSlots<
     branchIndex?: number;
     numberOfBranches?: number;
     additionalToolbarItems?: React.ReactNode;
-    additionalToolbarItems?: React.ReactNode;
     colors?: AjoraChatUserMessageColorsOverride;
     onLongPress?: (props: { message: UserMessage }) => void;
     style?: StyleProp<ViewStyle>;
-    textRenderer?: (props: {
-      content: string;
-      style?: any;
-      isUser?: boolean;
-    }) => React.ReactNode;
+    textRenderer?: (props: { content: string }) => React.ReactNode;
   }
 >;
 
@@ -113,6 +110,7 @@ export function AjoraChatUserMessage({
   branchNavigation,
   children,
   style,
+  textRenderer,
   ...props
 }: AjoraChatUserMessageProps) {
   const flattenedContent = useMemo(
@@ -139,7 +137,7 @@ export function AjoraChatUserMessage({
       content: flattenedContent,
       colors,
       onLongPress: () => onLongPress?.({ message }),
-      textRenderer: props.textRenderer,
+      textRenderer,
     },
   );
 
@@ -208,7 +206,8 @@ export function AjoraChatUserMessage({
 
   return (
     <View style={[styles.container, style]} {...props}>
-      {BoundMessageRenderer}
+      <MessageAttachments content={message.content} align="flex-end" />
+      {flattenedContent.length > 0 && BoundMessageRenderer}
       {BoundToolbar}
     </View>
   );
@@ -227,33 +226,32 @@ export namespace AjoraChatUserMessage {
   export const MessageRenderer: React.FC<{
     content: string;
     style?: StyleProp<ViewStyle>;
-    textStyle?: StyleProp<TextStyle>;
-    textColor?: string;
-    fontSize?: number;
-    lineHeight?: number;
-
     colors?: AjoraChatUserMessageColors;
     onLongPress?: () => void;
-    textRenderer?: (props: {
-      content: string;
-      style?: any;
-      isUser?: boolean;
-    }) => React.ReactNode;
+    textRenderer?: (props: { content: string }) => React.ReactNode;
   }> = ({
     content,
     style,
     colors,
-    textColor,
-    fontSize = 16,
-    lineHeight = 22,
     onLongPress,
     textRenderer,
   }) => {
-    const defaultTextStyle = {
-      color: textColor ?? colors?.text ?? "#FFFFFF",
-      fontSize,
-      lineHeight,
-    };
+    const ajoraTheme = useAjoraTheme();
+
+    const markdownTheme = React.useMemo<MarkdownTheme>(
+      () => ({
+        textColor: colors?.text ?? ajoraTheme.colors.userBubbleText,
+        mutedColor: colors?.text
+          ? colors.text + "99"  // 60% opacity fallback
+          : ajoraTheme.colors.userBubbleText + "99",
+        codeBg: "rgba(255,255,255,0.15)",
+        borderColor: "rgba(255,255,255,0.25)",
+        linkColor: colors?.text ?? ajoraTheme.colors.userBubbleText,
+        fontSize: ajoraTheme.typography.sizes.lg,
+        lineHeight: ajoraTheme.typography.sizes.lg * ajoraTheme.typography.lineHeights.normal,
+      }),
+      [ajoraTheme, colors?.text],
+    );
 
     return (
       <Pressable
@@ -261,19 +259,17 @@ export namespace AjoraChatUserMessage {
         delayLongPress={500}
         style={({ pressed }) => [
           styles.messageBubble,
-          { backgroundColor: colors?.bubbleBackground ?? "#007AFF" },
+          { backgroundColor: colors?.bubbleBackground ?? ajoraTheme.colors.userBubble },
           style,
           pressed && { opacity: 0.8 },
         ]}
       >
         {textRenderer ? (
-          textRenderer({ content, style: defaultTextStyle, isUser: true })
+          textRenderer({ content })
         ) : (
           <RichText
             text={content}
-            textColor={textColor ?? colors?.text ?? "#FFFFFF"}
-            fontSize={fontSize}
-            lineHeight={lineHeight}
+            theme={markdownTheme}
           />
         )}
       </Pressable>

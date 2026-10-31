@@ -31,7 +31,15 @@ import {
   Keyboard,
 } from "react-native";
 import Lightbox from "react-native-lightbox-v2";
-import { Ionicons, MaterialIcons, Feather } from "@expo/vector-icons";
+import Ionicons, {
+  type IoniconsIconName,
+} from "@react-native-vector-icons/ionicons/static";
+import MaterialIcons, {
+  type MaterialIconsIconName,
+} from "@react-native-vector-icons/material-icons/static";
+import Feather, {
+  type FeatherIconName,
+} from "@react-native-vector-icons/feather/static";
 import { BottomSheetModal } from "@gorhom/bottom-sheet";
 import {
   useAjoraChatConfiguration,
@@ -50,14 +58,14 @@ import {
 } from "../sheets";
 import {
   type FileAttachment,
-  type AttachmentUploadState,
   handleAttachmentSelection,
 } from "../../lib/fileSystem";
+import { useAjora } from "../../providers/AjoraProvider";
+import { useAttachmentUploader } from "../../hooks/use-attachment-uploader";
 import {
   SuggestionsProvidedProps,
   TriggersConfig,
   useMentions,
-  replaceTriggerValues,
 } from "react-native-controlled-mentions";
 import {
   AjoraMentionSuggestions,
@@ -82,7 +90,7 @@ export interface AgentTypeOption {
   id: string;
   label: string;
   description?: string;
-  icon?: keyof typeof Ionicons.glyphMap;
+  icon?: IoniconsIconName;
 }
 
 /**
@@ -172,13 +180,8 @@ export interface AjoraChatInputProps {
   mentionSuggestions?: MentionSuggestion[];
   /** Callback when a mention suggestion is selected */
   onMentionSelect?: (suggestion: MentionSuggestion) => void;
-  /** Callback when mention keyword changes */
+  /** Callback when the mention keyword changes */
   onMentionKeywordChange?: (keyword: string | null) => void;
-  /** Custom render component for suggestion items */
-  SuggestionItem?: React.ComponentType<{
-    item: MentionSuggestion;
-    onSelect: (suggestion: MentionSuggestion) => void;
-  }>;
   /** Show add button */
   showAddButton?: boolean;
   /** Callback when add button is pressed */
@@ -187,6 +190,18 @@ export interface AjoraChatInputProps {
   showSettingsButton?: boolean;
   /** Callback when settings button is pressed */
   onSettingsPress?: () => void;
+  /** Style for mention text in input */
+  mentionTextStyle?: StyleProp<TextStyle>;
+  /** Whether mentions are loading */
+  mentionLoading?: boolean;
+  /** Custom component to render suggestion item */
+  SuggestionItem?: React.ComponentType<any>;
+  /** Function to get string representation of mention for input */
+  getMentionPlainString?: (suggestion: MentionSuggestion) => string;
+  /** Function to get value of mention */
+  getMentionValue?: (suggestion: MentionSuggestion) => string;
+  /** Maximum number of suggestions to display */
+  maxSuggestions?: number;
   /** Custom text input component */
   textInput?: React.ReactElement;
   /** Custom send button component */
@@ -215,31 +230,10 @@ export interface AjoraChatInputProps {
   selectedModelId?: string;
   /** Custom model options */
   models?: ModelOption[];
-  /** Attachments to preview in the input */
-  attachments?: AttachmentPreviewItem[];
-  /** Callback when an attachment is removed */
-  onRemoveAttachment?: (attachmentId: string) => void;
-  /** Callback for handling attachment upload/preview state */
-  onAttachmentPreview?: (
-    file: FileAttachment,
-    callbacks: {
-      onProgress: (progress: number) => void;
-      onComplete: (updatedFile?: FileAttachment) => void;
-      onError: (error?: Error) => void;
-    },
+  /** Called when an attachment is rejected by validation (size/MIME/count). */
+  onAttachmentRejected?: (
+    rejections: Array<{ file: FileAttachment; reason: string }>,
   ) => void;
-  /** Whether to disable attachments functionality */
-  disableAttachments?: boolean;
-  /** Whether suggestions are loading */
-  mentionLoading?: boolean;
-  /** Custom regex pattern for parsing mentions */
-  mentionPattern?: RegExp;
-  /** Custom text style for mentions */
-  mentionTextStyle?: StyleProp<TextStyle>;
-  /** Custom function to stringify mentions */
-  getMentionPlainString?: (mention: any) => string;
-  /** Custom function to get the value for a mention */
-  getMentionValue?: (suggestion: any) => string;
 
   // ========================================================================
   // Icons Customization
@@ -288,7 +282,7 @@ export interface AjoraChatInputChildrenArgs {
   startTranscribeButton: React.ReactElement;
   audioRecorder: React.ReactElement;
   agentSelector: React.ReactElement;
-  addButton: React.ReactElement;
+  addButton: React.ReactElement | null;
   settingsButton: React.ReactElement;
   attachmentPreview: React.ReactElement | null;
   mode: AjoraChatInputMode;
@@ -319,6 +313,13 @@ const INPUT_MAX_HEIGHT = 120;
 const LINE_HEIGHT = 20;
 const ICON_SIZE = 22;
 const BUTTON_SIZE = 40;
+const INPUT_PADDING_HORIZONTAL = 16;
+const MODEL_NAME_MAX_CHARS = 18;
+
+const truncateModelName = (name: string): string =>
+  name.length > MODEL_NAME_MAX_CHARS
+    ? `${name.slice(0, MODEL_NAME_MAX_CHARS).trimEnd()}…`
+    : name;
 
 // ============================================================================
 // Sub-Component Props Types
@@ -331,21 +332,18 @@ export interface AjoraChatTextInputProps extends Omit<TextInputProps, "style"> {
   mentionSuggestions?: MentionSuggestion[];
   onMentionSelect?: (suggestion: MentionSuggestion) => void;
   onMentionKeywordChange?: (keyword: string | null) => void;
-  SuggestionItem?: React.ComponentType<{
-    item: MentionSuggestion;
-    onSelect: (suggestion: MentionSuggestion) => void;
-  }>;
-  mentionLoading?: boolean;
-  mentionPattern?: RegExp;
   mentionTextStyle?: StyleProp<TextStyle>;
-  getMentionPlainString?: (mention: any) => string;
-  getMentionValue?: (suggestion: any) => string;
+  mentionLoading?: boolean;
+  SuggestionItem?: React.ComponentType<any>;
+  getMentionPlainString?: (suggestion: MentionSuggestion) => string;
+  getMentionValue?: (suggestion: MentionSuggestion) => string;
+  maxSuggestions?: number;
 }
 
 export interface AjoraChatIconButtonProps {
   onPress?: () => void;
   disabled?: boolean;
-  icon: keyof typeof Ionicons.glyphMap;
+  icon: IoniconsIconName;
   iconFamily?: "ionicons" | "material" | "feather";
   size?: number;
   color?: string;
@@ -382,12 +380,8 @@ const AjoraChatTextInput = forwardRef<RNTextInput, AjoraChatTextInputProps>(
       mentionSuggestions,
       onMentionSelect,
       onMentionKeywordChange,
-      SuggestionItem,
       value,
       onChangeText,
-      mentionLoading,
-      mentionPattern,
-      mentionTextStyle,
       getMentionPlainString,
       getMentionValue,
       ...props
@@ -397,13 +391,10 @@ const AjoraChatTextInput = forwardRef<RNTextInput, AjoraChatTextInputProps>(
     const triggersConfig: TriggersConfig<"mention"> = {
       mention: {
         trigger: "@",
-        textStyle: mentionTextStyle || {
+        textStyle: props.mentionTextStyle || {
           fontWeight: "bold",
           color: colors?.primary || "blue",
         },
-        pattern: mentionPattern,
-        getPlainString: getMentionPlainString,
-        getTriggerValue: getMentionValue,
       },
     };
 
@@ -414,8 +405,8 @@ const AjoraChatTextInput = forwardRef<RNTextInput, AjoraChatTextInputProps>(
     });
 
     useEffect(() => {
-      onMentionKeywordChange?.(triggers.mention.keyword ?? null);
-    }, [triggers.mention.keyword, onMentionKeywordChange]);
+      onMentionKeywordChange?.(triggers.mention?.keyword ?? null);
+    }, [triggers.mention?.keyword, onMentionKeywordChange]);
 
     return (
       <>
@@ -423,13 +414,27 @@ const AjoraChatTextInput = forwardRef<RNTextInput, AjoraChatTextInputProps>(
           {...triggers.mention}
           suggestions={mentionSuggestions}
           onSelect={(suggestion) => {
+            if (getMentionPlainString) {
+              getMentionPlainString(suggestion);
+            }
+            if (getMentionValue) {
+              getMentionValue(suggestion);
+            }
+
             if (triggers.mention.onSelect) {
               triggers.mention.onSelect(suggestion);
             }
             onMentionSelect?.(suggestion);
           }}
-          SuggestionItem={SuggestionItem}
-          isLoading={mentionLoading}
+          loading={props.mentionLoading}
+          SuggestionItem={props.SuggestionItem}
+          maxSuggestions={props.maxSuggestions}
+          theme={{
+            container: {
+              left: -INPUT_PADDING_HORIZONTAL,
+              right: -INPUT_PADDING_HORIZONTAL,
+            },
+          }}
         />
 
         <RNTextInput
@@ -439,7 +444,6 @@ const AjoraChatTextInput = forwardRef<RNTextInput, AjoraChatTextInputProps>(
           placeholderTextColor={colors?.placeholder}
           multiline
           textAlignVertical="top"
-          blurOnSubmit={false}
           autoCorrect
           autoCapitalize="sentences"
           keyboardType="default"
@@ -480,7 +484,7 @@ const AjoraChatIconButton: React.FC<AjoraChatIconButtonProps> = ({
       case "material":
         return (
           <MaterialIcons
-            name={icon as keyof typeof MaterialIcons.glyphMap}
+            name={icon as MaterialIconsIconName}
             size={size}
             color={iconColor}
           />
@@ -488,7 +492,7 @@ const AjoraChatIconButton: React.FC<AjoraChatIconButtonProps> = ({
       case "feather":
         return (
           <Feather
-            name={icon as keyof typeof Feather.glyphMap}
+            name={icon as FeatherIconName}
             size={size}
             color={iconColor}
           />
@@ -905,20 +909,17 @@ const AjoraChatInputComponent = forwardRef<
     onModelSelect,
     selectedModelId,
     models,
-    attachments = [],
-    onRemoveAttachment,
-    onAttachmentPreview,
+    onAttachmentRejected,
     icons,
     mentionSuggestions,
     onMentionSelect,
     onMentionKeywordChange,
-    SuggestionItem,
-    disableAttachments,
-    mentionLoading,
-    mentionPattern,
     mentionTextStyle,
+    mentionLoading,
+    SuggestionItem,
     getMentionPlainString,
     getMentionValue,
+    maxSuggestions,
   },
   ref,
 ) {
@@ -929,9 +930,6 @@ const AjoraChatInputComponent = forwardRef<
   const isControlled = value !== undefined;
   const isModelControlled = selectedModelId !== undefined;
   const [internalValue, setInternalValue] = useState<string>(() => value ?? "");
-  const [internalAttachments, setInternalAttachments] = useState<
-    AttachmentPreviewItem[]
-  >([]);
   const [internalAgentType, setInternalAgentType] = useState(
     selectedAgentType ?? agentTypes?.[0]?.id,
   );
@@ -982,23 +980,32 @@ const AjoraChatInputComponent = forwardRef<
   }, [globalTheme, theme?.colors]);
 
   // ========================================================================
+  // Attachment Uploader
+  // ========================================================================
+
+  const {
+    uploadAttachment,
+    attachmentLimits,
+    attachmentsEnabled,
+  } = useAjora();
+
+  const uploader = useAttachmentUploader({
+    uploadAttachment,
+    limits: attachmentLimits,
+  });
+
+  // ========================================================================
   // Derived State
   // ========================================================================
 
-  const resolvedAttachments = useMemo(() => {
-    return [...(attachments ?? []), ...internalAttachments];
-  }, [attachments, internalAttachments]);
-
   const resolvedValue = isControlled ? (value ?? "") : internalValue;
   const isProcessing = mode !== "transcribe" && isRunning;
-  const hasAttachments = resolvedAttachments.length > 0;
-  const isUploading = resolvedAttachments.some(
-    (a) => a.uploadState === "uploading",
-  );
+  const hasAttachments = uploader.attachments.length > 0;
   const canSend =
     (resolvedValue.trim().length > 0 || hasAttachments) &&
     !!onSubmitMessage &&
-    !isUploading;
+    !uploader.isUploading &&
+    !uploader.hasErrors;
   const canStop = !!onStop;
   const maxHeight = Math.min(maxLines * LINE_HEIGHT + 20, INPUT_MAX_HEIGHT);
   const currentAgentType = selectedAgentType ?? internalAgentType;
@@ -1089,21 +1096,14 @@ const AjoraChatInputComponent = forwardRef<
   const handleSend = useCallback(() => {
     if (!canSend) return;
 
-    let finalValue = resolvedValue;
-
-    if (getMentionValue) {
-      finalValue = replaceTriggerValues(
-        resolvedValue,
-        ({ original, trigger, name, id }) => {
-          return getMentionValue({ original, trigger, name, id });
-        },
-      );
-    }
-
-    const trimmedValue = finalValue.trim();
-    onSubmitMessage?.(trimmedValue, resolvedAttachments);
+    const trimmedValue = resolvedValue.trim();
+    // Snapshot attachments BEFORE clearing — clear() aborts in-flight uploads
+    // and empties the list. The snapshot is safe to pass along because every
+    // entry is already in "uploaded" state (guaranteed by canSend).
+    const toSend = uploader.attachments;
+    onSubmitMessage?.(trimmedValue, toSend);
     clearInputValue();
-    setInternalAttachments([]);
+    uploader.clear();
 
     requestAnimationFrame(() => {
       inputRef.current?.focus();
@@ -1111,10 +1111,9 @@ const AjoraChatInputComponent = forwardRef<
   }, [
     canSend,
     resolvedValue,
-    resolvedAttachments,
+    uploader,
     onSubmitMessage,
     clearInputValue,
-    getMentionValue,
   ]);
 
   const handleStop = useCallback(() => {
@@ -1166,74 +1165,33 @@ const AjoraChatInputComponent = forwardRef<
   const handleAttachmentSelect = useCallback(
     async (type: AttachmentType) => {
       onAttachmentSelect?.(type);
+      attachmentSheetRef.current?.close();
 
-      if (onAttachmentPreview) {
-        attachmentSheetRef.current?.close();
-        try {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const result = await handleAttachmentSelection(type as any);
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const result = await handleAttachmentSelection(type as any);
 
-          if (result.success) {
-            const files =
-              result.attachments ||
-              (result.attachment ? [result.attachment] : []);
-
-            if (files.length > 0) {
-              const newItems: AttachmentPreviewItem[] = files.map((f) => ({
-                ...f,
-                uploadState: "uploading",
-                uploadProgress: 0,
-              }));
-
-              setInternalAttachments((prev) => [...prev, ...newItems]);
-
-              files.forEach((file) => {
-                onAttachmentPreview(file, {
-                  onProgress: (progress) => {
-                    setInternalAttachments((prev) =>
-                      prev.map((p) =>
-                        p.id === file.id
-                          ? {
-                              ...p,
-                              uploadProgress: progress,
-                              uploadState: "uploading",
-                            }
-                          : p,
-                      ),
-                    );
-                  },
-                  onComplete: (updatedFile) => {
-                    setInternalAttachments((prev) =>
-                      prev.map((p) =>
-                        p.id === file.id
-                          ? {
-                              ...(updatedFile ?? p),
-                              uploadState: "uploaded",
-                              uploadProgress: 100,
-                            }
-                          : p,
-                      ),
-                    );
-                  },
-                  onError: (_error) => {
-                    setInternalAttachments((prev) =>
-                      prev.map((p) =>
-                        p.id === file.id ? { ...p, uploadState: "error" } : p,
-                      ),
-                    );
-                  },
-                });
-              });
-            }
-          } else if (result.error) {
-            console.error("Error selecting attachments:", result.error);
+        if (!result.success) {
+          if (result.error) {
+            console.error("Attachment selection failed:", result.error);
           }
-        } catch (error) {
-          console.error("Error selecting attachments:", error);
+          return;
         }
+
+        const files =
+          result.attachments ??
+          (result.attachment ? [result.attachment] : []);
+        if (files.length === 0) return;
+
+        const { rejected } = uploader.add(files);
+        if (rejected.length > 0) {
+          onAttachmentRejected?.(rejected);
+        }
+      } catch (error) {
+        console.error("Attachment selection failed:", error);
       }
     },
-    [onAttachmentSelect, onAttachmentPreview],
+    [onAttachmentSelect, onAttachmentRejected, uploader],
   );
 
   const handleAgentSelect = useCallback(
@@ -1255,12 +1213,9 @@ const AjoraChatInputComponent = forwardRef<
 
   const handleRemoveAttachment = useCallback(
     (attachmentId: string) => {
-      setInternalAttachments((prev) =>
-        prev.filter((a) => a.id !== attachmentId),
-      );
-      onRemoveAttachment?.(attachmentId);
+      uploader.remove(attachmentId);
     },
-    [onRemoveAttachment],
+    [uploader],
   );
 
   // ========================================================================
@@ -1308,12 +1263,12 @@ const AjoraChatInputComponent = forwardRef<
       mentionSuggestions={mentionSuggestions}
       onMentionSelect={onMentionSelect}
       onMentionKeywordChange={onMentionKeywordChange}
-      SuggestionItem={SuggestionItem}
-      mentionLoading={mentionLoading}
-      mentionPattern={mentionPattern}
       mentionTextStyle={mentionTextStyle}
+      mentionLoading={mentionLoading}
+      SuggestionItem={SuggestionItem}
       getMentionPlainString={getMentionPlainString}
       getMentionValue={getMentionValue}
+      maxSuggestions={maxSuggestions}
     />
   );
 
@@ -1324,7 +1279,7 @@ const AjoraChatInputComponent = forwardRef<
     />
   );
 
-  const addButtonElement = (
+  const addButtonElement = attachmentsEnabled ? (
     <AjoraChatIconButton
       onPress={handleOpenAttachmentSheet}
       icon="add"
@@ -1333,7 +1288,7 @@ const AjoraChatInputComponent = forwardRef<
       testID={`${testID}-add-button`}
       accessibilityLabel="Add attachment"
     />
-  );
+  ) : null;
 
   const settingsButtonElement = (
     <AjoraChatIconButton
@@ -1366,7 +1321,7 @@ const AjoraChatInputComponent = forwardRef<
         style={[styles.agentSelectorText, { color: colors.text }]}
         numberOfLines={1}
       >
-        {selectedModel?.name ?? "Select Model"}
+        {truncateModelName(selectedModel?.name ?? "Select Model")}
       </Text>
       <Ionicons name="chevron-down" size={14} color={colors.iconDefault} />
     </Pressable>
@@ -1387,7 +1342,7 @@ const AjoraChatInputComponent = forwardRef<
         style={[styles.agentSelectorText, { color: colors.text }]}
         numberOfLines={1}
       >
-        {selectedModel?.name ?? "Select Model"}
+        {truncateModelName(selectedModel?.name ?? "Select Model")}
       </Text>
       <Ionicons name="chevron-down" size={14} color={colors.iconDefault} />
     </Pressable>
@@ -1459,7 +1414,7 @@ const AjoraChatInputComponent = forwardRef<
         disabled={!canStop}
         style={({ pressed }) => [
           styles.circleButton,
-          { backgroundColor: colors.error },
+          { backgroundColor: colors.secondary },
           pressed && canStop && styles.buttonPressed,
         ]}
         testID={`${testID}-stop-button`}
@@ -1468,7 +1423,7 @@ const AjoraChatInputComponent = forwardRef<
         accessibilityState={{ disabled: !canStop }}
       >
         {typeof icons.stop === "function"
-          ? icons.stop({ size: 16, color: colors.background })
+          ? icons.stop({ size: 16, color: colors.iconDefault })
           : icons.stop}
       </Pressable>
     ) : (
@@ -1477,7 +1432,7 @@ const AjoraChatInputComponent = forwardRef<
         disabled={!canStop}
         style={({ pressed }) => [
           styles.circleButton,
-          { backgroundColor: colors.error },
+          { backgroundColor: colors.secondary },
           pressed && canStop && styles.buttonPressed,
         ]}
         testID={`${testID}-stop-button`}
@@ -1485,14 +1440,14 @@ const AjoraChatInputComponent = forwardRef<
         accessibilityLabel="Stop processing"
         accessibilityState={{ disabled: !canStop }}
       >
-        <Ionicons name="stop" size={16} color={colors.background} />
+        <Ionicons name="stop" size={16} color={colors.iconDefault} />
       </Pressable>
     ));
 
   const attachmentPreviewElement =
-    resolvedAttachments.length > 0 ? (
+    uploader.attachments.length > 0 ? (
       <AttachmentPreview
-        attachments={resolvedAttachments}
+        attachments={uploader.attachments}
         onRemove={handleRemoveAttachment}
         colors={colors}
         testID={`${testID}-attachment-preview`}
@@ -1520,7 +1475,7 @@ const AjoraChatInputComponent = forwardRef<
       canSend,
       canStop,
       colors,
-      attachments: resolvedAttachments,
+      attachments: uploader.attachments,
     };
 
     return <>{children(childProps)}</>;
@@ -1541,9 +1496,9 @@ const AjoraChatInputComponent = forwardRef<
         {/* Main Input Container */}
         <View style={computedStyles.inputWrapper}>
           {/* Attachment Previews */}
-          {resolvedAttachments.length > 0 && (
+          {uploader.attachments.length > 0 && (
             <AttachmentPreview
-              attachments={resolvedAttachments}
+              attachments={uploader.attachments}
               onRemove={handleRemoveAttachment}
               colors={colors}
               testID={`${testID}-attachment-preview`}
@@ -1557,19 +1512,17 @@ const AjoraChatInputComponent = forwardRef<
 
           {/* Bottom Row: Toolbar */}
           <View style={styles.bottomRow}>
-            {/* Left Side: Add & Settings Buttons */}
+            {/* Left Side: Add, Settings & Model Selector */}
             <View style={computedStyles.toolbarContainer}>
-              {showAddButton && !disableAttachments && addButtonElement}
+              {showAddButton && addButtonElement}
               {showSettingsButton &&
                 agents &&
                 agents.length > 0 &&
                 settingsButtonElement}
+              {showAgentSelector &&
+                modelsList.length > 0 &&
+                agentSelectorElement}
             </View>
-
-            {/* Center: Model Selector */}
-            {showAgentSelector && modelsList.length > 0 && (
-              <View style={styles.centerContainer}>{agentSelectorElement}</View>
-            )}
 
             {/* Right Side: Action Buttons */}
             <View style={computedStyles.actionsContainer}>
@@ -1642,7 +1595,7 @@ const styles = StyleSheet.create({
   inputWrapper: {
     width: "100%",
     borderRadius: 32,
-    paddingHorizontal: 16,
+    paddingHorizontal: INPUT_PADDING_HORIZONTAL,
     paddingTop: 14,
     paddingBottom: 10,
     borderWidth: 1.5,
@@ -1670,7 +1623,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "flex-start",
     gap: 4,
-    minWidth: 88,
+    flexShrink: 1,
+    flexGrow: 1,
+    minWidth: 0,
+    marginRight: 8,
   },
   centerContainer: {
     flex: 1,
@@ -1682,7 +1638,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "flex-end",
     gap: 8,
-    minWidth: 88,
+    flexShrink: 0,
+    flexGrow: 0,
   },
   iconButton: {
     width: BUTTON_SIZE,

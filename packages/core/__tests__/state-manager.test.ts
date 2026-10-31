@@ -1,4 +1,3 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
 import { AjoraCore } from "../core";
 import {
   AbstractAgent,
@@ -13,7 +12,11 @@ import { randomUUID } from "../../shared";
  * Mock agent that can emit events to test state management
  */
 class EventEmittingMockAgent extends AbstractAgent {
-  private subscribers: any[] = [];
+  // `AbstractAgent.subscribers` is declared `public` in @ag-ui/client; if we
+  // re-declare it `private` here TS rejects the subclass. Override with the
+  // same visibility but a looser element type so test helpers can push raw
+  // subscriber objects.
+  public subscribers: any[] = [];
 
   constructor(agentId: string, threadId: string, initialState: State = {}) {
     super({
@@ -23,7 +26,7 @@ class EventEmittingMockAgent extends AbstractAgent {
     });
   }
 
-  protected run(input: RunAgentInput): any {
+  public run(input: RunAgentInput): any {
     // Not used in these tests
     throw new Error("run() should not be called in these tests");
   }
@@ -167,6 +170,8 @@ class EventEmittingMockAgent extends AbstractAgent {
       runId,
       state: this.state,
       messages: this.messages,
+      tools: [],
+      context: [],
     };
   }
 }

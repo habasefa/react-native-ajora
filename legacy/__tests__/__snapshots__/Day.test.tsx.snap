@@ -1,5 +1,0 @@
-// Jest Snapshot v1, https://goo.gl/fbAQLP
-
-exports[`Day should not render <Day /> and compare with snapshot 1`] = `null`;
-
-exports[`Day should render <Day /> and compare with snapshot 1`] = `null`;

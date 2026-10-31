@@ -8,22 +8,22 @@ import {
   TextStyle,
   Pressable,
 } from "react-native";
-import {
-  Ionicons,
-  MaterialIcons,
-  MaterialCommunityIcons,
-  FontAwesome,
-  FontAwesome5,
-  FontAwesome6,
-  Feather,
-  AntDesign,
-  Entypo,
-  EvilIcons,
-  Foundation,
-  Octicons,
-  SimpleLineIcons,
-  Zocial,
-} from "@expo/vector-icons";
+import Ionicons, {
+  type IoniconsIconName,
+} from "@react-native-vector-icons/ionicons/static";
+import MaterialIcons from "@react-native-vector-icons/material-icons/static";
+import MaterialCommunityIcons from "@react-native-vector-icons/material-design-icons/static";
+import FontAwesome from "@react-native-vector-icons/fontawesome/static";
+import FontAwesome5 from "@react-native-vector-icons/fontawesome5/static";
+import FontAwesome6 from "@react-native-vector-icons/fontawesome6/static";
+import Feather from "@react-native-vector-icons/feather/static";
+import AntDesign from "@react-native-vector-icons/ant-design/static";
+import Entypo from "@react-native-vector-icons/entypo/static";
+import EvilIcons from "@react-native-vector-icons/evil-icons/static";
+import Foundation from "@react-native-vector-icons/foundation/static";
+import Octicons from "@react-native-vector-icons/octicons/static";
+import SimpleLineIcons from "@react-native-vector-icons/simple-line-icons/static";
+import Zocial from "@react-native-vector-icons/zocial/static";
 import { renderSlot, WithSlots } from "../../lib/slots";
 import {
   useAjoraChatConfiguration,
@@ -69,7 +69,7 @@ export interface AjoraChatEmptyStateColors {
 // ============================================================================
 
 /**
- * Supported icon families from @expo/vector-icons (for internal use)
+ * Supported icon families from the scoped React Native Vector Icons packages.
  */
 type IconFamily =
   | "Ionicons"
@@ -131,7 +131,7 @@ function renderIcon(
 // ============================================================================
 
 export interface AjoraChatEmptyStateIconProps {
-  name?: keyof typeof Ionicons.glyphMap;
+  name?: IoniconsIconName;
   size?: number;
   color?: string;
   style?: StyleProp<ViewStyle>;
@@ -174,14 +174,14 @@ export interface AjoraChatEmptyStateSuggestionsProps {
 
 type EmptyStateSlots = {
   icon: typeof AjoraChatEmptyState.Icon;
-  title: typeof AjoraChatEmptyState.Title;
-  subtitle: typeof AjoraChatEmptyState.Subtitle;
-  suggestions: typeof AjoraChatEmptyState.Suggestions;
+  titleContent: typeof AjoraChatEmptyState.Title;
+  subtitleContent: typeof AjoraChatEmptyState.Subtitle;
+  suggestionsContent: typeof AjoraChatEmptyState.Suggestions;
 };
 
 type EmptyStateRestProps = {
   /** Custom icon name */
-  iconName?: keyof typeof Ionicons.glyphMap;
+  iconName?: IoniconsIconName;
   /** Custom title text */
   title?: string;
   /** Custom subtitle text */
@@ -217,9 +217,9 @@ export function AjoraChatEmptyState({
   iconSize = 56,
   style,
   icon,
-  title: titleSlot,
-  subtitle: subtitleSlot,
-  suggestions: suggestionsSlot,
+  titleContent,
+  subtitleContent,
+  suggestionsContent,
   children,
   ...rest
 }: AjoraChatEmptyStateProps) {
@@ -271,13 +271,13 @@ export function AjoraChatEmptyState({
     color: colors.icon,
   });
 
-  const BoundTitle = renderSlot(titleSlot, AjoraChatEmptyState.Title, {
+  const BoundTitle = renderSlot(titleContent, AjoraChatEmptyState.Title, {
     children: resolvedTitle,
     style: { color: colors.title },
   });
 
   const BoundSubtitle = resolvedSubtitle
-    ? renderSlot(subtitleSlot, AjoraChatEmptyState.Subtitle, {
+    ? renderSlot(subtitleContent, AjoraChatEmptyState.Subtitle, {
         children: resolvedSubtitle,
         style: { color: colors.subtitle },
       })
@@ -285,7 +285,7 @@ export function AjoraChatEmptyState({
 
   const hasSuggestions = suggestions && suggestions.length > 0;
   const BoundSuggestions = hasSuggestions
-    ? renderSlot(suggestionsSlot, AjoraChatEmptyState.Suggestions, {
+    ? renderSlot(suggestionsContent, AjoraChatEmptyState.Suggestions, {
         suggestions,
         onSelectSuggestion,
         colors,
@@ -298,9 +298,9 @@ export function AjoraChatEmptyState({
       <React.Fragment>
         {children({
           icon: BoundIcon,
-          title: BoundTitle,
-          subtitle: BoundSubtitle ?? <></>,
-          suggestions: BoundSuggestions ?? <></>,
+          titleContent: BoundTitle,
+          subtitleContent: BoundSubtitle ?? <></>,
+          suggestionsContent: BoundSuggestions ?? <></>,
           ...rest,
         })}
       </React.Fragment>
@@ -503,7 +503,7 @@ const styles = StyleSheet.create({
   suggestionsContainer: {
     width: "100%",
     maxWidth: 400,
-    gap: 10,
+    gap: 14,
   },
   suggestionsLabel: {
     fontSize: 12,
@@ -516,18 +516,18 @@ const styles = StyleSheet.create({
   suggestionCard: {
     flexDirection: "row",
     alignItems: "center",
-    padding: 18,
+    padding: 20,
     borderRadius: 16,
     borderWidth: 1,
-    minHeight: 72,
+    minHeight: 80,
   },
   suggestionCardPressed: {
     opacity: 0.85,
     transform: [{ scale: 0.99 }],
   },
   suggestionIconWrapper: {
-    width: 44,
-    height: 44,
+    width: 48,
+    height: 48,
     borderRadius: 14,
     alignItems: "center",
     justifyContent: "center",
@@ -538,7 +538,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   suggestionTitle: {
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: "600",
     letterSpacing: -0.2,
   },

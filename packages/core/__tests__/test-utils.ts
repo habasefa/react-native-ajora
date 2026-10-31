@@ -1,5 +1,4 @@
 import { Message } from "@ag-ui/client";
-import { vi } from "vitest";
 import { DynamicSuggestionsConfig, FrontendTool } from "../types";
 
 export interface MockAgentOptions {
@@ -27,6 +26,9 @@ export class MockAgent {
     if (this._parentAgent) {
       this._parentAgent.addMessage(message);
     }
+  });
+  public setMessages = vi.fn((messages: Message[]) => {
+    this.messages = messages;
   });
   public abortRun = vi.fn();
   public clone = vi.fn(() => this._cloneImpl());
@@ -71,11 +73,18 @@ export class MockAgent {
       throw this.error;
     }
 
+    // Simulate real AbstractAgent behaviour: newMessages are appended to
+    // the agent's messages array during the run so that processAgentResult
+    // can find them when splicing tool results.
+    if (this.newMessages.length > 0) {
+      this.messages.push(...this.newMessages);
+    }
+
     // If there's a subscriber with onMessagesChanged, call it with the messages
     if (subscriber?.onMessagesChanged && this.newMessages.length > 0) {
       // Trigger the subscriber callback with messages
       subscriber.onMessagesChanged({
-        messages: [...this.messages, ...this.newMessages],
+        messages: [...this.messages],
       });
     }
 
@@ -110,7 +119,14 @@ export class MockAgent {
   }
 }
 
-export function createMessage(overrides: Partial<Message> = {}): Message {
+// `Partial<Message>` distributes badly over the discriminated `Message`
+// union — TS narrows to a single branch (often the activity one) and
+// rejects valid role/content combos. Tests don't need exhaustive type
+// safety on mock builders; widen the override type and cast at the
+// boundary instead.
+type MessageOverrides = Record<string, unknown>;
+
+export function createMessage(overrides: MessageOverrides = {}): Message {
   return {
     id: `msg-${Math.random().toString(36).substr(2, 9)}`,
     role: "user",
@@ -120,7 +136,7 @@ export function createMessage(overrides: Partial<Message> = {}): Message {
 }
 
 export function createAssistantMessage(
-  overrides: Partial<Message> = {}
+  overrides: MessageOverrides = {}
 ): Message {
   return createMessage({
     role: "assistant",
@@ -132,7 +148,7 @@ export function createAssistantMessage(
 export function createToolCallMessage(
   toolCallName: string,
   args: any = {},
-  overrides: Partial<Message> = {}
+  overrides: MessageOverrides = {}
 ): Message {
   const toolCallId = `tool-call-${Math.random().toString(36).substr(2, 9)}`;
   return createAssistantMessage({
@@ -154,7 +170,7 @@ export function createToolCallMessage(
 export function createToolResultMessage(
   toolCallId: string,
   content: string,
-  overrides: Partial<Message> = {}
+  overrides: MessageOverrides = {}
 ): Message {
   return createMessage({
     role: "tool",
@@ -178,7 +194,7 @@ export function createTool<T extends Record<string, unknown>>(
 
 export function createMultipleToolCallsMessage(
   toolCalls: Array<{ name: string; args?: any }>,
-  overrides: Partial<Message> = {}
+  overrides: MessageOverrides = {}
 ): Message {
   return createAssistantMessage({
     content: "",
@@ -209,6 +225,27 @@ export async function waitForCondition(
 }
 
 /**
+ * Retry a callback until it stops throwing, similar to @testing-library waitFor.
+ */
+export async function waitFor(
+  callback: () => void | Promise<void>,
+  { timeout = 2000, interval = 50 }: { timeout?: number; interval?: number } = {}
+): Promise<void> {
+  const start = Date.now();
+  let lastError: unknown;
+  while (Date.now() - start < timeout) {
+    try {
+      await callback();
+      return;
+    } catch (e) {
+      lastError = e;
+    }
+    await new Promise((resolve) => setTimeout(resolve, interval));
+  }
+  throw lastError;
+}
+
+/**
  * Helper to create a dynamic suggestions config
  */
 export function createSuggestionsConfig(
@@ -230,7 +267,7 @@ export function createSuggestionsConfig(
  */
 export function createSuggestionToolCall(
   suggestions: Array<{ title: string; message: string }>,
-  overrides: Partial<Message> = {}
+  overrides: MessageOverrides = {}
 ): Message {
   const toolCallId = `suggest-call-${Math.random().toString(36).substr(2, 9)}`;
   return createAssistantMessage({

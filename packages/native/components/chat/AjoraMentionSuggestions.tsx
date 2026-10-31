@@ -12,14 +12,16 @@ import {
 } from "react-native";
 import { SuggestionsProvidedProps } from "react-native-controlled-mentions";
 import { useAjoraTheme } from "../../providers/AjoraThemeProvider";
-import { Ionicons } from "@expo/vector-icons";
+import Ionicons, {
+  type IoniconsIconName,
+} from "@react-native-vector-icons/ionicons/static";
 
 export interface MentionSuggestion {
   id: string;
   name: string;
   image?: string;
   subtitle?: string; // e.g. "Agent" or "User"
-  icon?: keyof typeof Ionicons.glyphMap;
+  icon?: IoniconsIconName;
 }
 
 export interface AjoraMentionSuggestionsTheme {
@@ -44,11 +46,9 @@ export interface AjoraMentionSuggestionsProps extends Omit<
   theme?: AjoraMentionSuggestionsTheme;
   onSelect: (suggestion: MentionSuggestion) => void;
   maxHeight?: number;
-  SuggestionItem?: React.ComponentType<{
-    item: MentionSuggestion;
-    onSelect: (suggestion: MentionSuggestion) => void;
-  }>;
-  isLoading?: boolean;
+  loading?: boolean;
+  SuggestionItem?: React.ComponentType<any>;
+  maxSuggestions?: number;
 }
 
 export const AjoraMentionSuggestions: FC<AjoraMentionSuggestionsProps> = ({
@@ -56,8 +56,9 @@ export const AjoraMentionSuggestions: FC<AjoraMentionSuggestionsProps> = ({
   onSelect,
   suggestions = [],
   theme: customTheme,
+  loading,
   SuggestionItem,
-  isLoading,
+  maxSuggestions = 6,
 }) => {
   const globalTheme = useAjoraTheme();
 
@@ -74,20 +75,15 @@ export const AjoraMentionSuggestions: FC<AjoraMentionSuggestionsProps> = ({
     return null;
   }
 
-  const filteredSuggestions = suggestions.filter((one) =>
-    one.name.toLocaleLowerCase().includes(keyword.toLocaleLowerCase()),
-  );
+  const filteredSuggestions = suggestions
+    .filter((one) =>
+      one.name.toLocaleLowerCase().includes(keyword.toLocaleLowerCase()),
+    )
+    .slice(0, maxSuggestions);
 
-  const shouldShow =
-    isLoading ||
-    filteredSuggestions.length > 0 ||
-    (keyword && keyword.length > 0);
-
-  if (!shouldShow) {
+  if (filteredSuggestions.length === 0 && !loading) {
     return null;
   }
-
-  const hasSuggestions = filteredSuggestions.length > 0;
 
   return (
     <View
@@ -96,29 +92,24 @@ export const AjoraMentionSuggestions: FC<AjoraMentionSuggestionsProps> = ({
         {
           backgroundColor: colors.background,
           borderColor: colors.border,
-          minHeight: hasSuggestions || isLoading ? undefined : 150,
         },
         customTheme?.container,
       ]}
     >
-      {isLoading && !hasSuggestions ? (
-        <View
-          style={[
-            styles.loadingContainer,
-            { backgroundColor: colors.background, minHeight: 150 },
-          ]}
-        >
-          <ActivityIndicator size="small" color={globalTheme.colors.primary} />
+      {loading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator color={colors.text} />
         </View>
-      ) : hasSuggestions ? (
-        filteredSuggestions.map((one) =>
-          SuggestionItem ? (
-            <SuggestionItem
-              key={one.id}
-              item={one}
-              onSelect={() => onSelect(one)}
-            />
-          ) : (
+      ) : (
+        filteredSuggestions.map((one) => {
+          if (SuggestionItem) {
+            return (
+              <Pressable key={one.id} onPress={() => onSelect(one)}>
+                <SuggestionItem item={one} onSelect={onSelect} />
+              </Pressable>
+            );
+          }
+          return (
             <Pressable
               key={one.id}
               onPress={() => onSelect(one)}
@@ -161,29 +152,8 @@ export const AjoraMentionSuggestions: FC<AjoraMentionSuggestionsProps> = ({
                 </View>
               </View>
             </Pressable>
-          ),
-        )
-      ) : (
-        <View style={styles.emptyStateContainer}>
-          <View
-            style={[
-              styles.emptyStateIcon,
-              { backgroundColor: globalTheme.colors.surface },
-            ]}
-          >
-            <Ionicons
-              name="search-outline"
-              size={24}
-              color={globalTheme.colors.placeholder}
-            />
-          </View>
-          <Text style={[styles.emptyStateTitle, { color: colors.text }]}>
-            No Results Found
-          </Text>
-          <Text style={[styles.emptyStateSubtitle, { color: colors.subtitle }]}>
-            Try adjusting your search terms
-          </Text>
-        </View>
+          );
+        })
       )}
     </View>
   );
@@ -193,10 +163,9 @@ const styles = StyleSheet.create({
   container: {
     position: "absolute",
     bottom: "100%",
-    left: -16,
-    right: -16,
-    marginBottom: 8,
-    transform: [{ translateY: -10 }],
+    left: 0,
+    right: 0,
+    marginBottom: 16,
     borderRadius: 12,
     borderWidth: 1,
     overflow: "hidden",
@@ -233,33 +202,8 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   loadingContainer: {
-    padding: 16,
+    padding: 20,
     alignItems: "center",
     justifyContent: "center",
-  },
-  emptyStateContainer: {
-    padding: 24,
-    alignItems: "center",
-    justifyContent: "center",
-    minHeight: 150,
-  },
-  emptyStateIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 12,
-  },
-  emptyStateTitle: {
-    fontSize: 16,
-    fontWeight: "600",
-    marginBottom: 4,
-    textAlign: "center",
-  },
-  emptyStateSubtitle: {
-    fontSize: 13,
-    textAlign: "center",
-    opacity: 0.8,
   },
 });

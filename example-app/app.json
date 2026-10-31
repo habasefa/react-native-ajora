@@ -1,56 +1,30 @@
 {
   "expo": {
-    "name": "new-example",
-    "slug": "new-example",
+    "name": "example-app",
+    "slug": "example-app",
     "version": "1.0.0",
-    "orientation": "portrait",
-    "icon": "./assets/icon.png",
-    "scheme": "newexample",
-    "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
-    "ios": {
-      "supportsTablet": true,
-      "bundleIdentifier": "com.hab-asefa.newexample"
-    },
-    "android": {
-      "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
-      },
-      "edgeToEdgeEnabled": true,
-      "package": "com.hab_asefa.newexample"
-    },
-    "web": {
-      "bundler": "metro",
-      "output": "static",
-      "favicon": "./assets/favicon.png"
-    },
+    "scheme": "example-app",
     "plugins": [
-      "expo-router",
-      [
-        "expo-splash-screen",
-        {
-          "image": "./assets/splash.png",
-          "imageWidth": 200,
-          "resizeMode": "contain",
-          "backgroundColor": "#ffffff"
-        }
-      ],
-      [
-        "expo-document-picker",
-        {
-          "iCloudContainerEnvironment": "Production"
-        }
-      ],
-      [
-        "expo-audio",
-        {
-          "microphonePermission": "Allow $(PRODUCT_NAME) to access your microphone."
-        }
-      ]
+      "@react-native-vector-icons/ant-design",
+      "@react-native-vector-icons/entypo",
+      "@react-native-vector-icons/evil-icons",
+      "@react-native-vector-icons/feather",
+      "@react-native-vector-icons/fontawesome",
+      "@react-native-vector-icons/fontawesome5",
+      "@react-native-vector-icons/fontawesome6",
+      "@react-native-vector-icons/foundation",
+      "@react-native-vector-icons/ionicons",
+      "@react-native-vector-icons/material-design-icons",
+      "@react-native-vector-icons/material-icons",
+      "@react-native-vector-icons/octicons",
+      "@react-native-vector-icons/simple-line-icons",
+      "@react-native-vector-icons/zocial"
     ],
-    "experiments": {
-      "typedRoutes": true
+    "android": {
+      "package": "com.hab_asefa.exampleapp"
+    },
+    "ios": {
+      "bundleIdentifier": "com.hab-asefa.exampleapp"
     }
   }
 }

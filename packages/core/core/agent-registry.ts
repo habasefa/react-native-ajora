@@ -1,5 +1,10 @@
 import { AbstractAgent, HttpAgent } from "@ag-ui/client";
-import { logger, RuntimeInfo, AgentDescription } from "../../shared";
+import {
+  logger,
+  RuntimeInfo,
+  RuntimeModelInfo,
+  AgentDescription,
+} from "../../shared";
 import { ProxiedAjoraRuntimeAgent } from "../agent";
 import type { AjoraCore } from "./core";
 import {
@@ -22,12 +27,24 @@ export class AgentRegistry {
   private _agents: Record<string, AbstractAgent> = {};
   private localAgents: Record<string, AbstractAgent> = {};
   private remoteAgents: Record<string, AbstractAgent> = {};
+  private _models: RuntimeModelInfo[] = [];
+  private _extraData: Record<string, unknown> = {};
 
   private _runtimeUrl?: string;
   private _runtimeVersion?: string;
   private _runtimeConnectionStatus: AjoraCoreRuntimeConnectionStatus =
     AjoraCoreRuntimeConnectionStatus.Disconnected;
   private _runtimeTransport: AjoraRuntimeTransport = "rest";
+
+  // Coalescing guard for updateRuntimeConnection. setRuntimeUrl and
+  // setRuntimeTransport are typically called back-to-back in the provider's
+  // config-sync effect — without coalescing they trigger two concurrent
+  // /info fetches and a cascade of status notifications (Disconnected →
+  // Connecting → Connected, twice), each of which wakes every subscriber.
+  // We schedule at most one runtime-connection refresh per microtask and
+  // track the in-flight promise so callers can still await it.
+  private _pendingConnectionUpdate: Promise<void> | null = null;
+  private _connectionUpdateScheduled = false;
 
   constructor(private core: AjoraCore) {}
 
@@ -55,6 +72,20 @@ export class AgentRegistry {
   }
 
   /**
+   * Get models received from the runtime
+   */
+  get models(): Readonly<RuntimeModelInfo[]> {
+    return this._models;
+  }
+
+  /**
+   * Get extra data received from the runtime
+   */
+  get extraData(): Readonly<Record<string, unknown>> {
+    return this._extraData;
+  }
+
+  /**
    * Initialize agents from configuration
    */
   initialize(agents: Record<string, AbstractAgent>): void {
@@ -76,7 +107,7 @@ export class AgentRegistry {
     }
 
     this._runtimeUrl = normalizedRuntimeUrl;
-    void this.updateRuntimeConnection();
+    this.scheduleRuntimeConnectionUpdate();
   }
 
   setRuntimeTransport(runtimeTransport: AjoraRuntimeTransport): void {
@@ -85,7 +116,32 @@ export class AgentRegistry {
     }
 
     this._runtimeTransport = runtimeTransport;
-    void this.updateRuntimeConnection();
+    this.scheduleRuntimeConnectionUpdate();
+  }
+
+  /**
+   * Coalesce multiple synchronous calls to setRuntimeUrl/setRuntimeTransport
+   * into a single runtime-info fetch. Any call that arrives while one is
+   * already in flight joins the existing promise rather than starting a
+   * second one.
+   */
+  private scheduleRuntimeConnectionUpdate(): void {
+    if (this._connectionUpdateScheduled) {
+      return;
+    }
+    this._connectionUpdateScheduled = true;
+
+    // Defer to a microtask so that a batch of synchronous setters
+    // (setRuntimeUrl + setRuntimeTransport) in the same tick produce a
+    // single updateRuntimeConnection call.
+    queueMicrotask(() => {
+      this._connectionUpdateScheduled = false;
+      this._pendingConnectionUpdate = this.updateRuntimeConnection().finally(
+        () => {
+          this._pendingConnectionUpdate = null;
+        },
+      );
+    });
   }
 
   /**
@@ -171,10 +227,23 @@ export class AgentRegistry {
    * Update runtime connection and fetch remote agents
    */
   private async updateRuntimeConnection(): Promise<void> {
-    // Skip fetching on the server (SSR)
-    if (typeof window === "undefined") {
+    // Skip fetching on the server (SSR). React Native does not define
+    // `window`, so a naive `typeof window === "undefined"` check would also
+    // skip the fetch on RN — which is exactly the place we *most* need it,
+    // since RN has no static prerender path. Detect RN explicitly via the
+    // `navigator.product` UA marker, and only bail when we're in a Node
+    // environment with no `window` (true SSR).
+    const g = globalThis as {
+      window?: unknown;
+      navigator?: { product?: string };
+    };
+    const isReactNative = g.navigator?.product === "ReactNative";
+    const isBrowser = typeof g.window !== "undefined";
+    if (!isReactNative && !isBrowser) {
       return;
     }
+
+    const prevStatus = this._runtimeConnectionStatus;
 
     if (!this.runtimeUrl) {
       this._runtimeConnectionStatus =
@@ -182,31 +251,40 @@ export class AgentRegistry {
       this._runtimeVersion = undefined;
       this.remoteAgents = {};
       this._agents = this.localAgents;
+      this._models = [];
+      this._extraData = {};
 
-      await this.notifyRuntimeStatusChanged(
-        AjoraCoreRuntimeConnectionStatus.Disconnected
-      );
+      if (prevStatus !== AjoraCoreRuntimeConnectionStatus.Disconnected) {
+        await this.notifyRuntimeStatusChanged(
+          AjoraCoreRuntimeConnectionStatus.Disconnected,
+        );
+      }
       await this.notifyAgentsChanged();
       return;
     }
 
-    this._runtimeConnectionStatus = AjoraCoreRuntimeConnectionStatus.Connecting;
-    await this.notifyRuntimeStatusChanged(
-      AjoraCoreRuntimeConnectionStatus.Connecting
-    );
+    if (prevStatus !== AjoraCoreRuntimeConnectionStatus.Connecting) {
+      this._runtimeConnectionStatus =
+        AjoraCoreRuntimeConnectionStatus.Connecting;
+      await this.notifyRuntimeStatusChanged(
+        AjoraCoreRuntimeConnectionStatus.Connecting,
+      );
+    } else {
+      this._runtimeConnectionStatus =
+        AjoraCoreRuntimeConnectionStatus.Connecting;
+    }
 
     try {
       const runtimeInfoResponse = await this.fetchRuntimeInfo();
       const {
         version,
-        ...runtimeInfo
-      }: {
-        agents: Record<string, AgentDescription>;
-        version: string;
+        agents: agentDescriptions,
+        models,
+        extraData,
       } = runtimeInfoResponse;
 
       const agents: Record<string, AbstractAgent> = Object.fromEntries(
-        Object.entries(runtimeInfo.agents).map(([id, { description }]) => {
+        Object.entries(agentDescriptions).map(([id, { description }]) => {
           const agent = new ProxiedAjoraRuntimeAgent({
             runtimeUrl: this.runtimeUrl,
             agentId: id, // Runtime agents always have their ID set correctly
@@ -215,34 +293,45 @@ export class AgentRegistry {
           });
           this.applyHeadersToAgent(agent);
           return [id, agent];
-        })
+        }),
       );
 
       this.remoteAgents = agents;
       this._agents = { ...this.localAgents, ...this.remoteAgents };
+      this._models = models ?? [];
+      this._extraData = extraData ?? {};
+      const wasConnected =
+        prevStatus === AjoraCoreRuntimeConnectionStatus.Connected;
       this._runtimeConnectionStatus =
         AjoraCoreRuntimeConnectionStatus.Connected;
       this._runtimeVersion = version;
 
-      await this.notifyRuntimeStatusChanged(
-        AjoraCoreRuntimeConnectionStatus.Connected
-      );
+      if (!wasConnected) {
+        await this.notifyRuntimeStatusChanged(
+          AjoraCoreRuntimeConnectionStatus.Connected,
+        );
+      }
       await this.notifyAgentsChanged();
     } catch (error) {
+      const wasError = prevStatus === AjoraCoreRuntimeConnectionStatus.Error;
       this._runtimeConnectionStatus = AjoraCoreRuntimeConnectionStatus.Error;
       this._runtimeVersion = undefined;
       this.remoteAgents = {};
       this._agents = this.localAgents;
+      this._models = [];
+      this._extraData = {};
 
-      await this.notifyRuntimeStatusChanged(
-        AjoraCoreRuntimeConnectionStatus.Error
-      );
+      if (!wasError) {
+        await this.notifyRuntimeStatusChanged(
+          AjoraCoreRuntimeConnectionStatus.Error,
+        );
+      }
       await this.notifyAgentsChanged();
 
       const message =
         error instanceof Error ? error.message : JSON.stringify(error);
       logger.warn(
-        `Failed to load runtime info (${this.runtimeUrl}/info): ${message}`
+        `Failed to load runtime info (${this.runtimeUrl}/info): ${message}`,
       );
       const runtimeError =
         error instanceof Error ? error : new Error(String(error));
@@ -278,7 +367,7 @@ export class AgentRegistry {
       });
       if ("ok" in response && !(response as Response).ok) {
         throw new Error(
-          `Runtime info request failed with status ${response.status}`
+          `Runtime info request failed with status ${response.status}`,
         );
       }
       return (await response.json()) as RuntimeInfo;
@@ -289,7 +378,7 @@ export class AgentRegistry {
     });
     if ("ok" in response && !(response as Response).ok) {
       throw new Error(
-        `Runtime info request failed with status ${response.status}`
+        `Runtime info request failed with status ${response.status}`,
       );
     }
     return (await response.json()) as RuntimeInfo;
@@ -299,7 +388,7 @@ export class AgentRegistry {
    * Assign agent IDs to a record of agents
    */
   private assignAgentIds(
-    agents: Record<string, AbstractAgent>
+    agents: Record<string, AbstractAgent>,
   ): Record<string, AbstractAgent> {
     Object.entries(agents).forEach(([id, agent]) => {
       if (agent) {
@@ -314,12 +403,12 @@ export class AgentRegistry {
    */
   private validateAndAssignAgentId(
     registrationId: string,
-    agent: AbstractAgent
+    agent: AbstractAgent,
   ): void {
     if (agent.agentId && agent.agentId !== registrationId) {
       throw new Error(
         `Agent registration mismatch: Agent with ID "${agent.agentId}" cannot be registered under key "${registrationId}". ` +
-          `The agent ID must match the registration key or be undefined.`
+          `The agent ID must match the registration key or be undefined.`,
       );
     }
     if (!agent.agentId) {
@@ -331,7 +420,7 @@ export class AgentRegistry {
    * Notify subscribers of runtime status changes
    */
   private async notifyRuntimeStatusChanged(
-    status: AjoraCoreRuntimeConnectionStatus
+    status: AjoraCoreRuntimeConnectionStatus,
   ): Promise<void> {
     await (this.core as unknown as AjoraCoreFriendsAccess).notifySubscribers(
       (subscriber) =>
@@ -339,7 +428,7 @@ export class AgentRegistry {
           ajora: this.core,
           status,
         }),
-      "Error in AjoraCore subscriber (onRuntimeConnectionStatusChanged):"
+      "Error in AjoraCore subscriber (onRuntimeConnectionStatusChanged):",
     );
   }
 
@@ -353,7 +442,21 @@ export class AgentRegistry {
           ajora: this.core,
           agents: this._agents,
         }),
-      "Subscriber onAgentsChanged error:"
+      "Subscriber onAgentsChanged error:",
+    );
+  }
+
+  /**
+   * Notify subscribers of model changes
+   */
+  private async notifyModelsChanged(): Promise<void> {
+    await (this.core as unknown as AjoraCoreFriendsAccess).notifySubscribers(
+      (subscriber) =>
+        subscriber.onModelsChanged?.({
+          ajora: this.core,
+          models: this._models,
+        }),
+      "Subscriber onModelsChanged error:",
     );
   }
 }

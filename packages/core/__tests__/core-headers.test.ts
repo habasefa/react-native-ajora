@@ -1,4 +1,3 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AjoraCore } from "../core";
 import { HttpAgent } from "@ag-ui/client";
 import { waitForCondition } from "./test-utils";
@@ -17,7 +16,7 @@ describe("AjoraCore headers", () => {
     if (originalFetch) {
       global.fetch = originalFetch;
     } else {
-      delete (global as typeof globalThis & { fetch?: typeof fetch }).fetch;
+      delete (global as { fetch?: typeof fetch }).fetch;
     }
     // Restore window
     if (originalWindow === undefined) {
@@ -90,14 +89,14 @@ describe("AjoraCore headers", () => {
 
       async connectAgent(...args: Parameters<HttpAgent["connectAgent"]>) {
         recorded.push({ ...this.headers });
-        return Promise.resolve({ newMessages: [] }) as ReturnType<
+        return Promise.resolve({ newMessages: [] }) as unknown as ReturnType<
           HttpAgent["connectAgent"]
         >;
       }
 
       async runAgent(...args: Parameters<HttpAgent["runAgent"]>) {
         recorded.push({ ...this.headers });
-        return Promise.resolve({ newMessages: [] }) as ReturnType<
+        return Promise.resolve({ newMessages: [] }) as unknown as ReturnType<
           HttpAgent["runAgent"]
         >;
       }
@@ -198,7 +197,7 @@ describe("AjoraCore headers", () => {
 
       async runAgent(...args: Parameters<HttpAgent["runAgent"]>) {
         recorded.push({ ...this.headers });
-        return Promise.resolve({ newMessages: [] }) as ReturnType<
+        return Promise.resolve({ newMessages: [] }) as unknown as ReturnType<
           HttpAgent["runAgent"]
         >;
       }

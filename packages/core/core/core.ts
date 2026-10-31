@@ -1,4 +1,5 @@
 import { AbstractAgent, Context, State } from "@ag-ui/client";
+import type { RuntimeModelInfo } from "../../shared";
 import {
   FrontendTool,
   SuggestionsConfig,
@@ -18,8 +19,17 @@ import {
   RunHandler,
   AjoraCoreRunAgentParams,
   AjoraCoreConnectAgentParams,
+  AjoraCoreLoadHistoryParams,
   AjoraCoreGetToolParams,
 } from "./run-handler";
+import {
+  ProxiedAjoraRuntimeAgent,
+  type FetchHistoryResponse,
+  type CreateThreadRequest,
+  type ListThreadsRequest,
+  type ListThreadsResponse,
+  type ThreadRecord,
+} from "../agent";
 import { StateManager } from "./state-manager";
 import {
   AjoraCoreErrorCode,
@@ -60,8 +70,16 @@ export type { AjoraCoreAddAgentParams };
 export type {
   AjoraCoreRunAgentParams,
   AjoraCoreConnectAgentParams,
+  AjoraCoreLoadHistoryParams,
   AjoraCoreGetToolParams,
 };
+export type {
+  FetchHistoryResponse,
+  ThreadRecord,
+  CreateThreadRequest,
+  ListThreadsRequest,
+  ListThreadsResponse,
+} from "../agent";
 
 export interface AjoraCoreStopAgentParams {
   agent: AbstractAgent;
@@ -92,11 +110,17 @@ export class AjoraCore {
     this._headers = headers;
     this._properties = properties;
 
+    // Cast `this` to the friends interface once at the construction boundary.
+    // Required because the class's private/protected members aren't structurally
+    // assignable to the interface's public surface — the double-cast through
+    // `unknown` is the only way to bridge them without widening visibility.
+    const friends = this as unknown as AjoraCoreFriendsAccess;
+
     // Initialize delegate classes
     this.agentRegistry = new AgentRegistry(this);
-    this.contextStore = new ContextStore(this);
-    this.suggestionEngine = new SuggestionEngine(this);
-    this.runHandler = new RunHandler(this);
+    this.contextStore = new ContextStore(friends);
+    this.suggestionEngine = new SuggestionEngine(friends);
+    this.runHandler = new RunHandler(friends);
     this.stateManager = new StateManager(this);
 
     // Initialize each subsystem
@@ -125,7 +149,7 @@ export class AjoraCore {
    */
   protected async notifySubscribers(
     handler: (subscriber: AjoraCoreSubscriber) => void | Promise<void>,
-    errorMessage: string
+    errorMessage: string,
   ): Promise<void> {
     await Promise.all(
       Array.from(this.subscribers).map(async (subscriber) => {
@@ -134,7 +158,7 @@ export class AjoraCore {
         } catch (error) {
           console.error(errorMessage, error);
         }
-      })
+      }),
     );
   }
 
@@ -158,7 +182,7 @@ export class AjoraCore {
           code,
           context,
         }),
-      "Subscriber onError error:"
+      "Subscriber onError error:",
     );
   }
 
@@ -209,13 +233,21 @@ export class AjoraCore {
     return this.agentRegistry.runtimeConnectionStatus;
   }
 
+  get models(): Readonly<RuntimeModelInfo[]> {
+    return this.agentRegistry.models;
+  }
+
+  get extraData(): Readonly<Record<string, unknown>> {
+    return this.agentRegistry.extraData;
+  }
+
   /**
    * Configuration updates
    */
   setHeaders(headers: Record<string, string>): void {
     this._headers = headers;
     this.agentRegistry.applyHeadersToAgents(
-      this.agentRegistry.agents as Record<string, AbstractAgent>
+      this.agentRegistry.agents as Record<string, AbstractAgent>,
     );
     void this.notifySubscribers(
       (subscriber) =>
@@ -223,7 +255,7 @@ export class AjoraCore {
           ajora: this,
           headers: this.headers,
         }),
-      "Subscriber onHeadersChanged error:"
+      "Subscriber onHeadersChanged error:",
     );
   }
 
@@ -235,7 +267,7 @@ export class AjoraCore {
           ajora: this,
           properties: this.properties,
         }),
-      "Subscriber onPropertiesChanged error:"
+      "Subscriber onPropertiesChanged error:",
     );
   }
 
@@ -296,7 +328,7 @@ export class AjoraCore {
    * Tool management (delegated to RunHandler)
    */
   addTool<T extends Record<string, unknown> = Record<string, unknown>>(
-    tool: FrontendTool<T>
+    tool: FrontendTool<T>,
   ): void {
     this.runHandler.addTool(tool);
   }
@@ -331,19 +363,65 @@ export class AjoraCore {
    * Agent connectivity (delegated to RunHandler)
    */
   async connectAgent(
-    params: AjoraCoreConnectAgentParams
+    params: AjoraCoreConnectAgentParams,
   ): Promise<import("@ag-ui/client").RunAgentResult> {
     return this.runHandler.connectAgent(params);
   }
 
-  stopAgent(params: AjoraCoreStopAgentParams): void {
-    params.agent.abortRun();
+  async stopAgent(params: AjoraCoreStopAgentParams): Promise<boolean> {
+    const result = await (params.agent.abortRun() as
+      | Promise<boolean>
+      | void);
+    return result ?? false;
   }
 
   async runAgent(
-    params: AjoraCoreRunAgentParams
+    params: AjoraCoreRunAgentParams,
   ): Promise<import("@ag-ui/client").RunAgentResult> {
     return this.runHandler.runAgent(params);
+  }
+
+  /**
+   * Load persisted history for a thread and merge it into the agent's
+   * in-memory `messages` array. See {@link RunHandler.loadHistory}.
+   */
+  async loadHistory(
+    params: AjoraCoreLoadHistoryParams,
+  ): Promise<FetchHistoryResponse> {
+    return this.runHandler.loadHistory(params);
+  }
+
+  /**
+   * Create a new thread on the server. Requires a runtime agent to derive
+   * the server base URL and auth headers.
+   */
+  async createThread(
+    agentId: string,
+    request: CreateThreadRequest,
+  ): Promise<ThreadRecord> {
+    const agent = this.getAgent(agentId);
+    if (!(agent instanceof ProxiedAjoraRuntimeAgent)) {
+      throw new Error(
+        `createThread requires a runtime-proxied agent (got ${agent?.constructor.name ?? "null"} for "${agentId}")`,
+      );
+    }
+    return agent.createThread(request);
+  }
+
+  /**
+   * List threads for a given resource (user) from the server.
+   */
+  async listThreads(
+    agentId: string,
+    request: ListThreadsRequest,
+  ): Promise<ListThreadsResponse> {
+    const agent = this.getAgent(agentId);
+    if (!(agent instanceof ProxiedAjoraRuntimeAgent)) {
+      throw new Error(
+        `listThreads requires a runtime-proxied agent (got ${agent?.constructor.name ?? "null"} for "${agentId}")`,
+      );
+    }
+    return agent.listThreads(request);
   }
 
   /**
@@ -352,7 +430,7 @@ export class AjoraCore {
   getStateByRun(
     agentId: string,
     threadId: string,
-    runId: string
+    runId: string,
   ): State | undefined {
     return this.stateManager.getStateByRun(agentId, threadId, runId);
   }
@@ -360,7 +438,7 @@ export class AjoraCore {
   getRunIdForMessage(
     agentId: string,
     threadId: string,
-    messageId: string
+    messageId: string,
   ): string | undefined {
     return this.stateManager.getRunIdForMessage(agentId, threadId, messageId);
   }

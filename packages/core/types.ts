@@ -1,11 +1,9 @@
 import { ToolCall } from "@ag-ui/client";
 import { z } from "zod";
-import type {
-  Ionicons,
-  MaterialIcons,
-  MaterialCommunityIcons,
-  Feather,
-} from "@expo/vector-icons";
+import type Ionicons from "@react-native-vector-icons/ionicons/static";
+import type MaterialIcons from "@react-native-vector-icons/material-icons/static";
+import type MaterialCommunityIcons from "@react-native-vector-icons/material-design-icons/static";
+import type Feather from "@react-native-vector-icons/feather/static";
 import type { ComponentProps } from "react";
 
 /**
@@ -35,7 +33,7 @@ export type FrontendTool<
 };
 
 /**
- * Supported icon families from @expo/vector-icons.
+ * Supported icon families from the scoped React Native Vector Icons packages.
  * Limited to most commonly used families for optimal TypeScript performance.
  */
 export type IconFamily =
@@ -55,7 +53,7 @@ export type MaterialCommunityIconsName = ComponentProps<
 export type FeatherName = ComponentProps<typeof Feather>["name"];
 
 /**
- * Union of all valid icon names from commonly used @expo/vector-icons families.
+ * Union of all valid icon names from the supported icon packages.
  * Note: Due to TypeScript limitations with large unions, some icon names might not autocomplete.
  */
 export type IconName =
@@ -74,9 +72,9 @@ export type Suggestion = {
   message: string;
   /** Indicates whether this suggestion is still being generated. Defaults to false. */
   isLoading?: boolean;
-  /** Icon name from @expo/vector-icons */
+  /** Icon name from the configured icon family */
   icon?: IconName;
-  /** Icon family from @expo/vector-icons */
+  /** Scoped React Native Vector Icons family */
   iconFamily?: IconFamily;
 };
 

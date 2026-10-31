@@ -13,7 +13,12 @@ export {
   type AttachmentPreviewItem,
 } from "./AjoraChatInput";
 
-export { AjoraMentionSuggestions } from "./AjoraMentionSuggestions";
+export {
+  AjoraMentionSuggestions,
+  type MentionSuggestion,
+  type AjoraMentionSuggestionsProps,
+  type AjoraMentionSuggestionsTheme,
+} from "./AjoraMentionSuggestions";
 
 // Re-export sheet components and types
 export {
@@ -21,17 +26,12 @@ export {
   AgentPickerSheet,
   ModelsSheet,
   type AttachmentSheetProps,
-  type AttachmentSheetTheme,
   type AttachmentOption,
   type AttachmentType,
   type AgentPickerSheetProps,
-  type AgentPickerSheetTheme,
   type AgentOption,
   type ModelsSheetProps,
-  type ModelsSheetTheme,
   type ModelOption,
-  type ModelProvider,
-  type ModelTier,
 } from "../sheets";
 
 export {
@@ -43,6 +43,11 @@ export {
   default as AjoraChatUserMessage,
   type AjoraChatUserMessageProps,
 } from "./AjoraChatUserMessage";
+
+export {
+  MessageAttachments,
+  type MessageAttachmentsProps,
+} from "./MessageAttachments";
 
 export {
   default as AjoraChatAudioRecorder,
@@ -60,6 +65,11 @@ export {
 } from "./AjoraChatSuggestionView";
 
 export {
+  default as AjoraChatSuggestionShimmer,
+  type AjoraChatSuggestionShimmerProps,
+} from "./AjoraChatSuggestionShimmer";
+
+export {
   default as AjoraChatMessageView,
   type AjoraChatMessageViewProps,
 } from "./AjoraChatMessageView";
@@ -73,6 +83,13 @@ export {
   default as AjoraChatToolCallsView,
   type AjoraChatToolCallsViewProps,
 } from "./AjoraChatToolCallsView";
+
+export {
+  default as AjoraChatThoughtsBubble,
+  formatThoughtsDuration,
+  type AjoraChatThoughtsBubbleProps,
+  type AjoraChatThoughtsBubbleColors,
+} from "./AjoraChatThoughtsBubble";
 
 export {
   default as AjoraChatView,

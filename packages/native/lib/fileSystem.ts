@@ -1,6 +1,10 @@
 import * as ImagePicker from "expo-image-picker";
 import * as DocumentPicker from "expo-document-picker";
-import * as FileSystem from "expo-file-system";
+// Uses the legacy API surface (getInfoAsync / readAsStringAsync / copyAsync /
+// deleteAsync / FileInfo). In expo-file-system v19 (Expo SDK 54) the default
+// import points to the new File/Directory class API; the legacy surface lives
+// at "expo-file-system/legacy".
+import * as FileSystem from "expo-file-system/legacy";
 import * as Linking from "expo-linking";
 import { Alert, Platform } from "react-native";
 
@@ -14,7 +18,21 @@ import { Alert, Platform } from "react-native";
 /**
  * Attachment upload state
  */
-export type AttachmentUploadState = "idle" | "uploading" | "uploaded" | "error";
+export type AttachmentUploadState =
+  | "idle"
+  | "uploading"
+  | "uploaded"
+  | "error"
+  | "canceled";
+
+/**
+ * Structured upload error. `retryable` lets the UI decide whether to offer
+ * a retry button vs. a hard-fail message.
+ */
+export interface AttachmentUploadError {
+  message: string;
+  retryable: boolean;
+}
 
 /**
  * Represents a file attachment with metadata
@@ -38,6 +56,12 @@ export interface FileAttachment {
   uploadProgress?: number;
   /** Whether the file is from camera */
   isFromCamera?: boolean;
+  /** Remote URL after successful upload (public or signed). Set when uploadState === "uploaded". */
+  remoteUrl?: string;
+  /** Remote storage key/identifier (e.g., S3 object key). Used for cleanup and server-side linking. */
+  remoteKey?: string;
+  /** Structured error populated when uploadState === "error". */
+  uploadError?: AttachmentUploadError;
 }
 
 /**

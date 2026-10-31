@@ -9,7 +9,10 @@ import React, {
   useState,
 } from "react";
 import { z } from "zod";
-import { FrontendTool } from "../../core";
+import {
+  AjoraCoreRuntimeConnectionStatus,
+  FrontendTool,
+} from "../../core";
 import { AbstractAgent } from "@ag-ui/client";
 import { AjoraCoreReact } from "../lib/react-core";
 import {
@@ -19,28 +22,60 @@ import {
   ReactFrontendTool,
   ReactHumanInTheLoop,
 } from "../types";
+import type {
+  AttachmentLimits,
+  UploadAttachmentFn,
+} from "../lib/uploader";
+import {
+  AjoraPreferencesProvider,
+  DEFAULT_AJORA_PREFERENCES,
+  type AjoraRuntimePreferences,
+} from "./ajora-preferences";
 
-const HEADER_NAME = "X-CopilotCloud-Public-Api-Key";
-const COPILOT_CLOUD_CHAT_URL = "https://api.cloud.copilotkit.ai/copilotkit/v1";
+// Re-exported so the public API surface (`react-native-ajora`) is unchanged
+// even though preferences live in their own lightweight module.
+export {
+  DEFAULT_AJORA_PREFERENCES,
+  useAjoraPreferences,
+  type AjoraRuntimePreferences,
+} from "./ajora-preferences";
 
 export interface AjoraContextValue {
   ajora: AjoraCoreReact;
   executingToolCallIds: ReadonlySet<string>;
+  /**
+   * Runtime connection status mirrored into React state so consumers get a
+   * single, batched re-render when the status changes — instead of each
+   * `useAjora()` caller opening its own subscription (which previously
+   * produced one forceUpdate per consumer per status change).
+   */
+  runtimeConnectionStatus: AjoraCoreRuntimeConnectionStatus;
+  /**
+   * Consumer-provided uploader for file attachments. When absent, the chat
+   * input surfaces an "Upload handler not configured" error if a user tries
+   * to attach something — the attach button itself is hidden by
+   * {@link AjoraContextValue.attachmentsEnabled}.
+   */
+  uploadAttachment?: UploadAttachmentFn;
+  /**
+   * Optional overrides for attachment validation. Missing fields fall back to
+   * `DEFAULT_ATTACHMENT_LIMITS`.
+   */
+  attachmentLimits?: AttachmentLimits;
+  /**
+   * True iff `uploadAttachment` is wired. The input uses this to decide
+   * whether to render the attach button at all — avoids dead UI in apps that
+   * haven't opted in.
+   */
+  attachmentsEnabled: boolean;
 }
 
-const EMPTY_SET: ReadonlySet<string> = new Set();
-
-const AjoraContext = createContext<AjoraContextValue>({
-  ajora: null!,
-  executingToolCallIds: EMPTY_SET,
-});
+const AjoraContext = createContext<AjoraContextValue | null>(null);
 
 export interface AjoraProviderProps {
   children: ReactNode;
   runtimeUrl?: string;
   headers?: Record<string, string>;
-  publicApiKey?: string;
-  publicLicenseKey?: string;
   properties?: Record<string, unknown>;
   useSingleEndpoint?: boolean;
   agents__unsafe_dev_only?: Record<string, AbstractAgent>;
@@ -49,7 +84,34 @@ export interface AjoraProviderProps {
   renderCustomMessages?: ReactCustomMessageRenderer[];
   frontendTools?: ReactFrontendTool[];
   humanInTheLoop?: ReactHumanInTheLoop[];
+  /**
+   * Uploader called for each attachment the user picks. The hook resolves
+   * with a remote URL (and optional storage key); the library owns
+   * cancellation, progress, retry, and sends the URL in the outgoing message
+   * as a multimodal `binary` content part. When omitted, the attach button
+   * is hidden.
+   */
+  uploadAttachment?: UploadAttachmentFn;
+  /**
+   * Overrides for attachment validation (max count, size, allowed MIME types).
+   * Fields not set fall back to `DEFAULT_ATTACHMENT_LIMITS`.
+   */
+  attachmentLimits?: AttachmentLimits;
+  /**
+   * Client-side runtime preferences (e.g. haptics). Omitted/partial fields
+   * fall back to {@link DEFAULT_AJORA_PREFERENCES} — i.e. haptics stay off
+   * unless the consumer opts in. Never forwarded to the runtime.
+   */
+  preferences?: Partial<AjoraRuntimePreferences>;
 }
+
+// Stable defaults — inline `= {}` creates a new object every render, which
+// destabilises useEffect/useMemo dependency arrays and causes infinite
+// re-render loops (the config-sync effect fires, replaces _agents, notifies
+// subscribers, triggers re-renders, which re-create `{}`, ad infinitum).
+const EMPTY_AGENTS: Record<string, AbstractAgent> = {};
+const EMPTY_HEADERS: Record<string, string> = {};
+const EMPTY_PROPERTIES: Record<string, unknown> = {};
 
 function useStableArrayProp<T>(
   prop: T[] | undefined,
@@ -76,17 +138,18 @@ function useStableArrayProp<T>(
 export const AjoraProvider: React.FC<AjoraProviderProps> = ({
   children,
   runtimeUrl,
-  headers = {},
-  publicApiKey,
-  publicLicenseKey,
-  properties = {},
-  agents__unsafe_dev_only: agents = {},
+  headers = EMPTY_HEADERS,
+  properties = EMPTY_PROPERTIES,
+  agents__unsafe_dev_only: agents = EMPTY_AGENTS,
   renderToolCalls,
   renderActivityMessages,
   renderCustomMessages,
   frontendTools,
   humanInTheLoop,
   useSingleEndpoint = false,
+  uploadAttachment,
+  attachmentLimits,
+  preferences,
 }) => {
   const renderToolCallsList = useStableArrayProp<ReactToolCallRenderer<any>>(
     renderToolCalls,
@@ -114,21 +177,11 @@ export const AjoraProvider: React.FC<AjoraProviderProps> = ({
     ReactActivityMessageRenderer<any>
   >(renderActivityMessages, "renderActivityMessages must be a stable array.");
 
-  const resolvedPublicKey = publicApiKey ?? publicLicenseKey;
   const hasLocalAgents = agents && Object.keys(agents).length > 0;
 
-  const mergedHeaders = useMemo(() => {
-    if (!resolvedPublicKey) return headers;
-    if (headers[HEADER_NAME]) return headers;
-    return {
-      ...headers,
-      [HEADER_NAME]: resolvedPublicKey,
-    };
-  }, [headers, resolvedPublicKey]);
-
-  if (!runtimeUrl && !resolvedPublicKey && !hasLocalAgents) {
+  if (!runtimeUrl && !hasLocalAgents) {
     const message =
-      "Missing required prop: 'runtimeUrl' or 'publicApiKey' or 'publicLicenseKey'";
+      "Missing required prop: 'runtimeUrl' or 'agents__unsafe_dev_only'";
     if (process.env.NODE_ENV === "production") {
       throw new Error(message);
     } else {
@@ -136,8 +189,7 @@ export const AjoraProvider: React.FC<AjoraProviderProps> = ({
     }
   }
 
-  const chatApiEndpoint =
-    runtimeUrl ?? (resolvedPublicKey ? COPILOT_CLOUD_CHAT_URL : undefined);
+  const chatApiEndpoint = runtimeUrl;
 
   const frontendToolsList = useStableArrayProp<ReactFrontendTool>(
     frontendTools,
@@ -213,7 +265,7 @@ export const AjoraProvider: React.FC<AjoraProviderProps> = ({
     const ajora = new AjoraCoreReact({
       runtimeUrl: chatApiEndpoint,
       runtimeTransport: useSingleEndpoint ? "single" : "rest",
-      headers: mergedHeaders,
+      headers: headers,
       properties,
       agents__unsafe_dev_only: agents,
       tools: allTools,
@@ -235,11 +287,32 @@ export const AjoraProvider: React.FC<AjoraProviderProps> = ({
 
   useEffect(() => {
     const subscription = ajora.subscribe({
-      onRenderToolCallsChanged: () => {
-        forceUpdate();
-      },
+      onRenderToolCallsChanged: () => forceUpdate(),
     });
 
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [ajora]);
+
+  // Mirror the runtime connection status into React state. A single
+  // subscription here replaces one-per-consumer subscriptions inside
+  // `useAjora()`; with ~8-14 hooks pulling the context on a typical screen,
+  // that change collapses tens of forceUpdates per status transition into a
+  // single context-driven render pass.
+  const [runtimeConnectionStatus, setRuntimeConnectionStatus] =
+    useState<AjoraCoreRuntimeConnectionStatus>(
+      () => ajora.runtimeConnectionStatus,
+    );
+
+  useEffect(() => {
+    // Sync once in case the status changed between construction and mount.
+    setRuntimeConnectionStatus(ajora.runtimeConnectionStatus);
+    const subscription = ajora.subscribe({
+      onRuntimeConnectionStatusChanged: ({ status }) => {
+        setRuntimeConnectionStatus(status);
+      },
+    });
     return () => {
       subscription.unsubscribe();
     };
@@ -277,40 +350,59 @@ export const AjoraProvider: React.FC<AjoraProviderProps> = ({
   useEffect(() => {
     ajora.setRuntimeUrl(chatApiEndpoint);
     ajora.setRuntimeTransport(useSingleEndpoint ? "single" : "rest");
-    ajora.setHeaders(mergedHeaders);
+    ajora.setHeaders(headers);
     ajora.setProperties(properties);
     ajora.setAgents__unsafe_dev_only(agents);
-  }, [chatApiEndpoint, mergedHeaders, properties, agents, useSingleEndpoint]);
+  }, [chatApiEndpoint, headers, properties, agents, useSingleEndpoint]);
+
+  const attachmentsEnabled = !!uploadAttachment;
+
+  // Resolve once per change of the individual fields rather than per
+  // `preferences` object identity — callers commonly pass an inline
+  // `{{ hapticsEnabled }}` literal, which is a new reference every render.
+  const resolvedPreferences = useMemo<AjoraRuntimePreferences>(
+    () => ({
+      ...DEFAULT_AJORA_PREFERENCES,
+      ...(preferences ?? {}),
+    }),
+    [preferences?.hapticsEnabled],
+  );
+
+  const contextValue = useMemo<AjoraContextValue>(
+    () => ({
+      ajora,
+      executingToolCallIds,
+      runtimeConnectionStatus,
+      uploadAttachment,
+      attachmentLimits,
+      attachmentsEnabled,
+    }),
+    [
+      ajora,
+      executingToolCallIds,
+      runtimeConnectionStatus,
+      uploadAttachment,
+      attachmentLimits,
+      attachmentsEnabled,
+    ],
+  );
 
   return (
-    <AjoraContext.Provider
-      value={{
-        ajora,
-        executingToolCallIds,
-      }}
-    >
-      {children}
+    <AjoraContext.Provider value={contextValue}>
+      <AjoraPreferencesProvider value={resolvedPreferences}>
+        {children}
+      </AjoraPreferencesProvider>
     </AjoraContext.Provider>
   );
 };
 
 export const useAjora = (): AjoraContextValue => {
   const context = useContext(AjoraContext);
-  const [, forceUpdate] = useReducer((x) => x + 1, 0);
-
   if (!context) {
     throw new Error("useAjora must be used within AjoraProvider");
   }
-  useEffect(() => {
-    const subscription = context.ajora.subscribe({
-      onRuntimeConnectionStatusChanged: () => {
-        forceUpdate();
-      },
-    });
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, []);
-
+  // Runtime-status-driven re-renders now flow through context (the provider
+  // subscribes once and updates state). Consumers just read context — no
+  // per-hook subscription needed.
   return context;
 };

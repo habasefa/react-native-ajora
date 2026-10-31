@@ -1,0 +1,57 @@
+name: Feature request
+description: Propose a capability or API improvement
+title: "feat: "
+labels:
+  - enhancement
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What user or developer problem are you trying to solve?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: Describe the API, UI, or behavior you would like.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Describe current workarounds or other designs.
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Chat UI
+        - Agent runtime
+        - Hooks and tools
+        - Themes and customization
+        - History and threads
+        - Accessibility
+        - Documentation
+        - Build or packaging
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: compatibility
+    attributes:
+      label: Compatibility and tradeoffs
+      description: Note public API, migration, performance, or platform implications.
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Pre-submission checks
+      options:
+        - label: I searched existing issues, discussions, and pull requests.
+          required: true
+        - label: This request is within the scope of a React Native client library.
+          required: true

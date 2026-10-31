@@ -26,15 +26,25 @@ interface HttpHeadersEvent {
 type HttpEvent = HttpDataEvent | HttpHeadersEvent;
 
 /**
- * Detects if we're in a React Native environment
+ * Detects if we're in a React Native environment.
+ * Cached at module level — the runtime environment never changes.
  */
-function isReactNative(): boolean {
+const _isReactNative: boolean = (() => {
+  // `Navigator.product` was removed from the standard lib.dom.d.ts (it's
+  // deprecated on the web), but RN's polyfilled navigator still exposes it
+  // and we use it as the canonical RN sniff. Narrow through a local view
+  // type rather than scattering `as any` casts.
+  type RNNavigator = { product?: string; userAgent?: string };
+  const nav: RNNavigator | undefined =
+    typeof navigator !== "undefined"
+      ? (navigator as unknown as RNNavigator)
+      : undefined;
+
   return (
-    (typeof navigator !== "undefined" && navigator.product === "ReactNative") ||
+    nav?.product === "ReactNative" ||
     (typeof global !== "undefined" &&
       (global as any).navigator?.product === "ReactNative") ||
-    (typeof navigator !== "undefined" &&
-      (navigator as any).userAgent === "ReactNative") ||
+    nav?.userAgent === "ReactNative" ||
     (typeof global !== "undefined" &&
       typeof (global as any).require !== "undefined" &&
       typeof (global as any).require.resolve === "function" &&
@@ -47,13 +57,14 @@ function isReactNative(): boolean {
         }
       })())
   );
-}
+})();
 
 /**
- * Gets expo/fetch if available, otherwise returns null
+ * Resolves expo/fetch once at module load. Cached so we don't pay the
+ * try/catch cost on every HTTP request.
  */
-function getExpoFetch(): typeof fetch | null {
-  if (!isReactNative()) {
+const _expoFetch: typeof fetch | null = (() => {
+  if (!_isReactNative) {
     return null;
   }
 
@@ -71,7 +82,7 @@ function getExpoFetch(): typeof fetch | null {
   }
 
   return null;
-}
+})();
 
 /**
  * Patched version of runHttpRequest that uses expo/fetch in React Native
@@ -86,10 +97,11 @@ export function patchedRunHttpRequest(
   ) => Observable<HttpEvent>
 ): Observable<HttpEvent> {
   // In React Native, try to use expo/fetch for streaming support
-  const expoFetch = getExpoFetch();
-  if (expoFetch) {
+  if (_expoFetch) {
     // Use expo/fetch which supports streaming
-    return defer(() => from(expoFetch(url, requestInit))).pipe(
+    return defer(() => {
+      return from(_expoFetch(url, requestInit));
+    }).pipe(
       switchMap((response) => {
         if (!response.ok) {
           const contentType = response.headers.get("content-type") || "";
@@ -119,21 +131,52 @@ export function patchedRunHttpRequest(
           headers: response.headers,
         };
 
+        // The whole reason this patch exists is that `originalRunHttpRequest`
+        // (from @ag-ui/client) crashes on React Native with
+        // "Failed to getReader() from response". So if expo/fetch hands us
+        // back a response without a usable streaming body, falling back to
+        // the original path is guaranteed to fail — and worse, the failure
+        // mode there is a cryptic runtime error that hides the real cause
+        // (expo/fetch misconfigured, Hermes polyfills missing, etc.).
+        //
+        // Throw a loud, clearly-labeled error so the caller sees what
+        // actually happened. `runAgent` / `connectAgent` will surface it
+        // as a RUN_FAILED / onError and the chat UI can render a real
+        // message instead of silently freezing.
         const body = response.body;
         if (!body) {
-          // Fall back to original implementation (which will use EventSource)
-          return originalRunHttpRequest(url, requestInit);
+          return throwError(
+            () =>
+              new Error(
+                "[ajora] expo/fetch returned a response with no body — " +
+                  "streaming is not available on this runtime. Ensure " +
+                  "`expo/fetch` is installed and that the server is sending " +
+                  "Content-Type: text/event-stream.",
+              ),
+          );
         }
 
         if (typeof body.getReader !== "function") {
-          // Fall back to original implementation (which will use EventSource)
-          return originalRunHttpRequest(url, requestInit);
+          return throwError(
+            () =>
+              new Error(
+                "[ajora] expo/fetch returned a response body without " +
+                  "`getReader()` — streaming is not supported. Check that " +
+                  "`expo` is at a version that exports a WHATWG-compatible " +
+                  "ReadableStream from `expo/fetch`.",
+              ),
+          );
         }
 
         const reader = body.getReader();
         if (!reader) {
-          // Fall back to original implementation (which will use EventSource)
-          return originalRunHttpRequest(url, requestInit);
+          return throwError(
+            () =>
+              new Error(
+                "[ajora] expo/fetch response body.getReader() returned " +
+                  "null/undefined — cannot stream SSE events.",
+              ),
+          );
         }
 
         return new Observable<HttpEvent>((subscriber) => {
@@ -161,7 +204,9 @@ export function patchedRunHttpRequest(
               if ((error as DOMException)?.name === "AbortError") {
                 return;
               }
-              throw error;
+              // Log instead of throw — throwing inside an RxJS teardown
+              // causes an unhandled exception that crashes the app.
+              console.error("[ajora] reader.cancel() failed:", error);
             });
           };
         });
@@ -169,6 +214,6 @@ export function patchedRunHttpRequest(
     );
   }
 
-  // Not in React Native or expo/fetch not available, use original implementation
+  // Not in React Native or expo/fetch not available, use original implementation.
   return originalRunHttpRequest(url, requestInit);
 }

@@ -48,25 +48,26 @@ export class StateManager {
     // Unsubscribe existing subscription if any
     this.unsubscribeFromAgent(agentId);
 
-    // Subscribe to agent events
+    // Subscribe to agent events. Closures capture only `agentId` (a string)
+    // instead of the full `agent` object, so replaced agents can be GC'd.
     const { unsubscribe } = agent.subscribe({
       onRunStartedEvent: ({ event, state }) => {
-        this.handleRunStarted(agent, event, state);
+        this.handleRunStarted(agentId, event, state);
       },
       onRunFinishedEvent: ({ event, state }) => {
-        this.handleRunFinished(agent, event, state);
+        this.handleRunFinished(agentId, event, state);
       },
       onStateSnapshotEvent: ({ event, input, state }) => {
-        this.handleStateSnapshot(agent, event, input, state);
+        this.handleStateSnapshot(agentId, event, input, state);
       },
       onStateDeltaEvent: ({ event, input, state }) => {
-        this.handleStateDelta(agent, event, input, state);
+        this.handleStateDelta(agentId, event, input, state);
       },
       onMessagesSnapshotEvent: ({ event, input, messages }) => {
-        this.handleMessagesSnapshot(agent, event, input, messages);
+        this.handleMessagesSnapshot(agentId, event, input, messages);
       },
       onNewMessage: ({ message, input }) => {
-        this.handleNewMessage(agent, message, input);
+        this.handleNewMessage(agentId, message, input);
       },
     });
 
@@ -96,7 +97,7 @@ export class StateManager {
     const state = this.stateByRun.get(agentId)?.get(threadId)?.get(runId);
     if (!state) return undefined;
     // Return a deep copy to prevent mutations
-    return JSON.parse(JSON.stringify(state));
+    return structuredClone(state);
   }
 
   /**
@@ -129,79 +130,66 @@ export class StateManager {
    * Handle run started event
    */
   private handleRunStarted(
-    agent: AbstractAgent,
+    agentId: string,
     event: RunStartedEvent,
     state: State
   ): void {
-    if (!agent.agentId) return;
-
     const { threadId, runId } = event;
-    this.saveState(agent.agentId, threadId, runId, state);
+    this.saveState(agentId, threadId, runId, state);
   }
 
   /**
    * Handle run finished event
    */
   private handleRunFinished(
-    agent: AbstractAgent,
+    agentId: string,
     event: RunFinishedEvent,
     state: State
   ): void {
-    if (!agent.agentId) return;
-
     const { threadId, runId } = event;
-    this.saveState(agent.agentId, threadId, runId, state);
+    this.saveState(agentId, threadId, runId, state);
   }
 
   /**
    * Handle state snapshot event
    */
   private handleStateSnapshot(
-    agent: AbstractAgent,
+    agentId: string,
     event: StateSnapshotEvent,
     input: RunAgentInput,
     state: State
   ): void {
-    if (!agent.agentId) return;
-
     const { threadId, runId } = input;
-    // Merge snapshot into current state
     const mergedState = { ...state, ...event.snapshot };
-    this.saveState(agent.agentId, threadId, runId, mergedState);
+    this.saveState(agentId, threadId, runId, mergedState);
   }
 
   /**
    * Handle state delta event
    */
   private handleStateDelta(
-    agent: AbstractAgent,
+    agentId: string,
     event: StateDeltaEvent,
     input: RunAgentInput,
     state: State
   ): void {
-    if (!agent.agentId) return;
-
     const { threadId, runId } = input;
-    // State is already updated by the agent, just save it
-    this.saveState(agent.agentId, threadId, runId, state);
+    this.saveState(agentId, threadId, runId, state);
   }
 
   /**
    * Handle messages snapshot event
    */
   private handleMessagesSnapshot(
-    agent: AbstractAgent,
+    agentId: string,
     event: MessagesSnapshotEvent,
     input: RunAgentInput,
-    messages: Message[]
+    _messages: Message[]
   ): void {
-    if (!agent.agentId) return;
-
     const { threadId, runId } = input;
 
-    // Associate all messages in the snapshot with this run
     for (const message of event.messages) {
-      this.associateMessageWithRun(agent.agentId, threadId, message.id, runId);
+      this.associateMessageWithRun(agentId, threadId, message.id, runId);
     }
   }
 
@@ -209,14 +197,14 @@ export class StateManager {
    * Handle new message event
    */
   private handleNewMessage(
-    agent: AbstractAgent,
+    agentId: string,
     message: Message,
     input?: RunAgentInput
   ): void {
-    if (!agent.agentId || !input) return;
+    if (!input) return;
 
     const { threadId, runId } = input;
-    this.associateMessageWithRun(agent.agentId, threadId, message.id, runId);
+    this.associateMessageWithRun(agentId, threadId, message.id, runId);
   }
 
   /**
@@ -240,7 +228,7 @@ export class StateManager {
     const threadStates = agentStates.get(threadId)!;
 
     // Deep copy the state to prevent mutations
-    threadStates.set(runId, JSON.parse(JSON.stringify(state)));
+    threadStates.set(runId, structuredClone(state));
   }
 
   /**

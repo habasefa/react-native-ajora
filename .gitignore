@@ -34,3 +34,6 @@ example-server/.env
 
 *.db
 **/*.db
+
+example-app/android/
+example-app/ios/

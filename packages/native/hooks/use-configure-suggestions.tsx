@@ -86,9 +86,9 @@ export function useConfigureSuggestions(
     normalizationCacheRef.current = { serialized, config: built };
     return { normalizedConfig: built, serializedConfig: serialized };
   }, [config, resolvedConsumerAgentId, ...extraDeps]);
+
   const latestConfigRef = useRef<SuggestionsConfig | null>(null);
   latestConfigRef.current = normalizedConfig;
-  const previousSerializedConfigRef = useRef<string | null>(null);
 
   const targetAgentId = useMemo(() => {
     if (!normalizedConfig) {
@@ -146,25 +146,13 @@ export function useConfigureSuggestions(
     };
   }, [ajora, serializedConfig, requestReload]);
 
-  useEffect(() => {
-    if (!normalizedConfig) {
-      previousSerializedConfigRef.current = null;
-      return;
-    }
-    if (
-      serializedConfig &&
-      previousSerializedConfigRef.current === serializedConfig
-    ) {
-      return;
-    }
-    if (serializedConfig) {
-      previousSerializedConfigRef.current = serializedConfig;
-    }
-    requestReload();
-  }, [normalizedConfig, requestReload, serializedConfig]);
-
+  const isFirstExtraDepsRunRef = useRef(true);
   useEffect(() => {
     if (!normalizedConfig || extraDeps.length === 0) {
+      return;
+    }
+    if (isFirstExtraDepsRunRef.current) {
+      isFirstExtraDepsRunRef.current = false;
       return;
     }
     requestReload();

@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Documentation
+    url: https://github.com/habasefa/react-native-ajora/tree/master/docs
+    about: Installation, guides, API reference, and troubleshooting
+  - name: Questions and ideas
+    url: https://github.com/habasefa/react-native-ajora/discussions
+    about: Ask for help or discuss a design before opening an issue
+  - name: Security report
+    url: https://github.com/habasefa/react-native-ajora/security/policy
+    about: Read the private vulnerability reporting instructions

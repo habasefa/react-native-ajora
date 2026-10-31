@@ -6,6 +6,7 @@ import React, {
   useState,
 } from "react";
 import { DEFAULT_AGENT_ID, randomUUID } from "../../shared";
+import { DEFAULT_MODEL_ID } from "../../shared/constants";
 
 // Default labels
 export const AjoraChatDefaultLabels = {
@@ -22,9 +23,11 @@ export const AjoraChatDefaultLabels = {
   assistantMessageToolbarThumbsDownLabel: "Bad response",
   assistantMessageToolbarReadAloudLabel: "Read aloud",
   assistantMessageToolbarRegenerateLabel: "Regenerate",
+  assistantMessageThoughtsLabel: "Thoughts",
+  assistantMessageThoughtsDurationLabel: "Thought for",
   userMessageToolbarCopyMessageLabel: "Copy",
   userMessageToolbarEditMessageLabel: "Edit",
-  chatDisclaimerText: "Powered by Ajora",
+  chatDisclaimerText: "AI can make mistakes. Check important info.",
   chatToggleOpenLabel: "Open chat",
   chatToggleCloseLabel: "Close chat",
   modalHeaderTitle: "Ajora Chat",
@@ -58,9 +61,10 @@ export interface AjoraChatConfigurationValue {
   labels: AjoraChatLabels;
   agentId: string;
   threadId: string;
+  modelId: string;
+
   isModalOpen: boolean;
   setModalOpen: (open: boolean) => void;
-  isModalDefaultOpen: boolean;
 }
 
 // Create the configuration context
@@ -71,15 +75,18 @@ const AjoraChatConfiguration =
 export interface AjoraChatConfigurationProviderProps {
   children: ReactNode;
   labels?: Partial<AjoraChatLabels>;
+
   agentId?: string;
   threadId?: string;
+  modelId?: string;
+
   isModalDefaultOpen?: boolean;
 }
 
 // Provider component
 export const AjoraChatConfigurationProvider: React.FC<
   AjoraChatConfigurationProviderProps
-> = ({ children, labels, agentId, threadId, isModalDefaultOpen }) => {
+> = ({ children, labels, agentId, threadId, modelId, isModalDefaultOpen }) => {
   const parentConfig = useContext(AjoraChatConfiguration);
 
   const mergedLabels: AjoraChatLabels = useMemo(
@@ -93,6 +100,8 @@ export const AjoraChatConfigurationProvider: React.FC<
 
   const resolvedAgentId = agentId ?? parentConfig?.agentId ?? DEFAULT_AGENT_ID;
 
+  const resolvedModelId = modelId ?? parentConfig?.modelId ?? DEFAULT_MODEL_ID;
+
   const resolvedThreadId = useMemo(() => {
     if (threadId) {
       return threadId;
@@ -103,11 +112,8 @@ export const AjoraChatConfigurationProvider: React.FC<
     return randomUUID();
   }, [threadId, parentConfig?.threadId]);
 
-  const resolvedDefaultOpen =
-    isModalDefaultOpen ?? parentConfig?.isModalDefaultOpen ?? true;
-
   const [internalModalOpen, setInternalModalOpen] = useState<boolean>(
-    parentConfig?.isModalOpen ?? resolvedDefaultOpen,
+    parentConfig?.isModalOpen ?? isModalDefaultOpen ?? true,
   );
 
   const resolvedIsModalOpen = parentConfig?.isModalOpen ?? internalModalOpen;
@@ -119,17 +125,17 @@ export const AjoraChatConfigurationProvider: React.FC<
       labels: mergedLabels,
       agentId: resolvedAgentId,
       threadId: resolvedThreadId,
+      modelId: resolvedModelId,
       isModalOpen: resolvedIsModalOpen,
       setModalOpen: resolvedSetModalOpen,
-      isModalDefaultOpen: resolvedDefaultOpen,
     }),
     [
       mergedLabels,
       resolvedAgentId,
       resolvedThreadId,
+      resolvedModelId,
       resolvedIsModalOpen,
       resolvedSetModalOpen,
-      resolvedDefaultOpen,
     ],
   );
 

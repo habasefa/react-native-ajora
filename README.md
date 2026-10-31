@@ -9,12 +9,12 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![TypeScript](https://img.shields.io/badge/TypeScript-ready-3178C6.svg)](https://www.typescriptlang.org/)
 
-[Documentation](https://github.com/habasefa/react-native-ajora/tree/dev/docs) ·
-[Quick start](https://github.com/habasefa/react-native-ajora/blob/dev/docs/getting-started.md) ·
-[API reference](https://github.com/habasefa/react-native-ajora/blob/dev/docs/api-reference.md) ·
-[Examples](https://github.com/habasefa/react-native-ajora/tree/dev/example-app)
+[Documentation](https://github.com/habasefa/react-native-ajora/tree/master/docs) ·
+[Quick start](https://github.com/habasefa/react-native-ajora/blob/master/docs/getting-started.md) ·
+[API reference](https://github.com/habasefa/react-native-ajora/blob/master/docs/api-reference.md) ·
+[Examples](https://github.com/habasefa/react-native-ajora/tree/master/example-app)
 
-<img src="https://raw.githubusercontent.com/habasefa/react-native-ajora/dev/media/photo_2025-09-20_09-43-38.jpg" alt="Ajora chat interface on iOS" width="360" />
+<img src="https://raw.githubusercontent.com/habasefa/react-native-ajora/master/media/photo_2025-09-20_09-43-38.jpg" alt="Ajora chat interface on iOS" width="360" />
 
 </div>
 
@@ -78,7 +78,7 @@ npm install \
   @react-native-vector-icons/zocial
 ```
 
-See the [installation guide](https://github.com/habasefa/react-native-ajora/blob/dev/docs/getting-started.md)
+See the [installation guide](https://github.com/habasefa/react-native-ajora/blob/master/docs/getting-started.md)
 for the required Expo plugin configuration and bare React Native setup.
 
 ## Quick start
@@ -135,27 +135,27 @@ from a physical phone unless your development server is reachable on the LAN.
 | Hooks            | Attach context, tools, suggestions, rendering, threading, and history behavior. |
 | Slots and themes | Replace or style the default UI without forking the package.                    |
 
-Read [Core concepts](https://github.com/habasefa/react-native-ajora/blob/dev/docs/core-concepts.md)
+Read [Core concepts](https://github.com/habasefa/react-native-ajora/blob/master/docs/core-concepts.md)
 for the runtime lifecycle and the relationship between agents, threads, and
 models.
 
 ## Documentation
 
-| Guide                                                                                                | What it covers                                                  |
-| ---------------------------------------------------------------------------------------------------- | --------------------------------------------------------------- |
-| [Getting started](https://github.com/habasefa/react-native-ajora/blob/dev/docs/getting-started.md)   | Complete Expo and bare React Native setup                       |
-| [Core concepts](https://github.com/habasefa/react-native-ajora/blob/dev/docs/core-concepts.md)       | Providers, runtime transports, agents, threads, and models      |
-| [Chat UI](https://github.com/habasefa/react-native-ajora/blob/dev/docs/chat-ui.md)                   | Chat variants, slots, callbacks, history, and suggestions       |
-| [Hooks and tools](https://github.com/habasefa/react-native-ajora/blob/dev/docs/hooks-and-tools.md)   | Agent context, frontend tools, rendering, and human-in-the-loop |
-| [Theming](https://github.com/habasefa/react-native-ajora/blob/dev/docs/theming-and-customization.md) | Presets, custom themes, style overrides, and attachments        |
-| [API reference](https://github.com/habasefa/react-native-ajora/blob/dev/docs/api-reference.md)       | Public components, props, hooks, and return values              |
-| [Troubleshooting](https://github.com/habasefa/react-native-ajora/blob/dev/docs/troubleshooting.md)   | Setup, networking, Metro, native build, and runtime issues      |
+| Guide                                                                                                   | What it covers                                                  |
+| ------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------- |
+| [Getting started](https://github.com/habasefa/react-native-ajora/blob/master/docs/getting-started.md)   | Complete Expo and bare React Native setup                       |
+| [Core concepts](https://github.com/habasefa/react-native-ajora/blob/master/docs/core-concepts.md)       | Providers, runtime transports, agents, threads, and models      |
+| [Chat UI](https://github.com/habasefa/react-native-ajora/blob/master/docs/chat-ui.md)                   | Chat variants, slots, callbacks, history, and suggestions       |
+| [Hooks and tools](https://github.com/habasefa/react-native-ajora/blob/master/docs/hooks-and-tools.md)   | Agent context, frontend tools, rendering, and human-in-the-loop |
+| [Theming](https://github.com/habasefa/react-native-ajora/blob/master/docs/theming-and-customization.md) | Presets, custom themes, style overrides, and attachments        |
+| [API reference](https://github.com/habasefa/react-native-ajora/blob/master/docs/api-reference.md)       | Public components, props, hooks, and return values              |
+| [Troubleshooting](https://github.com/habasefa/react-native-ajora/blob/master/docs/troubleshooting.md)   | Setup, networking, Metro, native build, and runtime issues      |
 
-Release history is recorded in [CHANGELOG.md](https://github.com/habasefa/react-native-ajora/blob/dev/CHANGELOG.md).
+Release history is recorded in [CHANGELOG.md](https://github.com/habasefa/react-native-ajora/blob/master/CHANGELOG.md).
 
 ## Examples
 
-The [`example-app`](https://github.com/habasefa/react-native-ajora/tree/dev/example-app)
+The [`example-app`](https://github.com/habasefa/react-native-ajora/tree/master/example-app)
 is the smallest supported Expo integration. It demonstrates the provider,
 single-endpoint transport, and the default chat UI.
 
@@ -175,13 +175,13 @@ development build before shipping native changes.
 ## Contributing
 
 Issues, examples, and pull requests are welcome. Read
-[CONTRIBUTING.md](https://github.com/habasefa/react-native-ajora/blob/dev/CONTRIBUTING.md)
+[CONTRIBUTING.md](https://github.com/habasefa/react-native-ajora/blob/master/CONTRIBUTING.md)
 before opening a PR and use the repository templates to include a focused
 reproduction or a complete change description.
 
-For security-sensitive reports, follow [SECURITY.md](https://github.com/habasefa/react-native-ajora/blob/dev/SECURITY.md).
+For security-sensitive reports, follow [SECURITY.md](https://github.com/habasefa/react-native-ajora/blob/master/SECURITY.md).
 
 ## License
 
-[MIT](https://github.com/habasefa/react-native-ajora/blob/dev/LICENSE) ©
+[MIT](https://github.com/habasefa/react-native-ajora/blob/master/LICENSE) ©
 [Habtamu Asefa](https://github.com/habasefa)

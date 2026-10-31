@@ -34,6 +34,7 @@ minimal integration maintained in this repository.
 
 ## Versioning
 
-Documentation in `dev` tracks the next release. If a newly published version
-and these docs disagree, open a documentation issue with the installed
-version and the relevant API.
+Documentation on `master` tracks the latest published release. The `dev`
+branch may include APIs planned for the next release. If a published version
+and these docs disagree, open a documentation issue with the installed version
+and the relevant API.

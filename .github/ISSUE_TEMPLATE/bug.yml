@@ -1,0 +1,100 @@
+name: Bug report
+description: Report a reproducible problem with React Native Ajora
+title: "bug: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for the report. Remove tokens, customer data, and private URLs before submitting.
+        For security vulnerabilities, follow SECURITY.md instead of opening a public issue.
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: Describe the problem and its user-visible impact.
+      placeholder: The chat renders, but sending a message...
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Minimal reproduction
+      description: Provide the smallest code sample, repository, or numbered steps.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+  - type: input
+    id: ajora-version
+    attributes:
+      label: Ajora version or commit
+      placeholder: 0.1.9
+    validations:
+      required: true
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      multiple: true
+      options:
+        - iOS
+        - Android
+        - Expo Go
+        - Development build
+        - Web
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: react-native-version
+    attributes:
+      label: React Native version
+      placeholder: 0.81.5
+    validations:
+      required: true
+  - type: input
+    id: expo-version
+    attributes:
+      label: Expo version
+      placeholder: 54.0.31, or "Not using Expo"
+    validations:
+      required: true
+  - type: dropdown
+    id: transport
+    attributes:
+      label: Runtime transport
+      options:
+        - Default REST transport
+        - Single endpoint
+        - Not sure
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs
+      description: Paste Metro, native, or runtime errors after removing secrets.
+      render: shell
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Pre-submission checks
+      options:
+        - label: I searched existing issues and pull requests.
+          required: true
+        - label: I removed secrets, customer data, and private URLs.
+          required: true
+        - label: This is not a security vulnerability.
+          required: true

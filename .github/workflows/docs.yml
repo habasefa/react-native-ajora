@@ -1,0 +1,69 @@
+name: Documentation
+
+on:
+  pull_request:
+    paths:
+      - "README.md"
+      - "CHANGELOG.md"
+      - "CONTRIBUTING.md"
+      - "CODE_OF_CONDUCT.md"
+      - "SECURITY.md"
+      - "docs/**"
+      - ".github/**"
+      - ".markdownlint-cli2.yaml"
+      - "scripts/check-docs-links.mjs"
+  push:
+    branches:
+      - dev
+    paths:
+      - "README.md"
+      - "CHANGELOG.md"
+      - "CONTRIBUTING.md"
+      - "CODE_OF_CONDUCT.md"
+      - "SECURITY.md"
+      - "docs/**"
+      - ".github/**"
+      - ".markdownlint-cli2.yaml"
+      - "scripts/check-docs-links.mjs"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Validate Markdown
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Lint Markdown
+        run: >-
+          npx --yes markdownlint-cli2@0.18.1
+          README.md
+          CHANGELOG.md
+          CONTRIBUTING.md
+          CODE_OF_CONDUCT.md
+          SECURITY.md
+          "docs/*.md"
+          .github/PULL_REQUEST_TEMPLATE.md
+
+      - name: Check formatting
+        run: >-
+          npx --yes prettier@3.6.2 --check
+          README.md
+          CHANGELOG.md
+          CONTRIBUTING.md
+          CODE_OF_CONDUCT.md
+          SECURITY.md
+          "docs/*.md"
+          ".github/**/*.yml"
+          .markdownlint-cli2.yaml
+
+      - name: Check local links
+        run: node scripts/check-docs-links.mjs

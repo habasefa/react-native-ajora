@@ -1,16 +1,23 @@
 {
   "name": "react-native-ajora",
   "version": "0.1.10",
-  "description": "The most complete AI agent UI for React Native",
+  "description": "Customizable AI agent chat UI for React Native and Expo, built on AG-UI and CopilotKit-compatible runtimes.",
   "keywords": [
     "android",
+    "ag-ui",
+    "ai",
+    "ai-agent",
+    "chat-ui",
+    "conversational-ai",
+    "copilotkit",
+    "expo",
     "ios",
+    "llm",
+    "mobile",
     "react-native",
     "react",
     "react-component",
-    "chatGPT",
-    "AI",
-    "Agent"
+    "typescript"
   ],
   "homepage": "https://github.com/habasefa/react-native-ajora#readme",
   "bugs": {
